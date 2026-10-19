@@ -99,6 +99,15 @@ struct MarkdownPreview: NSViewRepresentable {
 final class PreviewResourceHandler: NSObject, WKURLSchemeHandler {
     var libraryRoot: URL?
     let runtimeRoot: URL?
+    // SwiftPM's generated lookup differs between native and Xcode build backends.
+    // Prefer the packaged app location so downloaded builds do not depend on the CI checkout.
+    private static let resourceBundle: Bundle = {
+        if let resources = Bundle.main.resourceURL,
+           let bundle = Bundle(url: resources.appendingPathComponent("MWebLite_MWebLite.bundle")) {
+            return bundle
+        }
+        return .module
+    }()
     private static let bundledFiles: Set<String> = [
         "Preview.html", "Preview.css", "Preview.js", "markdown-it.min.js",
         "markdown-it-footnote.min.js", "markdown-it-task-lists.min.js", "purify.min.js", "json5.min.js"
@@ -147,7 +156,7 @@ final class PreviewResourceHandler: NSObject, WKURLSchemeHandler {
         case "app":
             let name = url.lastPathComponent
             guard url.path == "/" + name, Self.bundledFiles.contains(name) else { return nil }
-            return Bundle.module.url(forResource: name, withExtension: nil)
+            return Self.resourceBundle.url(forResource: name, withExtension: nil)
         case "library": return localMediaURL(for: url)
         case "runtime":
             guard let runtimeRoot, let directory = url.pathComponents.dropFirst().first,

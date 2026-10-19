@@ -13,7 +13,9 @@ jobs:
         run: swift test
       - name: Build application
         run: ./scripts/build-app.sh release
+      - name: Package app with executable permissions
+        run: ditto -c -k --sequesterRsrc --keepParent "build/MWeb Lite.app" "build/MWeb Lite.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: MWeb-Lite-macOS
-          path: build/MWeb Lite.app
+          path: build/MWeb Lite.zip

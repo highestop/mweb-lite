@@ -5,7 +5,9 @@ import WebKit
 
 // This integration test builds outside SwiftPM and only writes its temporary fixture.
 extension Bundle {
-    static let module = Bundle(path: ProcessInfo.processInfo.environment["MWEB_PREVIEW_RESOURCE_BUNDLE"]!)!
+    static var module: Bundle {
+        fatalError("Packaged preview must load its bundled resources without SwiftPM build paths")
+    }
 }
 
 func expect(_ condition: @autoclosure () -> Bool, _ message: String) {
