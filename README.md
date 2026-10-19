@@ -76,7 +76,7 @@ swift test
 ./scripts/build-app.sh release
 ```
 
-Tests create synthetic temporary libraries. They cover UUID relations, unknown-field preservation, conflicts, rollback, WAL backups, private backup permissions, snapshot retention, UTF-8/BOM/CRLF, path boundaries, and Markdown text transformations. The separate preview test runs a real WKWebView against temporary fixtures and checks rendering and content isolation. MWeb-dependent rendering assertions run when the local runtime is available.
+Tests create synthetic temporary libraries. They cover UUID relations, unknown-field preservation, conflicts, rollback, WAL backups, private backup permissions, snapshot retention, UTF-8/BOM/CRLF, path boundaries, and Markdown text transformations. The separate preview test runs a real WKWebView from a standalone app bundle against temporary fixtures, with no SwiftPM resource fallback, and checks rendering and content isolation. MWeb-dependent rendering assertions run when the local runtime is available.
 
 On restricted execution hosts, `NSFileCoordinator` and WebKit need normal macOS service access. Run tests outside that execution sandbox; no test needs a personal MWeb library.
 
