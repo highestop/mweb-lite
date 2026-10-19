@@ -2,7 +2,7 @@
 * { box-sizing: border-box; }
 html { background: transparent; }
 body { margin: 0; color: var(--text); font: 15px/1.85 -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", sans-serif; overflow-wrap: break-word; }
-article { max-width: 860px; margin: 0 auto; padding: 32px 42px 100px; }
+article { margin: 0; padding: 16px 16px 24px; }
 article > :first-child { margin-top: 0; }
 h1,h2,h3,h4,h5,h6 { color: var(--text); font-weight: 620; line-height: 1.4; margin: 1.7em 0 .65em; scroll-margin-top: 24px; }
 h1 { font-size: 2em; padding-bottom: .35em; border-bottom: 1px solid var(--line); }
@@ -36,4 +36,3 @@ pre code { padding: 0; font-size: 1em; background: none; }
 .token.atrule,.token.attr-value,.token.function,.token.class-name { color: #487ca2; }
 .token.keyword { color: #956caa; }
 @media (prefers-color-scheme: dark) { :root { --text: #d7ddda; --muted: #97a39c; --line: #3a423e; --soft: #272f2a; --accent: #92c9ad; } .token.string { color: #9acb9d; } .token.keyword { color: #cba6de; } .token.number { color: #e2a196; } }
-@media (max-width: 520px) { article { padding: 24px 25px 80px; } }
