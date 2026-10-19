@@ -109,7 +109,7 @@ struct LibraryView: View {
             if store.visibleArticles.isEmpty {
                 ContentUnavailableView("没有文章", systemImage: "doc.text.magnifyingglass", description: Text(store.search.isEmpty ? "这个分类中还没有文章。" : "试试其他关键词。"))
             } else {
-                List(selection: Binding<String?>(get: { store.document?.articleID }, set: { store.selectArticle($0) })) {
+                List(selection: Binding<String?>(get: { store.selectedArticleID }, set: { store.selectArticle($0) })) {
                     ForEach(store.visibleArticles) { article in
                         VStack(alignment: .leading, spacing: 7) {
                             Text(article.id == store.document?.articleID ? store.currentTitle : article.title)
@@ -118,7 +118,9 @@ struct LibraryView: View {
                             if let date = article.modifiedAt {
                                 Text(date, format: .dateTime.year().month().day()).font(.system(size: 10)).foregroundStyle(.tertiary)
                             }
-                        }.padding(.vertical, 9).tag(article.id)
+                        }.padding(.vertical, 9)
+                            .background(ArticleRowMouseSelection { store.selectArticle(article.id) })
+                            .tag(article.id)
                     }
                 }.listStyle(.inset).disabled(store.isBusy)
             }
