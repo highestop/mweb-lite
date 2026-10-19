@@ -27,14 +27,15 @@ actor LibraryWorker {
         guard let library else { throw CocoaError(.fileNoSuchFile) }
         return try library.saveDocument(document, content: content)
     }
+
+    func create(categoryID: String?) throws -> MWebDocument {
+        guard let library else { throw CocoaError(.fileNoSuchFile) }
+        return try library.createDocument(categoryID: categoryID)
+    }
 }
 
-enum EditorMode: String, CaseIterable, Identifiable {
-    case editor = "编辑", split = "分栏", preview = "预览"
-    var id: String { rawValue }
-    var symbol: String {
-        switch self { case .editor: return "square.and.pencil"; case .split: return "rectangle.split.2x1"; case .preview: return "doc.richtext" }
-    }
+enum EditorMode {
+    case editor, preview
 }
 
 struct CategoryNode: Identifiable {
@@ -53,21 +54,24 @@ final class LibraryStore: ObservableObject {
     @Published var draft = ""
     @Published var selectedCategory = "all"
     @Published var search = ""
-    @Published var mode: EditorMode = .split
+    @Published var mode: EditorMode = .preview
     @Published private(set) var isBusy = false
     @Published private(set) var isSaving = false
     @Published var errorMessage: String?
     @Published private(set) var saveBlocked = false
     @Published var lastSaved: Date?
+    @Published private(set) var editorFocusRequest: UUID?
 
     private let worker = LibraryWorker()
     private var debounceTask: Task<Void, Never>?
     private var saveTask: Task<Bool, Never>?
+    private var creationTask: Task<Void, Never>?
     private var securityURL: URL?
     private var hasRestored = false
     private var isReloading = false
 
     var isDirty: Bool { document.map { $0.content != draft } ?? false }
+    var hasPendingWrites: Bool { isDirty || isSaving || creationTask != nil }
     var currentTitle: String { Self.title(draft, fallback: document?.title ?? "未命名文章") }
     var libraryName: String { rootURL?.lastPathComponent ?? "MWeb 文库" }
     var activeArticles: [MWebArticle] { articles.filter { !$0.isTrashed } }
@@ -78,11 +82,6 @@ final class LibraryStore: ObservableObject {
             let inCategory = selectedCategory == "all" || (selectedCategory == "uncategorized" ? article.categoryIDs.isEmpty : !selectedIDs.isDisjoint(with: article.categoryIDs))
             return inCategory && (query.isEmpty || article.title.localizedCaseInsensitiveContains(query) || article.excerpt.localizedCaseInsensitiveContains(query))
         }
-    }
-    var categoryTitle: String {
-        if selectedCategory == "all" { return "所有文章" }
-        if selectedCategory == "uncategorized" { return "未分类" }
-        return categories.first { $0.id == selectedCategory }?.name ?? "分类"
     }
     var categoryTree: [CategoryNode] {
         let ids = Set(categories.map(\.id))
@@ -163,6 +162,7 @@ final class LibraryStore: ObservableObject {
                 search = ""
                 document = nil
                 draft = ""
+                editorFocusRequest = nil
                 saveBlocked = false
                 if remember {
                     let bookmark = try? url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
@@ -187,6 +187,40 @@ final class LibraryStore: ObservableObject {
         }
     }
 
+    func createArticle() {
+        guard rootURL != nil, !isBusy else { return }
+        NSApp.keyWindow?.makeFirstResponder(nil)
+        let categoryID = ["all", "uncategorized"].contains(selectedCategory) ? nil : selectedCategory
+        isBusy = true
+        creationTask = Task {
+            defer { isBusy = false; creationTask = nil }
+            guard await flush() else { return }
+            do {
+                let created = try await worker.create(categoryID: categoryID)
+                debounceTask?.cancel()
+                document = created
+                draft = created.content
+                saveBlocked = false
+                lastSaved = nil
+                search = ""
+                mode = .editor
+                editorFocusRequest = UUID()
+                let index = try await worker.index()
+                articles = index.articles
+                categories = index.categories
+            } catch { errorMessage = error.localizedDescription }
+        }
+    }
+
+    func consumeEditorFocus(_ request: UUID) {
+        if editorFocusRequest == request { editorFocusRequest = nil }
+    }
+
+    func finishPendingWrites() async -> Bool {
+        if let creationTask { await creationTask.value }
+        return await flush()
+    }
+
     func openArticleLink(_ id: String) {
         guard activeArticles.contains(where: { $0.id == id }) else {
             errorMessage = "文库中没有找到链接指向的文章。"
@@ -200,6 +234,7 @@ final class LibraryStore: ObservableObject {
     private func load(_ id: String) async throws {
         let next = try await worker.document(id)
         debounceTask?.cancel()
+        editorFocusRequest = nil
         document = next
         draft = next.content
         saveBlocked = false

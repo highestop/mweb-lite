@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 /// Reads the existing MWeb schema without importing, migrating, or rebuilding it.
 /// All public operations are serialized; each operation uses a short-lived connection.
@@ -92,6 +93,109 @@ public final class MWebLibrary: @unchecked Sendable {
         let url = try documentURL(articleID)
         let data = try Data(contentsOf: url)
         return try document(articleID: articleID, row: row, data: data, url: url)
+    }
+
+    /// Creates a Markdown document using MWeb's timestamp identifiers and category UUIDs.
+    public func createDocument(categoryID: String? = nil) throws -> MWebDocument {
+        try createDocument(categoryID: categoryID, now: Date())
+    }
+
+    // A fixed clock lets tests exercise identifier collisions without racing the wall clock.
+    func createDocument(categoryID: String?, now: Date) throws -> MWebDocument {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let identifier = Int64(exactly: floor(now.timeIntervalSince1970 * 10_000)), identifier > 0 else {
+            throw MWebLibraryError.invalidDocument("无法生成新文章标识。")
+        }
+        let articleID = String(identifier)
+        let url = try documentURL(articleID)
+        let database = try SQLiteDatabase(url: databaseURL, writable: true)
+        try database.execute("BEGIN IMMEDIATE")
+        defer { database.rollbackIfNeeded() }
+
+        var categoryUUID: SQLiteValue?
+        if let categoryID {
+            guard let category = try database.query("SELECT uuid FROM cat WHERE uuid = ?", bindings: [.text(categoryID)]).first,
+                  let uuid = category["uuid"] else { throw MWebLibraryError.missingCategory }
+            categoryUUID = uuid
+        }
+        let mediaURL = docsURL.appendingPathComponent("media", isDirectory: true).appendingPathComponent(articleID)
+        guard try database.query("SELECT uuid FROM article WHERE uuid = ?", bindings: [.integer(identifier)]).isEmpty,
+              !itemExists(url), !itemExists(mediaURL) else { throw MWebLibraryError.creationConflict }
+
+        // Only known fields are supplied. Other columns retain the schema's defaults.
+        let schema = try database.query("PRAGMA table_info(article)")
+        let columns = Set(schema.compactMap { $0["name"]?.string })
+        let timestamp = Int64(now.timeIntervalSince1970)
+        var values: [(String, SQLiteValue)] = [("uuid", .integer(identifier)), ("state", .integer(1)),
+                                              ("dateModif", .integer(timestamp))]
+        for name in ["dateAdd", "dateArt"] where columns.contains(name) {
+            values.append((name, .integer(timestamp)))
+        }
+        let fallbacks: [(String, SQLiteValue)] = [("type", .integer(0)), ("docName", .text("")),
+                                                 ("sort", .integer(0)), ("isTop", .integer(0))]
+        for (name, value) in fallbacks {
+            if let field = schema.first(where: { $0["name"]?.string == name }), field["dflt_value"] == .null {
+                values.append((name, value))
+            }
+        }
+        let backupURL = try makeDatabaseBackup()
+        let fieldNames = values.map(\.0).joined(separator: ", ")
+        let placeholders = Array(repeating: "?", count: values.count).joined(separator: ", ")
+        try database.execute("INSERT INTO article (\(fieldNames)) VALUES (\(placeholders))", bindings: values.map(\.1))
+        if let categoryUUID {
+            try database.execute("INSERT INTO cat_article (rid, aid) VALUES (?, ?)",
+                                 bindings: [categoryUUID, .integer(identifier)])
+        }
+
+        let data = Data("# 未命名文章\n\n".utf8)
+        var wroteFile = false
+        var writtenByteCount = 0
+        var createdFileInfo: stat?
+        do {
+            try coordinatedWrite(url: url) { coordinatedURL in
+                guard isInsideRoot(coordinatedURL) else { throw MWebLibraryError.invalidDocument("文章文件位于文库目录外。") }
+                // Exclusive creation avoids requiring hard-link support on the library's volume.
+                let descriptor = Darwin.open(coordinatedURL.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0o600)
+                guard descriptor >= 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+                wroteFile = true
+                defer { Darwin.close(descriptor) }
+                var info = stat()
+                guard fstat(descriptor, &info) == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+                createdFileInfo = info
+                try data.withUnsafeBytes { bytes in
+                    while writtenByteCount < bytes.count {
+                        let count = Darwin.write(descriptor, bytes.baseAddress!.advanced(by: writtenByteCount), bytes.count - writtenByteCount)
+                        if count < 0, errno == EINTR { continue }
+                        guard count > 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: count == 0 ? Int(EIO) : Int(errno)) }
+                        writtenByteCount += count
+                    }
+                }
+                guard fsync(descriptor) == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+            }
+            let row = try articleRow(articleID, database: database)
+            let created = try document(articleID: articleID, row: row, data: data, url: url, backupURL: backupURL)
+            try database.execute("COMMIT")
+            return created
+        } catch {
+            database.rollbackIfNeeded()
+            if wroteFile {
+                do {
+                    try coordinatedWrite(url: url) { coordinatedURL in
+                        var currentInfo = stat()
+                        guard let createdFileInfo, isInsideRoot(coordinatedURL), lstat(coordinatedURL.path, &currentInfo) == 0,
+                              currentInfo.st_dev == createdFileInfo.st_dev, currentInfo.st_ino == createdFileInfo.st_ino,
+                              try Data(contentsOf: coordinatedURL) == data.prefix(writtenByteCount) else {
+                            throw MWebLibraryError.conflict
+                        }
+                        try fileManager.removeItem(at: coordinatedURL)
+                    }
+                } catch {
+                    throw MWebLibraryError.creationRecoveryRequired(documentURL: url, backupURL: backupURL)
+                }
+            }
+            throw error
+        }
     }
 
     /// Updates only the Markdown file and dateModif. Unknown columns and all relationships stay intact.
@@ -193,7 +297,11 @@ public final class MWebLibrary: @unchecked Sendable {
         return String(decoding: data, as: UTF8.self)
     }
 
-    private func makeBackup(articleID: String, originalData: Data) throws -> URL {
+    private func itemExists(_ url: URL) -> Bool {
+        fileManager.fileExists(atPath: url.path) || (try? fileManager.destinationOfSymbolicLink(atPath: url.path)) != nil
+    }
+
+    private func makeDatabaseBackup() throws -> URL {
         let destination: URL
         if let sessionBackupURL {
             destination = sessionBackupURL
@@ -210,6 +318,11 @@ public final class MWebLibrary: @unchecked Sendable {
             sessionBackupURL = destination
         }
         guard isInsideRoot(destination) else { throw MWebLibraryError.invalidLibrary("备份目录位于文库外。") }
+        return destination
+    }
+
+    private func makeBackup(articleID: String, originalData: Data) throws -> URL {
+        let destination = try makeDatabaseBackup()
         if !backedUpArticleIDs.contains(articleID) {
             let originalURL = destination.appendingPathComponent("\(articleID).md")
             try originalData.write(to: originalURL, options: .atomic)

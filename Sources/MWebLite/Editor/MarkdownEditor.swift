@@ -19,14 +19,19 @@ struct MarkdownEditor: NSViewRepresentable {
     var onSave: () -> Void
     var onInsertImages: (([URL]) -> [String])?
     var onPasteImage: ((Data) -> String?)?
+    var focusRequest: UUID?
+    var onFocusHandled: ((UUID) -> Void)?
 
     init(text: Binding<String>, documentID: String, onSave: @escaping () -> Void,
-         onInsertImages: (([URL]) -> [String])? = nil, onPasteImage: ((Data) -> String?)? = nil) {
+         onInsertImages: (([URL]) -> [String])? = nil, onPasteImage: ((Data) -> String?)? = nil,
+         focusRequest: UUID? = nil, onFocusHandled: ((UUID) -> Void)? = nil) {
         _text = text
         self.documentID = documentID
         self.onSave = onSave
         self.onInsertImages = onInsertImages
         self.onPasteImage = onPasteImage
+        self.focusRequest = focusRequest
+        self.onFocusHandled = onFocusHandled
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -115,6 +120,21 @@ struct MarkdownEditor: NSViewRepresentable {
             textView.setSelectedRange(NSRange(location: location, length: min(oldSelection.length, length - location)))
             textView.highlightMarkdown()
         }
+        if isEnabled, let focusRequest, context.coordinator.lastFocusRequest != focusRequest {
+            let coordinator = context.coordinator
+            let expectedDocumentID = documentID
+            DispatchQueue.main.async { [weak coordinator, weak textView] in
+                guard let coordinator, let textView,
+                      coordinator.documentID == expectedDocumentID,
+                      coordinator.parent.focusRequest == focusRequest,
+                      coordinator.lastFocusRequest != focusRequest,
+                      textView.isEditable,
+                      let window = textView.window, window.makeFirstResponder(textView) else { return }
+                coordinator.lastFocusRequest = focusRequest
+                textView.selectTitleForEditing()
+                coordinator.parent.onFocusHandled?(focusRequest)
+            }
+        }
     }
 
     static func dismantleNSView(_ scrollView: NSScrollView, coordinator: Coordinator) {
@@ -132,6 +152,7 @@ struct MarkdownEditor: NSViewRepresentable {
         var documentID: String
         weak var textView: MarkdownTextView?
         var highlightWork: DispatchWorkItem?
+        var lastFocusRequest: UUID?
 
         init(_ parent: MarkdownEditor) {
             self.parent = parent
@@ -156,6 +177,28 @@ final class MarkdownTextView: NSTextView {
     var onSave: (() -> Void)?
     var onInsertImages: (([URL]) -> [String])?
     var onPasteImage: ((Data) -> String?)?
+
+    override func resignFirstResponder() -> Bool {
+        let wasComposing = hasMarkedText()
+        guard super.resignFirstResponder() else { return false }
+        if wasComposing {
+            // A mounted editor must publish its composition before the preview becomes visible.
+            unmarkText()
+            didChangeText()
+        }
+        return true
+    }
+
+    func selectTitleForEditing() {
+        let source = string as NSString
+        let firstLine = source.lineRange(for: NSRange(location: 0, length: 0))
+        let line = source.substring(with: firstLine).trimmingCharacters(in: .newlines)
+        let selection = line.hasPrefix("# ")
+            ? NSRange(location: 2, length: (line as NSString).length - 2)
+            : NSRange(location: 0, length: 0)
+        setSelectedRange(selection)
+        scrollRangeToVisible(selection)
+    }
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)

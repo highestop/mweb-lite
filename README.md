@@ -24,7 +24,8 @@ The demo generator refuses to overwrite existing directories. `--library` does n
 
 ## Included
 
-- Native category tree, article list, title/summary search, and editor/preview/split modes.
+- Native category tree, article list, title/summary search, and editor/preview modes. Switch modes from the View menu or with `⌘R`; the article uses the full window height.
+- Create an article from the button beside search or `⌘N`. It belongs to the selected category and opens in the editor with its title selected. Creating from All or Uncategorized leaves it uncategorized.
 - UTF-8 Markdown editing with native undo, find, Chinese input support, syntax colors, list continuation, indentation, and image paste/drop.
 - Tables, task lists, strikethrough, footnotes, `[TOC]`, local images, MWeb image widths such as `![caption -w320](media/...)`, and `mweblib://{articleID}` links.
 - Debounced autosave after 1.5 seconds, explicit save, and pending-save checks before switching documents, closing the window, or quitting.
@@ -33,9 +34,9 @@ The demo generator refuses to overwrite existing directories. `--library` does n
 | Shortcut | Action |
 | --- | --- |
 | `⌘O` | Select a library |
+| `⌘N` | Create an article in the selected category |
 | `⌘S` | Save |
 | `⌘R` | Switch editor / preview |
-| `⌘4` | Split editor and preview |
 | `⇧⌘R` | Refresh the library |
 | `⌘B` / `⌘I` / `⌘K` | Bold / italic / link |
 | `⌘F` | Find in the editor |
@@ -49,10 +50,11 @@ Implementation was checked against the local MWeb app, its bundled help, and non
 - `cat_article.rid` references `cat.uuid`; `cat_article.aid` references `article.uuid`. Multiple categories per article are preserved.
 - Active articles have `state = 1`. Other states are hidden. Body files use `docs/{uuid}.md`; titles and summaries come from their contents.
 - Saving replaces the existing Markdown file and updates only `article.dateModif`, in Unix seconds. Unknown columns, tags, category relationships, settings, and other MWeb tables are preserved.
+- New articles use a timestamp identifier, a UTF-8 `docs/{uuid}.md` file, active article metadata, and an optional `cat_article` relation to the selected category. A failed creation rolls back its database changes and removes its new file.
 - Pasted images use unique names in `docs/media/{uuid}/`. Removing their Markdown reference does not delete the files.
 - An unsupported schema, missing file, invalid UTF-8, or a path outside the chosen library fails explicitly. Opening and browsing do not create a backup or rewrite files.
 
-The current version uses pinned-first, most-recently-modified article ordering. MWeb's saved `sortType` is preserved but its undocumented numeric mappings are not interpreted. Selecting a category includes its descendants, with articles deduplicated. There is no article/category creation, deletion, publishing, sync, import/export, or other MWeb administration UI.
+The current version uses pinned-first, most-recently-modified article ordering. MWeb's saved `sortType` is preserved but its undocumented numeric mappings are not interpreted. Selecting a category includes its descendants, with articles deduplicated. There is no category creation, deletion, publishing, sync, import/export, or other MWeb administration UI.
 
 ## Save recovery
 
@@ -76,7 +78,7 @@ swift test
 ./scripts/build-app.sh release
 ```
 
-Tests create synthetic temporary libraries. They cover UUID relations, unknown-field preservation, conflicts, rollback, WAL backups, private backup permissions, snapshot retention, UTF-8/BOM/CRLF, path boundaries, and Markdown text transformations. The separate preview test runs a real WKWebView from a standalone app bundle against temporary fixtures, with no SwiftPM resource fallback, and checks rendering and content isolation. MWeb-dependent rendering assertions run when the local runtime is available.
+Tests create synthetic temporary libraries. They cover article creation and category membership, waiting for pending writes, conflicts, rollback, unknown-field preservation, WAL backups, private backup permissions, snapshot retention, UTF-8/BOM/CRLF, path boundaries, Markdown text transformations, and native editor focus/Chinese composition. The separate preview test runs a real WKWebView from a standalone app bundle against temporary fixtures, with no SwiftPM resource fallback, and checks rendering and content isolation. MWeb-dependent rendering assertions run when the local runtime is available.
 
 On restricted execution hosts, `NSFileCoordinator` and WebKit need normal macOS service access. Run tests outside that execution sandbox; no test needs a personal MWeb library.
 
