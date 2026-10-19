@@ -1,0 +1,30 @@
+Bundled, unmodified browser libraries:
+
+markdown-it 15.0.3 (MIT)
+https://github.com/markdown-it/markdown-it
+https://registry.npmjs.org/markdown-it/-/markdown-it-15.0.3.tgz
+
+markdown-it-footnote 4.0.0 (MIT)
+https://github.com/markdown-it/markdown-it-footnote
+https://registry.npmjs.org/markdown-it-footnote/-/markdown-it-footnote-4.0.0.tgz
+
+markdown-it-task-lists 2.1.1 (ISC)
+https://github.com/revin/markdown-it-task-lists
+https://registry.npmjs.org/markdown-it-task-lists/-/markdown-it-task-lists-2.1.1.tgz
+
+DOMPurify 3.4.17 (Apache-2.0 OR MPL-2.0; distributed here under Apache-2.0)
+https://github.com/cure53/DOMPurify
+https://registry.npmjs.org/dompurify/-/dompurify-3.4.17.tgz
+
+JSON5 2.2.3 (MIT)
+https://github.com/json5/json5
+https://registry.npmjs.org/json5/-/json5-2.2.3.tgz
+
+Each library's license is included in its named LICENSE.txt file.
+
+Optional local renderers:
+An existing MWeb Pro installation can supply its installed third-party MathJax,
+Mermaid 10.2.4, Prism and ECharts scripts at runtime. MWeb Lite does not copy or
+redistribute any MWeb application files. CommonMark/GFM rendering works offline
+without MWeb. Missing optional renderers leave mathematical notation or diagram
+source visible. ECharts accepts JSON5 data options only; functions are not run.
