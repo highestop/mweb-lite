@@ -41,6 +41,7 @@ struct MarkdownEditor: NSViewRepresentable {
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
+        scrollView.automaticallyAdjustsContentInsets = false
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = true
         scrollView.backgroundColor = .textBackgroundColor
@@ -53,7 +54,7 @@ struct MarkdownEditor: NSViewRepresentable {
         textView.autoresizingMask = [.width]
         textView.textContainer?.widthTracksTextView = true
         textView.textContainer?.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
-        textView.textContainerInset = NSSize(width: 30, height: 26)
+        textView.textContainerInset = NSSize(width: 16, height: 16)
         textView.textContainer?.lineFragmentPadding = 0
         textView.isRichText = false
         textView.isEditable = isEnabled

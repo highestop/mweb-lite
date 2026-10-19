@@ -4,6 +4,7 @@ import MWebCore
 struct LibraryView: View {
     @ObservedObject var store: LibraryStore
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var isComposeHovered = false
     private let accent = Color(red: 0.18, green: 0.48, blue: 0.40)
 
     var body: some View {
@@ -76,11 +77,6 @@ struct LibraryView: View {
                     }
                 }
             }.listStyle(.sidebar).disabled(store.isBusy)
-            HStack(spacing: 6) {
-                Circle().fill(accent).frame(width: 5, height: 5)
-                Text("直接连接 MWeb 文库").font(.caption2).foregroundStyle(.secondary)
-                Spacer()
-            }.padding(16)
         }
     }
 
@@ -101,9 +97,10 @@ struct LibraryView: View {
                 .font(.system(size: 12)).padding(8)
                 .background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 7))
                 Button { store.createArticle() } label: {
-                    Image(systemName: "square.and.pencil").font(.system(size: 16)).frame(width: 28, height: 30)
+                    Image(systemName: "square.and.pencil").font(.system(size: 16)).frame(width: 32, height: 32)
                 }
-                .buttonStyle(.plain).foregroundStyle(.secondary)
+                .buttonStyle(ComposeButtonStyle(accent: accent, isHovered: isComposeHovered))
+                .onHover { isComposeHovered = $0 }
                 .accessibilityLabel("新建文章")
                 .help("新建文章 · ⌘N")
                 .disabled(store.isBusy)
@@ -146,8 +143,6 @@ struct LibraryView: View {
                         .allowsHitTesting(store.mode == .preview)
                         .accessibilityHidden(store.mode != .preview)
                 }
-                Divider()
-                statusBar
             } else {
                 ContentUnavailableView("选择一篇文章", systemImage: "doc.text", description: Text("从左侧的文章列表开始。"))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -155,21 +150,29 @@ struct LibraryView: View {
         }
         .overlay(alignment: .topTrailing) { if store.isBusy { ProgressView().controlSize(.small).padding(12) } }
     }
+}
 
-    private var statusBar: some View {
-        HStack(spacing: 6) {
-            Image(systemName: store.saveBlocked ? "exclamationmark.circle" : store.isSaving ? "arrow.triangle.2.circlepath" : store.isDirty ? "circle.fill" : "checkmark.circle")
-                .font(.system(size: store.isDirty && !store.isSaving && !store.saveBlocked ? 5 : 10))
-                .foregroundStyle(store.saveBlocked ? Color.orange : accent)
-            Text(store.saveBlocked ? "保存暂停，修改保留在窗口中" : store.isSaving ? "正在保存…" : store.isDirty ? "等待保存" : "已保存到本地")
-            if store.saveBlocked {
-                Button("重新载入磁盘版本…") { store.reloadFromDisk() }
-                    .buttonStyle(.plain).foregroundStyle(.orange)
+private struct ComposeButtonStyle: ButtonStyle {
+    let accent: Color
+    let isHovered: Bool
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        let pressed = isEnabled && configuration.isPressed
+        let highlighted = isEnabled && (isHovered || pressed)
+        return configuration.label
+            .foregroundStyle(highlighted ? accent : .secondary)
+            .background(accent.opacity(pressed ? 0.20 : highlighted ? 0.10 : 0),
+                        in: RoundedRectangle(cornerRadius: 7))
+            .overlay {
+                RoundedRectangle(cornerRadius: 7)
+                    .strokeBorder(accent.opacity(highlighted ? 0.18 : 0), lineWidth: 1)
             }
-            Spacer()
-            Text("\(store.draft.count) 字符").monospacedDigit()
-            Text("·")
-            Text("UTF-8")
-        }.font(.system(size: 10)).foregroundStyle(.secondary).padding(.horizontal, 18).frame(height: 30)
+            .contentShape(RoundedRectangle(cornerRadius: 7))
+            .scaleEffect(pressed && !reduceMotion ? 0.92 : 1)
+            .opacity(isEnabled ? 1 : 0.45)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovered)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: pressed)
     }
 }
