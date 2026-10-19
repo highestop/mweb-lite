@@ -54,10 +54,13 @@ public enum MWebLibraryError: LocalizedError {
     case invalidLibrary(String)
     case database(String)
     case missingArticle
+    case missingCategory
     case trashedArticle
     case invalidDocument(String)
     case conflict
     case recoveryRequired(URL)
+    case creationConflict
+    case creationRecoveryRequired(documentURL: URL, backupURL: URL)
 
     public var errorDescription: String? {
         switch self {
@@ -67,6 +70,8 @@ public enum MWebLibraryError: LocalizedError {
             return "文库数据库操作失败：\(detail)"
         case .missingArticle:
             return "这篇文章已不在文库中，请刷新文库。"
+        case .missingCategory:
+            return "所选分类已不存在，请刷新文库后重试。"
         case .trashedArticle:
             return "这篇文章已被移入废纸篓，无法在此编辑。"
         case .invalidDocument(let detail):
@@ -75,6 +80,10 @@ public enum MWebLibraryError: LocalizedError {
             return "文章已被 MWeb 或其他程序修改。当前编辑内容仍保留，请先重新载入，再合并修改。"
         case .recoveryRequired(let backupURL):
             return "保存未完成，恢复原文件也未成功。原文和数据库已备份到 \(backupURL.path)，请先保留当前编辑内容。"
+        case .creationConflict:
+            return "新文章标识与已有数据冲突，请重试。已有数据没有修改。"
+        case .creationRecoveryRequired(let documentURL, let backupURL):
+            return "新建文章未完成，文件无法自动清理：\(documentURL.path)。数据库备份位于 \(backupURL.path)，请先保留此文件。"
         }
     }
 }

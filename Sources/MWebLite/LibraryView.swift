@@ -12,27 +12,7 @@ struct LibraryView: View {
             else { workspace }
         }
         .tint(accent)
-        .toolbar {
-            ToolbarItem(placement: .navigation) {
-                Button { store.chooseLibrary() } label: { Label("打开文库", systemImage: "folder.badge.gearshape") }
-                    .help("选择 MWeb 文库 · ⌘O").disabled(store.isBusy)
-            }
-            if store.rootURL != nil {
-                ToolbarItem(placement: .automatic) {
-                    Button { store.refresh() } label: { Label("刷新文库", systemImage: "arrow.clockwise") }
-                        .help("读取磁盘上的最新内容 · ⇧⌘R").disabled(store.isBusy)
-                }
-                ToolbarItem(placement: .principal) {
-                    Text(store.document == nil ? store.libraryName : store.currentTitle)
-                        .font(.system(size: 13, weight: .medium)).lineLimit(1)
-                }
-                ToolbarItem(placement: .primaryAction) {
-                    Picker("显示方式", selection: Binding(get: { store.mode }, set: { store.setMode($0) })) {
-                        ForEach(EditorMode.allCases) { mode in Image(systemName: mode.symbol).tag(mode).help(mode.rawValue) }
-                    }.pickerStyle(.segmented).frame(width: 128).help("编辑 / 分栏 / 预览")
-                }
-            }
-        }
+        .toolbar(.hidden, for: .windowToolbar)
         .alert("MWeb Lite", isPresented: Binding(get: { store.errorMessage != nil }, set: { if !$0 { store.errorMessage = nil } })) {
             Button("好", role: .cancel) { store.errorMessage = nil }
         } message: { Text(store.errorMessage ?? "") }
@@ -58,7 +38,7 @@ struct LibraryView: View {
             Spacer()
             HStack(spacing: 30) {
                 Label("直接使用原文库", systemImage: "externaldrive")
-                Label("本地编辑与预览", systemImage: "rectangle.split.2x1")
+                Label("本地编辑与预览", systemImage: "doc.richtext")
                 Label("保存前自动备份", systemImage: "clock.arrow.circlepath")
             }.font(.caption).foregroundStyle(.secondary).padding(.bottom, 34)
         }.frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -68,10 +48,12 @@ struct LibraryView: View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             sidebar.navigationSplitViewColumnWidth(min: 180, ideal: 215, max: 320)
         } content: {
-            articleList.navigationSplitViewColumnWidth(min: 220, ideal: 270, max: 400)
+            articleList.ignoresSafeArea(.container, edges: .top).navigationSplitViewColumnWidth(min: 220, ideal: 270, max: 400)
         } detail: {
-            detail
-        }.navigationSplitViewStyle(.balanced)
+            detail.ignoresSafeArea(.container, edges: .top)
+        }
+        .navigationSplitViewStyle(.balanced)
+        .toolbar(removing: .sidebarToggle)
     }
 
     private var sidebar: some View {
@@ -83,7 +65,8 @@ struct LibraryView: View {
                     Text("本地文库").font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
-            }.padding(.horizontal, 17).padding(.top, 19).padding(.bottom, 15)
+            }.padding(.horizontal, 17).padding(.vertical, 12)
+                .background(WindowDragArea())
             List(selection: $store.selectedCategory) {
                 Label { rowLabel("所有文章", count: store.activeArticles.count) } icon: { Image(systemName: "tray.full") }.tag("all")
                 Label { rowLabel("未分类", count: store.activeArticles.filter { $0.categoryIDs.isEmpty }.count) } icon: { Image(systemName: "doc") }.tag("uncategorized")
@@ -92,7 +75,7 @@ struct LibraryView: View {
                         Label { rowLabel(node.name, count: node.count) } icon: { Image(systemName: "folder") }.tag(node.id)
                     }
                 }
-            }.listStyle(.sidebar)
+            }.listStyle(.sidebar).disabled(store.isBusy)
             HStack(spacing: 6) {
                 Circle().fill(accent).frame(width: 5, height: 5)
                 Text("直接连接 MWeb 文库").font(.caption2).foregroundStyle(.secondary)
@@ -107,18 +90,24 @@ struct LibraryView: View {
 
     private var articleList: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text(store.categoryTitle).font(.system(size: 16, weight: .semibold))
-                Spacer()
-                Text("\(store.visibleArticles.count)").font(.caption).foregroundStyle(.secondary)
-            }.padding(.horizontal, 18).padding(.top, 20).padding(.bottom, 13)
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.tertiary)
-                TextField("搜索标题与摘要", text: $store.search).textFieldStyle(.plain)
-                if !store.search.isEmpty {
-                    Button { store.search = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary) }.buttonStyle(.plain)
+            HStack(spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(.tertiary)
+                    TextField("搜索标题与摘要", text: $store.search).textFieldStyle(.plain)
+                    if !store.search.isEmpty {
+                        Button { store.search = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary) }.buttonStyle(.plain)
+                    }
                 }
-            }.font(.system(size: 12)).padding(8).background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 7)).padding(.horizontal, 14).padding(.bottom, 14)
+                .font(.system(size: 12)).padding(8)
+                .background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 7))
+                Button { store.createArticle() } label: {
+                    Image(systemName: "square.and.pencil").font(.system(size: 16)).frame(width: 28, height: 30)
+                }
+                .buttonStyle(.plain).foregroundStyle(.secondary)
+                .accessibilityLabel("新建文章")
+                .help("新建文章 · ⌘N")
+                .disabled(store.isBusy)
+            }.padding(.horizontal, 14).padding(.vertical, 12)
             Divider()
             if store.visibleArticles.isEmpty {
                 ContentUnavailableView("没有文章", systemImage: "doc.text.magnifyingglass", description: Text(store.search.isEmpty ? "这个分类中还没有文章。" : "试试其他关键词。"))
@@ -142,25 +131,20 @@ struct LibraryView: View {
     private var detail: some View {
         VStack(spacing: 0) {
             if let document = store.document {
-                HStack(spacing: 8) {
-                    Text("MARKDOWN").font(.system(size: 9, weight: .semibold, design: .monospaced)).tracking(1.5).foregroundStyle(.tertiary)
-                    Spacer()
-                    if store.saveBlocked {
-                        Button("重新载入磁盘版本…") { store.reloadFromDisk() }.font(.caption).buttonStyle(.plain).foregroundStyle(.orange)
-                    }
-                    Text(store.mode.rawValue).font(.caption).foregroundStyle(.secondary)
-                }.padding(.horizontal, 22).frame(height: 40)
-                Divider()
-                HSplitView {
-                    if store.mode != .preview {
-                        MarkdownEditor(text: Binding(get: { store.draft }, set: { if store.document?.articleID == document.articleID { store.edit($0) } }), documentID: document.articleID,
-                            onSave: { store.saveNow() }, onInsertImages: { store.insertImages($0) }, onPasteImage: { store.pasteImage($0) })
-                            .frame(minWidth: 240).disabled(store.isBusy)
-                    }
-                    if store.mode != .editor {
-                        MarkdownPreview(markdown: store.draft, documentURL: document.fileURL, libraryRoot: store.rootURL,
-                            onOpenArticle: { store.openArticleLink($0) }).frame(minWidth: 240)
-                    }
+                ZStack {
+                    // Keep the native editor mounted to preserve selection and undo across mode changes.
+                    MarkdownEditor(text: Binding(get: { store.draft }, set: { if store.document?.articleID == document.articleID { store.edit($0) } }), documentID: document.articleID,
+                        onSave: { store.saveNow() }, onInsertImages: { store.insertImages($0) }, onPasteImage: { store.pasteImage($0) },
+                        focusRequest: store.editorFocusRequest, onFocusHandled: { store.consumeEditorFocus($0) })
+                        .disabled(store.isBusy || store.mode != .editor)
+                        .opacity(store.mode == .editor ? 1 : 0)
+                        .allowsHitTesting(store.mode == .editor)
+                        .accessibilityHidden(store.mode != .editor)
+                    MarkdownPreview(markdown: store.draft, documentURL: document.fileURL, libraryRoot: store.rootURL,
+                        onOpenArticle: { store.openArticleLink($0) })
+                        .opacity(store.mode == .preview ? 1 : 0)
+                        .allowsHitTesting(store.mode == .preview)
+                        .accessibilityHidden(store.mode != .preview)
                 }
                 Divider()
                 statusBar
@@ -178,6 +162,10 @@ struct LibraryView: View {
                 .font(.system(size: store.isDirty && !store.isSaving && !store.saveBlocked ? 5 : 10))
                 .foregroundStyle(store.saveBlocked ? Color.orange : accent)
             Text(store.saveBlocked ? "保存暂停，修改保留在窗口中" : store.isSaving ? "正在保存…" : store.isDirty ? "等待保存" : "已保存到本地")
+            if store.saveBlocked {
+                Button("重新载入磁盘版本…") { store.reloadFromDisk() }
+                    .buttonStyle(.plain).foregroundStyle(.orange)
+            }
             Spacer()
             Text("\(store.draft.count) 字符").monospacedDigit()
             Text("·")

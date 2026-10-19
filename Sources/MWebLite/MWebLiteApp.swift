@@ -18,19 +18,25 @@ struct MWebLiteApp: App {
                 }
                 .background(WindowLifecycle(store: store))
         }
+        .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1380, height: 850)
         .commands {
             CommandGroup(replacing: .newItem) {
+                Button("新建文章") { store.createArticle() }.keyboardShortcut("n")
+                    .disabled(store.rootURL == nil || store.isBusy)
                 Button("打开 MWeb 文库…") { store.chooseLibrary() }.keyboardShortcut("o")
             }
             CommandGroup(replacing: .saveItem) {
                 Button("保存") { store.saveNow() }.keyboardShortcut("s").disabled(store.document == nil)
                 Button("从磁盘重新载入…") { store.reloadFromDisk() }.disabled(store.document == nil)
             }
+            CommandGroup(after: .toolbar) {
+                Button(store.mode == .preview ? "切换到编辑" : "切换到预览") {
+                    store.setMode(store.mode == .preview ? .editor : .preview)
+                }.keyboardShortcut("r")
+                    .disabled(store.document == nil || store.isBusy)
+            }
             CommandMenu("Markdown") {
-                Button("编辑 / 预览") { store.setMode(store.mode == .preview ? .editor : .preview) }.keyboardShortcut("r")
-                Button("边编辑边预览") { store.setMode(.split) }.keyboardShortcut("4")
-                Divider()
                 Button("粗体") { MarkdownEditorAction.bold.perform() }.keyboardShortcut("b")
                 Button("斜体") { MarkdownEditorAction.italic.perform() }.keyboardShortcut("i")
                 Button("插入链接") { MarkdownEditorAction.link.perform() }.keyboardShortcut("k")
@@ -54,8 +60,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     weak var store: LibraryStore?
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         sender.keyWindow?.makeFirstResponder(nil)
-        guard let store, store.isDirty || store.isSaving else { return .terminateNow }
-        Task { sender.reply(toApplicationShouldTerminate: await store.flush()) }
+        guard let store, store.hasPendingWrites else { return .terminateNow }
+        Task { sender.reply(toApplicationShouldTerminate: await store.finishPendingWrites()) }
         return .terminateLater
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
@@ -76,11 +82,22 @@ struct WindowLifecycle: NSViewRepresentable {
         init(store: LibraryStore) { self.store = store }
         func windowShouldClose(_ sender: NSWindow) -> Bool {
             sender.makeFirstResponder(nil)
-            guard !closing, store.isDirty || store.isSaving else { return true }
+            guard !closing, store.hasPendingWrites else { return true }
             Task {
-                if await store.flush() { closing = true; sender.performClose(nil); closing = false }
+                if await store.finishPendingWrites() { closing = true; sender.performClose(nil); closing = false }
             }
             return false
         }
+    }
+}
+
+/// The library header can move the window; article text remains selectable.
+struct WindowDragArea: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { DragView() }
+    func updateNSView(_ nsView: NSView, context: Context) {}
+
+    final class DragView: NSView {
+        override var mouseDownCanMoveWindow: Bool { true }
+        override func mouseDown(with event: NSEvent) { window?.performDrag(with: event) }
     }
 }
