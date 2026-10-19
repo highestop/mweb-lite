@@ -1,5 +1,39 @@
+# Swift, Xcode, and generated application output
 .build/
 .swiftpm/
 build/
+dist/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+*.app/
+*.dSYM/
+*.xcarchive/
+*.xcresult/
+*.zip
+*.dmg
+*.pkg
+
+# Local environments, dependencies, and machine-specific settings
+.env
+.env.*
+!.env.example
+!.env.sample
+.venv/
+venv/
+node_modules/
+.direnv/
+.codex/
+.agents/
+.idea/
+.vscode/
+
+# Caches, diagnostics, and operating-system files
+.cache/
+__pycache__/
+*.py[cod]
+coverage/
+*.profraw
+*.profdata
+*.log
 .DS_Store
-*.xcodeproj/xcuserdata/
