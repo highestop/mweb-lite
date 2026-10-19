@@ -61,6 +61,7 @@ final class LibraryStore: ObservableObject {
     @Published private(set) var saveBlocked = false
     @Published var lastSaved: Date?
     @Published private(set) var editorFocusRequest: UUID?
+    @Published private var pendingArticleID: String?
 
     private let worker = LibraryWorker()
     private var debounceTask: Task<Void, Never>?
@@ -71,6 +72,7 @@ final class LibraryStore: ObservableObject {
     private var isReloading = false
 
     var isDirty: Bool { document.map { $0.content != draft } ?? false }
+    var selectedArticleID: String? { pendingArticleID ?? document?.articleID }
     var hasPendingWrites: Bool { isDirty || isSaving || creationTask != nil }
     var currentTitle: String { Self.title(draft, fallback: document?.title ?? "未命名文章") }
     var libraryName: String { rootURL?.lastPathComponent ?? "MWeb 文库" }
@@ -178,10 +180,12 @@ final class LibraryStore: ObservableObject {
 
     func selectArticle(_ id: String?) {
         guard let id, id != document?.articleID, !isBusy else { return }
+        // Keep selection responsive while saving and loading on the worker.
+        pendingArticleID = id
         NSApp.keyWindow?.makeFirstResponder(nil)
         isBusy = true
         Task {
-            defer { isBusy = false }
+            defer { pendingArticleID = nil; isBusy = false }
             guard await flush() else { return }
             do { try await load(id) } catch { errorMessage = error.localizedDescription }
         }
