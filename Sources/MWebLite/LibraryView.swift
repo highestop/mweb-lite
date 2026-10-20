@@ -4,8 +4,8 @@ import MWebCore
 struct LibraryView: View {
     @ObservedObject var store: LibraryStore
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
-    @State private var isComposeHovered = false
     private let accent = Color(red: 0.18, green: 0.48, blue: 0.40)
+    private let headerHeight: CGFloat = 56
 
     var body: some View {
         Group {
@@ -51,7 +51,8 @@ struct LibraryView: View {
         } content: {
             articleList.ignoresSafeArea(.container, edges: .top).navigationSplitViewColumnWidth(min: 220, ideal: 270, max: 400)
         } detail: {
-            detail.ignoresSafeArea(.container, edges: .top)
+            // The window controls occupy the detail's top edge when both leading columns are hidden.
+            detail.ignoresSafeArea(.container, edges: columnVisibility == .detailOnly ? [] : .top)
         }
         .navigationSplitViewStyle(.balanced)
         .toolbar(removing: .sidebarToggle)
@@ -60,7 +61,6 @@ struct LibraryView: View {
     private var sidebar: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
-                Image(systemName: "books.vertical").foregroundStyle(accent).font(.title3)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(store.libraryName).font(.headline).lineLimit(1)
                     Text("本地文库").font(.caption).foregroundStyle(.secondary)
@@ -69,11 +69,11 @@ struct LibraryView: View {
             }.padding(.horizontal, 17).padding(.vertical, 12)
                 .background(WindowDragArea())
             List(selection: $store.selectedCategory) {
-                Label { rowLabel("所有文章", count: store.activeArticles.count) } icon: { Image(systemName: "tray.full") }.tag("all")
-                Label { rowLabel("未分类", count: store.activeArticles.filter { $0.categoryIDs.isEmpty }.count) } icon: { Image(systemName: "doc") }.tag("uncategorized")
+                rowLabel("所有文章", count: store.activeArticles.count).tag("all")
+                rowLabel("未分类", count: store.activeArticles.filter { $0.categoryIDs.isEmpty }.count).tag("uncategorized")
                 Section("分类") {
                     OutlineGroup(store.categoryTree, children: \.children) { node in
-                        Label { rowLabel(node.name, count: node.count) } icon: { Image(systemName: "folder") }.tag(node.id)
+                        rowLabel(node.name, count: node.count).tag(node.id)
                     }
                 }
             }.listStyle(.sidebar).disabled(store.isBusy)
@@ -86,7 +86,7 @@ struct LibraryView: View {
 
     private var articleList: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
+            HStack {
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass").foregroundStyle(.tertiary)
                     TextField("搜索标题与摘要", text: $store.search).textFieldStyle(.plain)
@@ -94,17 +94,9 @@ struct LibraryView: View {
                         Button { store.search = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary) }.buttonStyle(.plain)
                     }
                 }
-                .font(.system(size: 12)).padding(8)
+                .font(.system(size: 12)).padding(.horizontal, 8).frame(height: 32)
                 .background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 7))
-                Button { store.createArticle() } label: {
-                    Image(systemName: "square.and.pencil").font(.system(size: 16)).frame(width: 32, height: 32)
-                }
-                .buttonStyle(ComposeButtonStyle(accent: accent, isHovered: isComposeHovered))
-                .onHover { isComposeHovered = $0 }
-                .accessibilityLabel("新建文章")
-                .help("新建文章 · ⌘N")
-                .disabled(store.isBusy)
-            }.padding(.horizontal, 14).padding(.vertical, 12)
+            }.padding(.horizontal, 14).frame(height: headerHeight)
             Divider()
             if store.visibleArticles.isEmpty {
                 ContentUnavailableView("没有文章", systemImage: "doc.text.magnifyingglass", description: Text(store.search.isEmpty ? "这个分类中还没有文章。" : "试试其他关键词。"))
@@ -129,6 +121,8 @@ struct LibraryView: View {
 
     private var detail: some View {
         VStack(spacing: 0) {
+            documentToolbar
+            Divider()
             if let document = store.document {
                 ZStack {
                     // Keep the native editor mounted to preserve selection and undo across mode changes.
@@ -150,11 +144,61 @@ struct LibraryView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .overlay(alignment: .topTrailing) { if store.isBusy { ProgressView().controlSize(.small).padding(12) } }
+    }
+
+    private var documentToolbar: some View {
+        HStack(spacing: 6) {
+            ToolbarIconButton(
+                title: columnVisibility == .detailOnly ? "展开侧边栏" : "收起侧边栏",
+                symbol: "sidebar.left", help: "展开或收起分类和文章列表", accent: accent
+            ) {
+                columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
+            }
+            .accessibilityIdentifier("toggle-navigation")
+            ToolbarIconButton(title: "新建文章", symbol: "square.and.pencil", help: "新建文章 · ⌘N", accent: accent) {
+                store.createArticle()
+            }
+            .accessibilityIdentifier("new-article")
+            .disabled(store.isBusy)
+            ToolbarIconButton(
+                title: store.mode == .preview ? "切换到编辑" : "切换到预览",
+                symbol: store.mode == .preview ? "pencil" : "eye",
+                help: store.mode == .preview ? "切换到编辑 · ⌘R" : "切换到预览 · ⌘R", accent: accent
+            ) {
+                store.setMode(store.mode == .preview ? .editor : .preview)
+            }
+            .accessibilityIdentifier("toggle-editor-mode")
+            .disabled(store.document == nil || store.isBusy)
+            Spacer(minLength: 0)
+            if store.isBusy { ProgressView().controlSize(.small) }
+        }
+        .padding(.horizontal, 14)
+        .frame(height: headerHeight)
+        .background(WindowDragArea())
+        .background(Color(nsColor: .controlBackgroundColor))
     }
 }
 
-private struct ComposeButtonStyle: ButtonStyle {
+private struct ToolbarIconButton: View {
+    let title: String
+    let symbol: String
+    let help: String
+    let accent: Color
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol).font(.system(size: 16)).frame(width: 32, height: 32)
+        }
+        .buttonStyle(ToolbarButtonStyle(accent: accent, isHovered: isHovered))
+        .onHover { isHovered = $0 }
+        .accessibilityLabel(title)
+        .help(help)
+    }
+}
+
+private struct ToolbarButtonStyle: ButtonStyle {
     let accent: Color
     let isHovered: Bool
     @Environment(\.isEnabled) private var isEnabled
