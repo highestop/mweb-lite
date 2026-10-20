@@ -206,6 +206,10 @@ struct MarkdownEditor: NSViewRepresentable {
         }
 
         func textViewDidChangeSelection(_ notification: Notification) {
+            // AppKit can deliver the load's zero-selection notification later.
+            // It must not cancel the matching post-layout scroll reset.
+            guard let textView = notification.object as? MarkdownTextView,
+                  textView.selectedRange() != NSRange(location: 0, length: 0) else { return }
             documentScrollReset = nil
         }
     }
