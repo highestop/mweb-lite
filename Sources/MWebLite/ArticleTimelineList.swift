@@ -4,6 +4,7 @@ import SwiftUI
 /// their visual copies without publishing scroll offsets into view state.
 struct ArticleTimelineList<Row: View>: View {
     private let sections: [TimelineYearSection]
+    private let articleIDs: [String]
     private let selectedArticleID: String?
     private let row: (ArticleTimelineGrouping.Entry) -> Row
     private let yearHeight: CGFloat = 36
@@ -14,26 +15,42 @@ struct ArticleTimelineList<Row: View>: View {
     init(entries: [ArticleTimelineGrouping.Entry], selectedArticleID: String? = nil,
          @ViewBuilder row: @escaping (ArticleTimelineGrouping.Entry) -> Row) {
         sections = TimelineYearSection.group(entries)
+        articleIDs = entries.map(\.id)
         self.selectedArticleID = selectedArticleID
         self.row = row
     }
 
     var body: some View {
         GeometryReader { viewport in
-            ScrollView {
-                timelineContent
-                    .overlayScrollbars(viewportWidth: viewport.size.width)
-                    .overlayPreferenceValue(TimelineSectionAnchorKey.self) { anchors in
-                        GeometryReader { content in
-                            let origin = content.frame(in: .named(scrollCoordinateSpace)).origin
-                            stickyHeaders(anchors, geometry: content, origin: origin, viewportSize: viewport.size)
-                                .offset(x: -origin.x, y: -origin.y)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    timelineContent
+                        .overlayScrollbars(viewportWidth: viewport.size.width)
+                        .overlayPreferenceValue(TimelineSectionAnchorKey.self) { anchors in
+                            GeometryReader { content in
+                                let origin = content.frame(in: .named(scrollCoordinateSpace)).origin
+                                stickyHeaders(anchors, geometry: content, origin: origin, viewportSize: viewport.size)
+                                    .offset(x: -origin.x, y: -origin.y)
+                            }
                         }
-                    }
+                }
+                .scrollIndicators(.never)
+                .frame(width: viewport.size.width, height: viewport.size.height)
+                .coordinateSpace(name: scrollCoordinateSpace)
+                .onAppear { revealSelection(using: proxy) }
+                .onChange(of: selectedArticleID) { _, _ in revealSelection(using: proxy) }
+                .onChange(of: articleIDs) { _, _ in revealSelection(using: proxy) }
             }
-            .scrollIndicators(.never)
-            .frame(width: viewport.size.width, height: viewport.size.height)
-            .coordinateSpace(name: scrollCoordinateSpace)
+        }
+    }
+
+    private func revealSelection(using proxy: ScrollViewProxy) {
+        guard let selectedArticleID, articleIDs.contains(selectedArticleID) else {
+            revealCoordinator.reveal(nil, mount: {})
+            return
+        }
+        revealCoordinator.reveal(selectedArticleID) {
+            proxy.scrollTo(selectedArticleID)
         }
     }
 
@@ -52,8 +69,8 @@ struct ArticleTimelineList<Row: View>: View {
                                     let headerInset = monthHeight + (year.date == nil ? 0 : yearHeight)
                                     row(entry)
                                         .background(ArticleRowRevealAnchor(
-                                            articleID: entry.id, selectedArticleID: selectedArticleID,
-                                            headerInset: headerInset, coordinator: revealCoordinator
+                                            articleID: entry.id, headerInset: headerInset,
+                                            coordinator: revealCoordinator
                                         ))
                                         .id(entry.id)
                                 }
