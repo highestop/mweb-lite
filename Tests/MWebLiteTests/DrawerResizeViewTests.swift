@@ -48,6 +48,8 @@ final class DrawerResizeViewTests: CaseReportingTestCase {
         }
         configure(240)
         handle.updateTrackingAreas()
+        XCTAssertTrue(handle.clipsToBounds, "Cursor tracking must stay within the narrow divider")
+        XCTAssertEqual(handle.visibleRect, handle.bounds)
         for x in [CGFloat(196.5), 200, 203.5] {
             XCTAssertTrue(root.hitTest(NSPoint(x: x, y: 100)) === handle)
         }
