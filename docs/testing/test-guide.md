@@ -247,7 +247,7 @@ Keep IDs stable. Data links to fixture inputs where applicable; Verification con
 
 ## CI result publication
 
-[test-results.md](test-results.md) is the generated latest CI summary. Its only result columns are `Case ID`, `Status`, and `Evidence`, with IDs linked to their definitions. `Passed`, `Failed`, and `Skipped` describe individual reported cases. Missing entries mean no result was published for those cases from that run; they are not implied passes or failures. Evidence identifies the execution and tested source, so a summary does not automatically verify later edits.
+[test-results.md](test-results.md) is the generated latest CI summary. Its two result columns are `Case ID` and `Status`, with IDs linked to their definitions. Shared CI run-attempt and tested-commit links appear before the table; per-case evidence and diagnostics remain in the artifact's three-field JSON records. `Passed`, `Failed`, and `Skipped` describe individual reported cases. Missing entries mean no result was published for those cases from that run; they are not implied passes or failures. The shared links identify the execution and tested source, so a summary does not automatically verify later edits.
 
 The publication flow is:
 

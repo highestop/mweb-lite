@@ -94,19 +94,23 @@ def collect(xctest, preview, cases, prefix, require_xctest=False, require_previe
     return validate_rows(results, cases, prefix)
 
 
-def escape_text(value):
-    value = value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    return re.sub(r"([\\`*_{}\[\]|])", r"\\\1", value)
-
-
-def render(rows, cases, prefix=None):
+def render(rows, cases, prefix):
     rows = validate_rows(rows, cases, prefix)
-    lines = ["# Latest CI test results", "", "| Case ID | Status | Evidence |", "| --- | --- | --- |"]
+    match = re.fullmatch(
+        r"\[([a-f0-9]{40})\]\((https://github\.com/[\w.-]+/[\w.-]+)/actions/runs/([1-9][0-9]*)/attempts/([1-9][0-9]*)\)",
+        prefix,
+    )
+    if match is None:
+        raise ValueError("Expected a canonical shared CI run and tested revision")
+    sha, repository_url, run_id, attempt = match.groups()
+    run_url = f"{repository_url}/actions/runs/{run_id}/attempts/{attempt}"
+    lines = [
+        "# Latest CI test results", "",
+        f"CI run: [{run_id} (attempt {attempt})]({run_url})",
+        f"Tested commit: [{sha}]({repository_url}/commit/{sha})", "",
+        "| Case ID | Status |", "| --- | --- |",
+    ]
     for row in rows:
-        evidence = row["evidence"]
-        # Retain only a canonical run link; all diagnostics are literal text.
-        match = re.fullmatch(r"(\[[a-f0-9]{40}\]\(https://github\.com/[\w.-]+/[\w.-]+/actions/runs/[1-9][0-9]*/attempts/[1-9][0-9]*\)) — (.+)", evidence)
-        evidence = match[1] + " — " + escape_text(match[2]) if match else escape_text(evidence)
         identifier = row["case_id"]
-        lines.append(f"| [{identifier}](cases/{identifier}.md) | {row['status']} | {evidence} |")
+        lines.append(f"| [{identifier}](cases/{identifier}.md) | {row['status']} |")
     return "\n".join(lines) + "\n"

@@ -76,15 +76,31 @@ class ResultsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Duplicate"):
             validate_rows([valid, valid], self.cases, self.prefix)
 
-    def test_diagnostics_are_text_and_case_ids_link_to_definitions(self):
-        rows = [self.row("PV-001", detail=self.prefix + " — [click](https://bad.example) | <script> & \\ `text`")]
+    def test_shared_run_precedes_table_and_details_remain_in_artifact(self):
+        diagnostic = "[click](https://bad.example) | <script> & `text`"
+        rows = [self.row("PV-001", detail=self.prefix + " — " + diagnostic),
+                self.row("LIB-001", "Failed", self.prefix + " — assertion failed")]
+        original = json.dumps(rows)
         result = render(rows, self.cases, self.prefix)
-        self.assertIn("[PV-001](cases/PV-001.md)", result)
-        self.assertIn(self.prefix, result)
-        self.assertIn(r"\[click\]", result)
-        self.assertIn(r"\|", result)
-        self.assertNotIn("<script>", result)
-        self.assertEqual(len(result.splitlines()), 5)
+        self.assertIn("[PV-001](cases/PV-001.md) | Passed |", result)
+        self.assertIn("[LIB-001](cases/LIB-001.md) | Failed |", result)
+        run_url = "https://github.com/example/app/actions/runs/123/attempts/2"
+        self.assertEqual(result.count(run_url), 1)
+        self.assertLess(result.index(run_url), result.index("| Case ID | Status |"))
+        self.assertIn("https://github.com/example/app/commit/" + "a" * 40, result)
+        self.assertNotIn("Evidence", result)
+        self.assertNotIn(diagnostic, result)
+        self.assertEqual(json.dumps(rows), original)
+        self.assertTrue(all(line.count("|") == 3 for line in result.splitlines() if line.startswith("|")))
+
+    def test_summary_cannot_label_results_from_different_runs_with_one_link(self):
+        other = evidence_prefix("https://github.com/example/app/actions/runs/124", "b" * 40, 1)
+        rows = [self.row("PV-001", detail=self.prefix + " — checked"),
+                self.row("LIB-001", detail=other + " — checked")]
+        with self.assertRaisesRegex(ValueError, "trusted run"):
+            render(rows, self.cases, self.prefix)
+        with self.assertRaisesRegex(ValueError, "canonical shared CI run"):
+            render([], self.cases, "invalid link")
 
     def test_catalog_has_explicit_ci_selectors_and_known_preview_scope(self):
         cases = catalog()
