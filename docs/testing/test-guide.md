@@ -213,7 +213,7 @@ This remains an end-to-end case, with Path `Release app`. A successful Preview a
 
 E2E-015 uses the [Timeline fixture](../../Tests/Fixtures/Timeline/README.md). Prepare a fresh Preview run, apply its overlay before opening the app, then follow the case to inspect date/text columns and square mosaics at normal and narrow article-list widths. MEDIA-001/002 and THUMB-001 cover extraction, index refresh, decoding, caching, and file boundaries; they do not establish the appearance or selection behavior of the assembled list.
 
-E2E-016 uses the [Date Groups fixture](../../Tests/Fixtures/DateGroups/README.md) to check month/year separators, repeated-day labels, and search results in the real app. DATE-001 verifies the underlying adjacency rules with a fixed calendar and time zone, including midnight boundaries and unsorted pinned articles.
+E2E-016 uses the [Date Groups fixture](../../Tests/Fixtures/DateGroups/README.md) to check separate year/month headings, their two-level sticky behavior while scrolling, repeated-day labels, and search results in the real app. DATE-001 verifies the underlying adjacency rules with a fixed calendar and time zone, including midnight boundaries and unsorted pinned articles.
 
 ## Record manual end-to-end results
 

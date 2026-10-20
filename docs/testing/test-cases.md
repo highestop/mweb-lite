@@ -178,7 +178,7 @@ Open a case to read or update its GWT statements, execution details, and data so
 
 - [E2E-015](cases/E2E-015.md) — Browse dated article cards with zero through four thumbnails and a four-image cap.
 
-- [E2E-016](cases/E2E-016.md) — Display month/year separators and repeated-day spacing across selection and search.
+- [E2E-016](cases/E2E-016.md) — Display separate sticky year/month headings and repeated-day spacing across scrolling, selection, and search.
 
 ### Release-app end-to-end case
 
