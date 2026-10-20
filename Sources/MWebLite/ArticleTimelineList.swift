@@ -28,6 +28,7 @@ struct ArticleTimelineList<Row: View>: View {
                         }
                     }
             }
+            .scrollIndicators(.hidden)
             .frame(width: viewport.size.width, height: viewport.size.height)
             .coordinateSpace(name: scrollCoordinateSpace)
         }
@@ -45,7 +46,14 @@ struct ArticleTimelineList<Row: View>: View {
                             monthHeader(month.heading)
                             LazyVStack(spacing: 2) {
                                 ForEach(month.entries) { entry in
-                                    row(entry).id(entry.id)
+                                    let headerInset = monthHeight + (year.date == nil ? 0 : yearHeight)
+                                    // Expand the scroll target above the row, then
+                                    // cancel that space outside the target so row
+                                    // layout and pointer bounds do not change.
+                                    row(entry)
+                                        .padding(.top, headerInset)
+                                        .id(entry.id)
+                                        .padding(.top, -headerInset)
                                 }
                             }
                         }

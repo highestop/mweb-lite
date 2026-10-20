@@ -2,9 +2,9 @@ import AppKit
 import SwiftUI
 
 extension View {
-    /// Keep SwiftUI's content at the actual viewport width as well as configuring
-    /// AppKit's overlay scrollers. SwiftUI may otherwise subtract a legacy gutter
-    /// from its proposal even after the native scroll view uses overlay scrollers.
+    /// Apply to the content of a ScrollView with `.scrollIndicators(.hidden)`.
+    /// SwiftUI then reserves no legacy gutter; this probe restores native overlay
+    /// scrollers while the rows use the containing viewport's actual width.
     func overlayScrollbars(viewportWidth: CGFloat) -> some View {
         frame(width: viewportWidth, alignment: .leading)
             .background(OverlayScrollbarConfiguration().allowsHitTesting(false))
@@ -17,7 +17,7 @@ private struct OverlayScrollbarConfiguration: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: OverlayScrollbarView, context: Context) {
-        nsView.configureEnclosingScrollView()
+        nsView.scheduleConfiguration()
     }
 
     static func dismantleNSView(_ nsView: OverlayScrollbarView, coordinator: ()) {
@@ -27,6 +27,9 @@ private struct OverlayScrollbarConfiguration: NSViewRepresentable {
 
 private final class OverlayScrollbarView: NSView {
     private var isDismantled = false
+    private var isConfigurationScheduled = false
+    private weak var configuredScrollView: NSScrollView?
+    private var visibilityObservation: NSKeyValueObservation?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -45,23 +48,54 @@ private final class OverlayScrollbarView: NSView {
 
     override func viewDidMoveToSuperview() {
         super.viewDidMoveToSuperview()
-        configureEnclosingScrollView()
+        scheduleConfiguration()
     }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        configureEnclosingScrollView()
+        scheduleConfiguration()
     }
 
     override func layout() {
         super.layout()
-        configureEnclosingScrollView()
+        scheduleConfiguration()
     }
 
-    func configureEnclosingScrollView() {
-        guard !isDismantled, let scrollView = enclosingScrollView else { return }
+    func scheduleConfiguration() {
+        guard !isDismantled, !isConfigurationScheduled else { return }
+        isConfigurationScheduled = true
+        // Configure after SwiftUI's update, not while it measures its ancestor.
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.isConfigurationScheduled = false
+            self.configureEnclosingScrollView()
+        }
+    }
+
+    private func configureEnclosingScrollView() {
+        guard !isDismantled else { return }
+        guard let scrollView = enclosingScrollView else {
+            visibilityObservation?.invalidate()
+            visibilityObservation = nil
+            configuredScrollView = nil
+            return
+        }
+        if configuredScrollView !== scrollView {
+            visibilityObservation?.invalidate()
+            configuredScrollView = scrollView
+            // SwiftUI can reapply its hidden-indicator policy without updating
+            // this unchanged background. Restore only this native scroll view.
+            visibilityObservation = scrollView.observe(\.hasVerticalScroller, options: [.new]) { [weak self] _, change in
+                if change.newValue == false {
+                    DispatchQueue.main.async { [weak self] in self?.scheduleConfiguration() }
+                }
+            }
+        }
         if scrollView.scrollerStyle != .overlay {
             scrollView.scrollerStyle = .overlay
+        }
+        if !scrollView.hasVerticalScroller {
+            scrollView.hasVerticalScroller = true
         }
         if !scrollView.autohidesScrollers {
             scrollView.autohidesScrollers = true
@@ -72,13 +106,14 @@ private final class OverlayScrollbarView: NSView {
     @objc private func preferredScrollerStyleDidChange() {
         // AppKit also observes this notification and can restore its preferred
         // style. Apply our per-list policy after that notification is delivered.
-        DispatchQueue.main.async { [weak self] in
-            self?.configureEnclosingScrollView()
-        }
+        scheduleConfiguration()
     }
 
     func invalidate() {
         isDismantled = true
+        visibilityObservation?.invalidate()
+        visibilityObservation = nil
+        configuredScrollView = nil
         NotificationCenter.default.removeObserver(self)
     }
 
