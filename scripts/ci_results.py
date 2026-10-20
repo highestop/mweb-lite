@@ -9,7 +9,7 @@ spec = importlib.util.spec_from_file_location("case_checker", ROOT / "scripts/ch
 checker = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(checker)
 STATUSES = {"Passed", "Failed", "Skipped"}
-REPORT_PATH = "docs/testing/test-results.md"
+REPORT_PATH = "docs/testing/ci-test-result.md"
 
 
 def catalog(root=ROOT):
@@ -105,7 +105,7 @@ def render(rows, cases, prefix):
     sha, repository_url, run_id, attempt = match.groups()
     run_url = f"{repository_url}/actions/runs/{run_id}/attempts/{attempt}"
     lines = [
-        "# Latest CI test results", "",
+        "# CI test result", "",
         f"CI run: [{run_id} (attempt {attempt})]({run_url})",
         f"Tested commit: [{sha}]({repository_url}/commit/{sha})", "",
         "| Case ID | Status |", "| --- | --- |",

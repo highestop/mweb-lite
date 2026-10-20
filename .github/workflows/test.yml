@@ -2,10 +2,12 @@ name: macOS
 on:
   push:
     paths-ignore:
-      - docs/testing/test-results.md
+      - docs/testing/ci-test-result.md
+      - docs/testing/e2e-test-result.md
   pull_request:
     paths-ignore:
-      - docs/testing/test-results.md
+      - docs/testing/ci-test-result.md
+      - docs/testing/e2e-test-result.md
 permissions:
   contents: read
 jobs:
@@ -16,7 +18,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check test catalog and fixture references
         id: catalog
-        run: python3 scripts/check-test-cases.py
+        run: |
+          python3 scripts/check-test-cases.py
+          python3 scripts/update-e2e-results.py --check
       - name: Test result collection and publication tools
         run: python3 -m unittest discover -s scripts/tests
       - name: Unit and library integration tests

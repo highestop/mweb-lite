@@ -9,6 +9,7 @@ import sys
 
 sys.dont_write_bytecode = True
 from ci_publish import APIError, GitHub, Publisher, PublishError
+from e2e_results import effective_commit
 
 
 def announce_pull_request(url):
@@ -34,13 +35,17 @@ def main():
             event = json.loads(event_path.read_text())
         elif not args.dry_run:
             raise PublishError("Live publishing is restricted to workflow_run")
+        repository_path = pathlib.Path(__file__).resolve().parents[1]
         checkout_sha = None
         if not args.dry_run:
             checkout_sha = subprocess.run(
-                ["git", "rev-parse", "HEAD"], cwd=pathlib.Path(__file__).resolve().parents[1],
+                ["git", "rev-parse", "HEAD"], cwd=repository_path,
                 check=True, capture_output=True, text=True, timeout=10,
             ).stdout.strip()
-        publisher = Publisher(GitHub(), os.environ.get("GITHUB_REPOSITORY", ""))
+        publisher = Publisher(
+            GitHub(), os.environ.get("GITHUB_REPOSITORY", ""),
+            same_source=lambda left, right: effective_commit(repository_path, left) == effective_commit(repository_path, right),
+        )
         result = publisher.publish(args.run_id, dry_run=args.dry_run, event=event,
                                    checkout_sha=checkout_sha, on_pull_request=announce_pull_request)
         print(json.dumps(result, ensure_ascii=False, indent=2))

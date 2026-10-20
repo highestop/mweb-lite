@@ -74,9 +74,9 @@ This is a focused compatible editor, not a pixel-for-pixel replacement for every
 
 ## Verify
 
-See the [testing guide](docs/testing/test-guide.md) for test scope, authoring, and full-app verification. The [case specification and index](docs/testing/test-cases.md) provides a template and links to [individual case definitions](docs/testing/cases). Each definition contains an eight-field `Field` / `Content` table; execution results are separate in [the latest CI summary](docs/testing/test-results.md). Versioned synthetic inputs live in [Tests/Fixtures](Tests/Fixtures).
+See the [testing guide](docs/testing/test-guide.md) for test scope, authoring, and full-app verification. The [case specification and index](docs/testing/test-cases.md) provides a template and links to [individual case definitions](docs/testing/cases). Each definition contains an eight-field `Field` / `Content` table; outcomes are separate in [CI results](docs/testing/ci-test-result.md) and [manual E2E results](docs/testing/e2e-test-result.md). The E2E summary records the tested commit and flags results whose effective version differs from main. Versioned synthetic inputs live in [Tests/Fixtures](Tests/Fixtures).
 
-The latest Markdown CI summary is committed through the results publication workflow. Raw JSON, detailed run reports, logs, screenshots, generated libraries, and app bundles stay in workflow artifacts or ignored `build/`.
+Both Markdown result summaries are tracked; CI results are published automatically, while E2E outcomes come from actual manual runs. Raw JSON, detailed run reports, logs, screenshots, generated libraries, and app bundles stay in workflow artifacts or ignored `build/`.
 
 ```sh
 python3 scripts/check-test-cases.py

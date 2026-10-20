@@ -45,6 +45,7 @@ class FakeAPI:
                     "head_sha": BASE, "run_attempt": 1,
                     "repository": {"full_name": REPOSITORY}, "head_repository": {"full_name": REPOSITORY}}
         self.default_head = BASE
+        self.report_path = REPORT_PATH
         self.archive = make_zip()
         self.report = render(ROWS, CASES, evidence_prefix(RUN_URL, BASE, 1))
         self.current_report = None
@@ -55,8 +56,11 @@ class FakeAPI:
         self.pull_exists = False
         self.merge_error = None
         self.advance_base_after_status = False
+        self.advance_base_after_download = None
         self.mutate_head_after_status = False
         self.pull_head = HEAD
+        self.pull_base = BASE
+        self.pull_branch = "codex/ci-results-123-1"
         self.mergeable = True
         self.mergeable_values = []
         self.expired = False
@@ -84,23 +88,26 @@ class FakeAPI:
                                                        "size_in_bytes": self.artifact_size}]}
         if suffix == "actions/artifacts/8/zip":
             assert binary
+            if self.advance_base_after_download:
+                self.default_head = self.advance_base_after_download
             return self.archive
-        if suffix.startswith(f"contents/{REPORT_PATH}?ref="):
-            content = self.current_report if suffix.endswith(BASE) else self.report
+        if suffix.startswith(f"contents/{self.report_path}?ref="):
+            content = self.report if suffix.endswith(HEAD) else self.current_report
             if content is None:
                 raise APIError("not found", 404)
             return {"type": "file", "encoding": "base64", "size": len(content.encode()),
                     "content": base64.b64encode(content.encode()).decode()}
-        if suffix == f"git/commits/{BASE}":
-            return {"tree": {"sha": "original-tree"}, "parents": []}
         if suffix == f"git/commits/{HEAD}":
             return {"parents": [{"sha": self.commit_parent}]}
+        if suffix.startswith("git/commits/"):
+            return {"tree": {"sha": "original-tree"}, "parents": []}
         if suffix.startswith("compare/"):
             return {"ahead_by": 1, "behind_by": 0, "files": self.changed_files}
         if suffix == "git/trees" and method == "POST":
             self.report = payload["tree"][0]["content"]
             return {"sha": "new-tree"}
         if suffix == "git/commits" and method == "POST":
+            self.commit_parent = payload["parents"][0]
             return {"sha": HEAD}
         if suffix == "git/refs" and method == "POST":
             self.branch_exists = True
@@ -109,12 +116,14 @@ class FakeAPI:
             return [{"number": 9, "state": "open"}] if self.pull_exists else []
         if suffix == "pulls" and method == "POST":
             self.pull_exists = True
+            self.pull_base = self.default_head
+            self.pull_branch = payload["head"]
             return {"number": 9}
         if suffix == "pulls/9":
             mergeable = self.mergeable_values.pop(0) if self.mergeable_values else self.mergeable
             return {"state": "open", "draft": False, "mergeable": mergeable,
-                    "base": {"ref": "main", "sha": BASE, "repo": {"full_name": REPOSITORY}},
-                    "head": {"ref": "codex/ci-results-123-1", "sha": self.pull_head, "repo": {"full_name": REPOSITORY}}}
+                    "base": {"ref": "main", "sha": self.pull_base, "repo": {"full_name": REPOSITORY}},
+                    "head": {"ref": self.pull_branch, "sha": self.pull_head, "repo": {"full_name": REPOSITORY}}}
         if suffix == "pulls/9/files?per_page=100":
             return self.pull_files
         if suffix == f"statuses/{HEAD}" and method == "POST":
@@ -174,6 +183,43 @@ class PublisherTests(unittest.TestCase):
         with self.assertRaises(PublishError):
             self.publisher.publish(RUN_ID, event=event)
         self.assertEqual(self.api.writes, [])
+
+    def test_report_only_advance_uses_current_base_and_original_run_evidence(self):
+        publication_base = "c" * 40
+        self.api.default_head = publication_base
+        same_source = lambda left, right: left == right or (left, right) == (BASE, publication_base)
+        self.publisher = Publisher(self.api, REPOSITORY, CASES, same_source=same_source)
+        result = self.publisher.publish(RUN_ID, event=EVENT, checkout_sha=publication_base)
+        self.assertEqual(result["outcome"], "merged")
+        self.assertEqual(self.api.commit_parent, publication_base)
+        self.assertEqual(self.api.pull_base, publication_base)
+        self.assertIn(BASE, self.api.report)
+        self.assertNotIn(publication_base, self.api.report)
+        self.assertEqual(self.api.report, render(ROWS, CASES, evidence_prefix(RUN_URL, BASE, 1)))
+
+    def test_source_comparison_rejects_code_advance_without_writes(self):
+        self.api.default_head = "d" * 40
+        self.publisher = Publisher(self.api, REPOSITORY, CASES,
+                                   same_source=lambda left, right: left == right or right == "c" * 40)
+        with self.assertRaises(PublishError):
+            self.publisher.publish(RUN_ID, event=EVENT, checkout_sha=self.api.default_head)
+        self.assertEqual(self.api.writes, [])
+
+    def test_even_equivalent_base_races_fail_before_writes_or_merge(self):
+        for stage in ("download", "status"):
+            with self.subTest(stage=stage):
+                self.api = FakeAPI()
+                self.publisher = Publisher(self.api, REPOSITORY, CASES,
+                                           same_source=lambda left, right: right in (BASE, "c" * 40))
+                if stage == "download":
+                    self.api.advance_base_after_download = "c" * 40
+                else:
+                    self.api.advance_base_after_status = True
+                with self.assertRaisesRegex(PublishError, "head changed"):
+                    self.publish()
+                self.assertFalse(any(call[0].endswith("/merge") for call in self.api.calls))
+                if stage == "download":
+                    self.assertEqual(self.api.writes, [])
 
     def test_live_publication_requires_dispatch(self):
         with self.assertRaises(PublishError):
@@ -285,6 +331,30 @@ class PublisherTests(unittest.TestCase):
                         self.publish()
                 self.assertEqual(sleep.call_count, expected_waits)
                 self.assertFalse(any(call[0].endswith("/merge") for call in self.api.calls))
+
+    def test_reusable_publisher_is_restricted_to_one_allowed_report_path(self):
+        with self.assertRaises(PublishError):
+            Publisher(self.api, REPOSITORY, CASES, report_path="Sources/App.swift")
+        e2e_path = "docs/testing/e2e-test-result.md"
+        self.api.report_path = e2e_path
+        self.api.changed_files = self.api.pull_files = [{"filename": e2e_path, "status": "modified"}]
+        self.publisher = Publisher(self.api, REPOSITORY, CASES, report_path=e2e_path)
+        guards = []
+        result = self.publisher.publish_report(
+            base=BASE, report="An independently validated E2E report\n", default_branch="main",
+            branch="codex/e2e-results-123", title="docs: update E2E results", body="Only E2E results.",
+            run_url=RUN_URL, guard=lambda: guards.append(True),
+            validation_context="E2E result validation", validation_description="E2E freshness validated",
+        )
+        self.assertEqual(result["outcome"], "merged")
+        self.assertEqual(len(guards), 2)
+        tree = next(call[2] for call in self.api.writes if call[0].endswith("git/trees"))
+        self.assertEqual([entry["path"] for entry in tree["tree"]], [e2e_path])
+        status = next(call[2] for call in self.api.writes if "/statuses/" in call[0])
+        self.assertEqual(status["context"], "E2E result validation")
+        self.assertEqual(status["description"], "E2E freshness validated")
+        with self.assertRaises(PublishError):
+            self.publisher.report_only([{"filename": REPORT_PATH, "status": "modified"}])
 
 
 class ArtifactTests(unittest.TestCase):
