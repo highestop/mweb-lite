@@ -3,6 +3,7 @@ import MWebCore
 
 struct LibraryView: View {
     @ObservedObject var store: LibraryStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var expandedCategoryIDs: Set<String> = []
     @StateObject private var articleListSelection = ArticleListSelectionController()
@@ -191,21 +192,26 @@ struct LibraryView: View {
                 title: columnVisibility == .detailOnly ? "展开侧边栏" : "收起侧边栏",
                 symbol: "sidebar.left", help: "展开或收起分类和文章列表"
             ) {
-                columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) {
+                    columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
+                }
             }
             .accessibilityIdentifier("toggle-navigation")
-            ToolbarIconButton(title: "新建文章", symbol: "square.and.pencil", help: "新建文章 · ⌘N") {
+            ToolbarIconButton(title: "新建文章", symbol: "plus", help: "新建文章 · ⌘N") {
                 store.createArticle()
             }
             .accessibilityIdentifier("new-article")
             .disabled(store.isBusy)
-            ToolbarIconButton(
-                title: store.mode == .preview ? "切换到编辑" : "切换到预览",
-                symbol: store.mode == .preview ? "pencil" : "eye",
-                help: store.mode == .preview ? "切换到编辑 · ⌘R" : "切换到预览 · ⌘R"
-            ) {
-                store.setMode(store.mode == .preview ? .editor : .preview)
-            }
+            Toggle("编辑模式", isOn: Binding(
+                get: { store.mode == .editor },
+                set: { store.setMode($0 ? .editor : .preview) }
+            ))
+            .toggleStyle(.switch)
+            .controlSize(.small)
+            .labelsHidden()
+            .frame(width: 32, height: 32, alignment: .center)
+            .help("开启为编辑，关闭为预览 · ⌘R")
+            .accessibilityLabel("编辑模式")
             .accessibilityIdentifier("toggle-editor-mode")
             .disabled(store.document == nil || store.isBusy)
             Spacer(minLength: 0)
