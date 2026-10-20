@@ -1,4 +1,4 @@
--- Creation dates use Asia/Shanghai; same-day notes cross a UTC boundary.
+-- Creation dates use Asia/Shanghai. Same-day notes cross a UTC boundary.
 -- Modification dates deliberately differ and must not determine display order or headings.
 INSERT INTO cat (uuid, name, pid, sort) VALUES (107, 'Date Groups', 0, 3);
 INSERT INTO article (uuid, state, dateAdd, dateModif, dateArt) VALUES
