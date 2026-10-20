@@ -1,6 +1,6 @@
 # Testing guide
 
-Use [test-cases.md](test-cases.md) for the shared case format and index. Each case has its own definition under [cases/](cases/) describing what must work and how it is verified. [test-results.md](test-results.md) separately contains the latest published CI results. Use committed synthetic fixtures to reproduce full-app cases. A successful build alone does not verify any user interaction.
+Use [test-cases.md](test-cases.md) for the shared case format and index. Each case has its own definition under [cases/](cases/) describing what must work and how it is verified. Results are separate in [ci-test-result.md](ci-test-result.md) and [e2e-test-result.md](e2e-test-result.md). Use committed synthetic fixtures to reproduce full-app cases. A successful build alone does not verify any user interaction.
 
 **Preview app** means `MWeb Lite Preview.app`: the complete application built for end-to-end testing with an isolated fixture library. **Release app** means the normal `MWeb Lite.app` with its production identity and normal launch flow. **WebKit integration test program** means `PreviewTests.app`: the temporary program that checks only the Markdown rendering component. Their existing filenames remain unchanged.
 
@@ -191,20 +191,55 @@ Execute each full-app case from its documented Given state. Use a fresh run afte
 5. **Save and reopen:** save with `⌘S` when the case calls for explicit save, or wait for the observable saved-file result for an autosave case. Switch articles, quit, and reopen the same run. Confirm both content and category membership survived. Inspect only this run's database and document files if the Then clause requires storage assertions.
 6. **Inspect appearance and input:** check hover/pressed feedback, compact margins, dark/light appearance, and the app icon where specified. For Chinese input, use the actual macOS input method and record its name; `setMarkedText` in an XCTest does not substitute for this interaction.
 
-For every case, follow its file's exact GWT values rather than treating this sequence as a blanket pass. Keep local observations, reports, logs, and screenshots in ignored `build/Test Runs/` or `build/test-results/`; do not put results in case definitions. This change does not add a manual-result entry system or automated full-app execution. Quit the Preview app before removing its run directory. Keep a failed run until its diagnosis is complete.
+For every case, follow its file's exact GWT values rather than treating this sequence as a blanket pass. Keep observations, detailed reports, logs, and screenshots in ignored `build/Test Runs/` or `build/test-results/`; record the outcome in [the manual E2E summary](e2e-test-result.md), not in case definitions. Full-app execution remains manual. Quit the Preview app before removing its run directory. Keep a failed run until its diagnosis is complete.
 
 ## Verify the Release app
 
 REL-001 exercises the normal production identity and library bookmark. Perform it in a separate macOS test account so its production preferences are isolated from the account used for personal writing. Use only a newly materialized fixture copy available to that account.
 
-1. Build `MWeb Lite.app` with `./scripts/build-app.sh release` and prepare a fresh fixture, for example `python3 scripts/prepare-test-library.py 'build/Test Runs/release-001/Library'`.
+1. Record `git rev-parse HEAD` before building `MWeb Lite.app` with `./scripts/build-app.sh release`, then prepare a fresh fixture, for example `python3 scripts/prepare-test-library.py 'build/Test Runs/release-001/Library'`. Release builds have no `run.json`; retain this full SHA and ensure the installed app is this exact build.
 2. In the test account, install that unchanged bundle in the account's Applications folder and launch it through Finder. Keep its production bundle identifier. Do not use `--library`, the Preview app launcher, or a renamed preview bundle for this case.
 3. Inspect the Finder and running Dock icon. Use File → Open / `⌘O` to select the copied fixture. Verify the expected categories and articles, then quit with `⌘Q`.
 4. Launch the installed app normally again. Verify that it restores the selected fixture through the saved library bookmark and still displays the expected content and icon. Record the installed bundle location, revision, account isolation, and observed results.
 
-This remains an end-to-end case, with Path `Release app`. A successful Preview app run does not pass it. Keep any observations with the ignored local run artifacts; this path is not included in the CI result summary. No step requires opening a personal library.
+This remains an end-to-end case, with Path `Release app`. A successful Preview app run does not pass it. Record its outcome in the manual E2E summary and keep detailed observations with the ignored local run artifacts; it is not included in the CI summary. No step requires opening a personal library.
+
+## Record manual end-to-end results
+
+[e2e-test-result.md](e2e-test-result.md) contains all 13 end-to-end cases, with `Case ID`, `Status`, `Commit SHA`, and `Outdated` columns. Record `Passed`, `Failed`, or `Skipped` only after an actual attempt. An unexecuted case keeps `—` in the last three columns. The recorded SHA is the full 40-character commit of the application actually tested, not the later commit that saves the result.
+
+Build from a known committed revision. Before building, commit source, fixture, script, case-definition, or other non-report changes; only edits to the two result Markdown files may remain uncommitted. For a Preview app run, capture `baseCommit` from its `run.json`, not the current checkout after further work. If `workingTreeDirty` is true, confirm that only result files were dirty and verify the recorded source-file hashes/fingerprint against the build inputs. Do not label an app built from other uncommitted changes as the recorded commit. Run metadata identifies the binary's source; it does not prove that a case was executed.
+
+After following one case's GWT and checking every Then assertion, refresh the main reference and record that case:
+
+```sh
+git fetch origin
+python3 scripts/update-e2e-results.py \
+  --case E2E-008 --status Passed --commit '<full tested commit SHA>' \
+  --head-ref origin/main
+```
+
+Use the observed outcome, not the example's `Passed` by default. The command updates only that case's Status and Commit SHA, then refreshes Outdated for all cases. It does not run tests, fetch Git history, or substitute HEAD for the tested version. New recorded SHAs must resolve locally to the exact supplied commit. Preserve unexecuted cases and previous failed outcomes until a new execution supplies a result.
+
+You may edit a case's Status and Commit SHA in the summary manually, keeping the full SHA inside backticks, then refresh derived freshness:
+
+```sh
+git fetch origin
+python3 scripts/update-e2e-results.py --refresh --head-ref origin/main
+python3 scripts/update-e2e-results.py --check
+```
+
+`--check` validates only the table's format and case coverage; it neither recomputes freshness nor verifies execution. Refresh requires complete Git history and rejects shallow repositories. If the checkout is shallow, fetch the full history with `git fetch --unshallow origin` before refreshing. A previously recorded SHA that is missing locally is conservatively marked `Yes`; retrieve that commit before treating the result as current.
+
+Freshness compares **effective versions** of the tested SHA and main. For each, walk backward through first-parent history while the nonempty actual commit diff changes only `docs/testing/ci-test-result.md` and/or `docs/testing/e2e-test-result.md`. Compare the two resulting SHAs. This ignores result-recording commits on either side. A source, fixture, case-definition, other-documentation, or mixed report-and-source commit counts as a version change. This is a repository-wide version check, not an estimate of whether one case is affected.
+
+For an executed case, Outdated is `Yes` when the effective versions differ or the tested commit cannot be resolved, and empty when they match. It is `—` when no result exists. Refresh changes only Outdated; it preserves the manually recorded outcome and tested SHA. Keep detailed logs and screenshots under ignored `build/`, and include the updated summary through the normal project PR workflow.
+
+The **Update E2E result freshness** workflow maintains these flags after main changes. Code pushes wait for the CI publisher workflow to finish before refreshing; a skipped publisher does not trigger freshness, while a failed publisher still can. Pushes changing only the two summaries can refresh immediately. It creates a PR only when derived flags change, independently validates the update, then rebase merges and deletes its branch. The CI and E2E writers queue in a shared concurrency group, and unchanged output produces no PR. This workflow never executes E2E cases or changes Status or Commit SHA. It becomes active only after the new workflow is merged into the default branch.
 
 ## GitHub Actions coverage
+
+A GitHub Actions **workflow** is the YAML-defined event, jobs, and steps under `.github/workflows/`. An **action** is a reusable step used by a workflow, such as `actions/checkout`; a step can also run a script directly. The CI publisher and E2E freshness updater are workflows that invoke this repository's Python scripts, rather than new reusable actions.
 
 [The macOS workflow](../../.github/workflows/test.yml) validates case definitions and fixture references, runs XCTest and the WebKit integration program, and builds the Release application. The test methods carry explicit case IDs, and WebKit emits one structured record per reported case.
 
@@ -219,7 +254,7 @@ python3 scripts/collect-test-results.py \
   --run-url '<actual GitHub Actions run URL>' \
   --source-sha '<tested commit SHA>' --attempt 1 \
   --output build/test-results/case-results.json \
-  --markdown build/test-results/test-results.md
+  --markdown build/test-results/ci-test-result.md
 ```
 
 `--markdown` is optional and renders a local inspection copy. Do not attach a CI URL to results from a different local execution. Add `--require-xctest` when the XCTest runner succeeded and `--require-preview` when the WebKit runner succeeded: these flags require complete reporting for that successful runner. The workflow sets them from each runner's outcome. Failed or interrupted runners may supply partial observed results without those flags; absent results are never filled in. A complete baseline run currently produces 47 CI records: 43 XCTest cases and four WebKit cases, excluding local-only PV-005.
@@ -247,16 +282,16 @@ Keep IDs stable. Data links to fixture inputs where applicable; Verification con
 
 ## CI result publication
 
-[test-results.md](test-results.md) is the generated latest CI summary. Its two result columns are `Case ID` and `Status`, with IDs linked to their definitions. Shared CI run-attempt and tested-commit links appear before the table; per-case evidence and diagnostics remain in the artifact's three-field JSON records. `Passed`, `Failed`, and `Skipped` describe individual reported cases. Missing entries mean no result was published for those cases from that run; they are not implied passes or failures. The shared links identify the execution and tested source, so a summary does not automatically verify later edits.
+[ci-test-result.md](ci-test-result.md) is the generated latest CI summary. Its two result columns are `Case ID` and `Status`, with IDs linked to their definitions. Shared CI run-attempt and tested-commit links appear before the table; per-case evidence and diagnostics remain in the artifact's three-field JSON records. `Passed`, `Failed`, and `Skipped` describe individual reported cases. Missing entries mean no result was published for those cases from that run; they are not implied passes or failures. The shared links identify the execution and tested source, so a summary does not automatically verify later edits.
 
 The publication flow is:
 
 1. CI collects per-case results and uploads the `ci-case-results` artifact. Raw JSON and logs remain artifacts, not repository files.
 2. After a default-branch CI run completes, a trusted `workflow_run` publisher downloads and validates that run's artifact. It does not execute privileged publication code from a pull-request checkout.
-3. The publisher accepts only a current eligible run and updates `docs/testing/test-results.md` through a dedicated results PR. Independent validation checks the generated change before rebase merging it.
+3. The publisher accepts only a current eligible run and updates `docs/testing/ci-test-result.md` through a dedicated results PR. Independent validation checks the generated change before rebase merging it.
 4. Stale runs are prevented from replacing newer results, and result-only updates are guarded against triggering an endless publication loop.
 
-Automatic publication becomes active only after its workflows are merged into the default branch. PR CI can validate collection while the publisher is still inactive. This change has not yet demonstrated the complete hosted collection → publication PR → validation → merge cycle; verify the first eligible default-branch run before claiming that full flow works.
+The existing CI publication cycle was verified by [CI run 39360230846](https://github.com/highestop/mweb-lite/actions/runs/39360230846), [publisher run 39360314868](https://github.com/highestop/mweb-lite/actions/runs/39360314868), and [results PR #7](https://github.com/highestop/mweb-lite/pull/7). The new E2E freshness workflow becomes active only after its workflow file reaches the default branch; this earlier CI result does not verify the new workflow.
 
 Repository **Settings → Actions → General → Workflow permissions** must allow **Allow GitHub Actions to create and approve pull requests** for the publisher to create its results PR. The publisher does not submit approval reviews; it keeps the repository's default token permission at read and grants write permissions only to the publication job. This combined repository switch is enabled for this repository. If it is disabled later, publication cannot create its PR.
 
@@ -267,6 +302,6 @@ GITHUB_REPOSITORY=highestop/mweb-lite \
   python3 scripts/publish-test-results.py --run-id '<run-id>' --dry-run
 ```
 
-The run must belong to the current default-branch head and contain the validated artifact. A PR run is not eligible, even with `--dry-run`. Dry-run validates and renders without writing locally or remotely. Live publication is restricted to the trusted `workflow_run` context; it is not a command for publishing a local or PR-branch report.
+The run's effective source version must match current main and its artifact must validate. This comparison requires complete Git history and ignores commits changing only the two result summaries, as described above, so report-only advances do not invalidate an otherwise eligible run. CI evidence retains the actual tested SHA, not the later main head. A PR run is not eligible, even with `--dry-run`. Dry-run validates and renders without writing locally or remotely. Live publication is restricted to the trusted `workflow_run` context; it is not a command for publishing a local or PR-branch report.
 
-Only the latest Markdown CI summary is committed. Keep raw JSON, full run reports, screenshots, recordings, generated libraries, and app bundles in workflow artifacts or ignored `build/test-results/` and `build/Test Runs/`. Local Preview app investigation remains useful, but this pipeline adds neither manual-result submission nor automated full-app end-to-end execution.
+Both Markdown result summaries are committed. Keep raw JSON, detailed run reports, screenshots, recordings, generated libraries, and app bundles in workflow artifacts or ignored `build/test-results/` and `build/Test Runs/`. Recording a manual outcome or refreshing its Outdated field does not automate full-app execution.

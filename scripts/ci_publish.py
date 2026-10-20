@@ -18,6 +18,7 @@ ARTIFACT_NAME = "ci-case-results"
 MAX_ZIP_BYTES = 2 * 1024 * 1024
 MAX_JSON_BYTES = 1024 * 1024
 VALIDATION_CONTEXT = "CI result validation"
+RESULT_PATHS = frozenset({REPORT_PATH, "docs/testing/e2e-test-result.md"})
 
 
 class PublishError(ValueError):
@@ -129,13 +130,17 @@ def artifact_rows(archive_bytes):
 
 
 class Publisher:
-    def __init__(self, api, repository, cases=None):
+    def __init__(self, api, repository, cases=None, *, report_path=REPORT_PATH, same_source=None):
         if not re.fullmatch(r"[\w.-]+/[\w.-]+", repository):
             raise PublishError("GITHUB_REPOSITORY must identify owner/repository")
+        if report_path not in RESULT_PATHS:
+            raise PublishError("Publication is restricted to the two test result files")
         self.api = api
         self.repository = repository
         self.endpoint = f"repos/{repository}"
         self.cases = catalog() if cases is None else cases
+        self.report_path = report_path
+        self.same_source = same_source if same_source is not None else lambda left, right: left == right
 
     def request(self, suffix, method="GET", payload=None, binary=False):
         return self.api.request(f"{self.endpoint}/{suffix}", method, payload, binary)
@@ -150,6 +155,10 @@ class Publisher:
 
     def branch_head(self, branch):
         return self.request("git/ref/heads/" + urllib.parse.quote(branch, safe="/"))["object"]["sha"]
+
+    def require_head(self, default_branch, base):
+        if self.branch_head(default_branch) != base:
+            raise PublishError("Default-branch head changed during publication")
 
     def trust_run(self, run_id, branch, event):
         run = self.request(f"actions/runs/{run_id}")
@@ -173,12 +182,12 @@ class Publisher:
                     or dispatched.get("id") != run_id or dispatched.get("run_attempt") != attempt
                     or dispatched.get("head_sha") != sha):
                 raise PublishError("Dispatch does not match the current completed run attempt")
-        if self.branch_head(branch) != sha:
-            raise PublishError("The tested commit is no longer the default-branch head")
+        if not self.same_source(sha, self.branch_head(branch)):
+            raise PublishError("The tested source no longer matches the default-branch head")
         return run
 
     def read_report(self, ref):
-        item = self.optional(f"contents/{REPORT_PATH}?ref={urllib.parse.quote(ref, safe='')}")
+        item = self.optional(f"contents/{self.report_path}?ref={urllib.parse.quote(ref, safe='')}")
         if item is None:
             return None
         if (item.get("type") != "file" or item.get("encoding") != "base64"
@@ -192,10 +201,9 @@ class Publisher:
         except (KeyError, ValueError, UnicodeError) as error:
             raise PublishError("Invalid report content") from error
 
-    @staticmethod
-    def report_only(files):
+    def report_only(self, files):
         if (not isinstance(files, list) or len(files) != 1
-                or files[0].get("filename") != REPORT_PATH
+                or files[0].get("filename") != self.report_path
                 or files[0].get("status") not in ("added", "modified")):
             raise PublishError("Refusing a change outside the single report file")
 
@@ -249,11 +257,14 @@ class Publisher:
             raise PublishError("Repository identity mismatch")
         default_branch = repository["default_branch"]
         run = self.trust_run(run_id, default_branch, event)
-        base, attempt = run["head_sha"], run["run_attempt"]
+        source, attempt = run["head_sha"], run["run_attempt"]
+        base = self.branch_head(default_branch)
+        if not self.same_source(source, base):
+            raise PublishError("Default-branch source changed before publication")
         if not dry_run and checkout_sha != base:
-            raise PublishError("Trusted checkout and tested default-branch revision differ")
+            raise PublishError("Trusted checkout and current default-branch revision differ")
         run_url = f"https://github.com/{self.repository}/actions/runs/{run_id}"
-        prefix = evidence_prefix(run_url, base, attempt)
+        prefix = evidence_prefix(run_url, source, attempt)
         listing = self.request(f"actions/runs/{run_id}/artifacts?per_page=100")
         if listing.get("total_count", 101) > 100:
             raise PublishError("Too many artifacts to validate unambiguously")
@@ -274,11 +285,30 @@ class Publisher:
         if dry_run:
             return {"outcome": "dry-run", "run_id": run_id, "case_count": len(rows), "report": report}
 
-        # Recheck before creating any objects; a rerun or newer main commit invalidates this work.
-        current = self.trust_run(run_id, default_branch, event)
-        if current["run_attempt"] != attempt or current["head_sha"] != base:
-            raise PublishError("Run changed before publication")
+        def guard():
+            current = self.trust_run(run_id, default_branch, event)
+            if current["run_attempt"] != attempt or current["head_sha"] != source:
+                raise PublishError("Run changed before publication")
+
         branch = f"codex/ci-results-{run_id}-{attempt}"
+        result = self.publish_report(
+            base=base, report=report, default_branch=default_branch, branch=branch,
+            title=f"docs: update CI test results (run {run_id}, attempt {attempt})",
+            body=f"Update only `{self.report_path}` from [{source}]({run_url}/attempts/{attempt}).\n\n"
+                 f"The publisher validated the completed default-branch run, {len(rows)} CI case results, "
+                 "canonical evidence, and the report-only diff. Merge method: rebase.\n",
+            run_url=run_url, guard=guard, on_pull_request=on_pull_request,
+        )
+        return {**result, "run_id": run_id}
+
+    def publish_report(self, *, base, report, default_branch, branch, title, body, run_url, guard,
+                       on_pull_request=None, validation_context=VALIDATION_CONTEXT,
+                       validation_description="Trusted CI results and report-only change validated"):
+        """Publish one validated result file; callers supply their source-specific guard."""
+        guard()
+        self.require_head(default_branch, base)
+        if self.read_report(base) == report:
+            return {"outcome": "unchanged"}
         ref_path = f"git/ref/heads/{branch}"
         existing = self.optional(ref_path)
         if existing is not None:
@@ -288,10 +318,10 @@ class Publisher:
             original = self.request(f"git/commits/{base}")
             tree = self.request("git/trees", "POST", {
                 "base_tree": original["tree"]["sha"],
-                "tree": [{"path": REPORT_PATH, "mode": "100644", "type": "blob", "content": report}],
+                "tree": [{"path": self.report_path, "mode": "100644", "type": "blob", "content": report}],
             })
             commit = self.request("git/commits", "POST", {
-                "message": f"docs: update CI test results for run {run_id} attempt {attempt}",
+                "message": title,
                 "tree": tree["sha"], "parents": [base],
             })
             head = commit["sha"]
@@ -307,11 +337,9 @@ class Publisher:
             number = pulls[0]["number"]
         else:
             pull = self.request("pulls", "POST", {
-                "title": f"docs: update CI test results (run {run_id}, attempt {attempt})",
+                "title": title,
                 "head": branch, "base": default_branch,
-                "body": f"Update only `{REPORT_PATH}` from [{base}]({run_url}/attempts/{attempt}).\n\n"
-                        f"The publisher validated the completed default-branch run, {len(rows)} CI case results, "
-                        "canonical evidence, and the report-only diff. Merge method: rebase.\n",
+                "body": body,
             })
             number = pull["number"]
         pull_url = f"https://github.com/{self.repository}/pull/{number}"
@@ -319,13 +347,14 @@ class Publisher:
             on_pull_request(pull_url)
         self.verify_pull(number, branch, base, head, report, default_branch)
         self.request(f"statuses/{head}", "POST", {
-            "state": "success", "context": VALIDATION_CONTEXT,
-            "description": "Trusted CI results and report-only change validated",
+            "state": "success", "context": validation_context,
+            "description": validation_description,
             "target_url": run_url,
         })
         pull = self.verify_pull(number, branch, base, head, report, default_branch)
         self.wait_for_mergeable(number, head, pull)
-        self.trust_run(run_id, default_branch, event)
+        guard()
+        self.require_head(default_branch, base)
         # The expected head SHA prevents a concurrent branch update from being merged.
         merged = self.request(f"pulls/{number}/merge", "PUT", {"merge_method": "rebase", "sha": head})
         if merged.get("merged") is not True:
@@ -339,4 +368,4 @@ class Publisher:
             except APIError as error:
                 if error.status != 404:
                     raise
-        return {"outcome": "merged", "run_id": run_id, "pull_request": pull_url}
+        return {"outcome": "merged", "pull_request": pull_url}
