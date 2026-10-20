@@ -179,12 +179,12 @@ final class MarkdownEditorFocusTests: CaseReportingTestCase {
         scrollView.automaticallyAdjustsContentInsets = false
         let textView = MarkdownTextView(frame: scrollView.bounds)
         textView.minSize = .zero
-        textView.maxSize = NSSize(width: .greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
         textView.autoresizingMask = [.width]
         textView.textContainer?.widthTracksTextView = true
-        textView.textContainer?.containerSize = NSSize(width: 400, height: .greatestFiniteMagnitude)
+        textView.textContainer?.containerSize = NSSize(width: 400, height: CGFloat.greatestFiniteMagnitude)
         textView.textContainerInset = NSSize(width: 16, height: 16)
         textView.isRichText = false
         textView.font = .monospacedSystemFont(ofSize: 14, weight: .regular)
