@@ -1,6 +1,6 @@
 # Test cases
 
-This document defines the shared case format and indexes the individual case files. Each file records behavior, test level, verification path, data source, and execution instructions. It contains 74 cases: 51 Swift tests, 6 preview-component integration cases, 16 full-app preview cases, and 1 release-app case. Execution results are separate in [CI results](ci-test-result.md) and [manual end-to-end results](e2e-test-result.md). Follow the [test guide](test-guide.md) for setup and implementation. A passing test verifies only its **Then** statement at the recorded revision; it does not certify the whole feature or subsequent changes. In particular, AppKit component tests and `PreviewTests.app` are integration tests, not full-application end-to-end tests.
+This document defines the shared case format and indexes the individual case files. Each file records behavior, test level, verification path, data source, and execution instructions. It contains 75 cases: 51 Swift tests, 6 preview-component integration cases, 17 full-app preview cases, and 1 release-app case. Execution results are separate in [CI results](ci-test-result.md) and [manual end-to-end results](e2e-test-result.md). Follow the [test guide](test-guide.md) for setup and implementation. A passing test verifies only its **Then** statement at the recorded revision; it does not certify the whole feature or subsequent changes. In particular, AppKit component tests and `PreviewTests.app` are integration tests, not full-application end-to-end tests.
 
 ## Format and result rules
 
@@ -64,7 +64,7 @@ A test that did not run has no result entry. A compile error, failed application
 
 ## Manual end-to-end result contract
 
-[e2e-test-result.md](e2e-test-result.md) tracks the 17 end-to-end cases: 16 Preview app cases and REL-001 for the Release app. Its columns are `Case ID`, `Status`, `Commit SHA`, and `Outdated`. Case IDs link to their definitions. Record `Passed`, `Failed`, or `Skipped` only for an actual execution, with the full commit SHA of the app version tested, formatted as inline code. Do not use the later commit that records the result. A case with no execution record uses `—` for Status, Commit SHA, and Outdated.
+[e2e-test-result.md](e2e-test-result.md) tracks the 18 end-to-end cases: 17 Preview app cases and REL-001 for the Release app. Its columns are `Case ID`, `Status`, `Commit SHA`, and `Outdated`. Case IDs link to their definitions. Record `Passed`, `Failed`, or `Skipped` only for an actual execution, with the full commit SHA of the app version tested, formatted as inline code. Do not use the later commit that records the result. A case with no execution record uses `—` for Status, Commit SHA, and Outdated.
 
 Outdated is computed independently of the recorded outcome: `Yes` means the tested effective version differs from current main or the recorded commit cannot be resolved; an empty cell means they match. Refreshing freshness must not change Status or Commit SHA. Both versions are normalized along first-parent history, ignoring only commits with a nonempty actual diff limited to `docs/testing/ci-test-result.md` and `docs/testing/e2e-test-result.md`. Source, fixture, case-definition, other documentation, or mixed commits count as version changes. See the [manual result workflow](test-guide.md#record-manual-end-to-end-results) for recording and refreshing results with full Git history.
 
@@ -179,6 +179,7 @@ Open a case to read or update its GWT statements, execution details, and data so
 - [E2E-015](cases/E2E-015.md) — Browse dated article cards with zero through four thumbnails and a four-image cap.
 
 - [E2E-016](cases/E2E-016.md) — Display separate sticky year/month headings and repeated-day spacing across scrolling, selection, and search.
+- [E2E-017](cases/E2E-017.md) — Keep the translucent article-list scrollbar overlaid without width changes during scrolling, search, and resizing.
 
 ### Release-app end-to-end case
 
