@@ -25,17 +25,19 @@ struct MarkdownEditor: NSViewRepresentable {
     @Environment(\.isEnabled) private var isEnabled
     @Binding var text: String
     let documentID: String
+    var isVisible: Bool
     var onSave: () -> Void
     var onInsertImages: (([URL]) -> [String])?
     var onPasteImage: ((Data) -> String?)?
     var focusRequest: EditorFocusRequest?
     var onFocusHandled: ((UUID) -> Void)?
 
-    init(text: Binding<String>, documentID: String, onSave: @escaping () -> Void,
+    init(text: Binding<String>, documentID: String, isVisible: Bool = true, onSave: @escaping () -> Void,
          onInsertImages: (([URL]) -> [String])? = nil, onPasteImage: ((Data) -> String?)? = nil,
          focusRequest: EditorFocusRequest? = nil, onFocusHandled: ((UUID) -> Void)? = nil) {
         _text = text
         self.documentID = documentID
+        self.isVisible = isVisible
         self.onSave = onSave
         self.onInsertImages = onInsertImages
         self.onPasteImage = onPasteImage
@@ -54,6 +56,7 @@ struct MarkdownEditor: NSViewRepresentable {
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = true
         scrollView.backgroundColor = .textBackgroundColor
+        scrollView.isHidden = !isVisible
 
         let textView = MarkdownTextView(frame: .zero)
         textView.minSize = NSSize(width: 0, height: 0)
@@ -66,7 +69,7 @@ struct MarkdownEditor: NSViewRepresentable {
         textView.textContainerInset = NSSize(width: 16, height: 16)
         textView.textContainer?.lineFragmentPadding = 0
         textView.isRichText = false
-        textView.isEditable = isEnabled
+        textView.isEditable = isEnabled && isVisible
         textView.importsGraphics = false
         textView.allowsUndo = true
         textView.usesFindBar = true
@@ -107,7 +110,13 @@ struct MarkdownEditor: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? MarkdownTextView else { return }
         context.coordinator.parent = self
-        textView.isEditable = isEnabled
+        if scrollView.isHidden == isVisible {
+            // SwiftUI opacity does not remove a native text view's cursor rects.
+            scrollView.isHidden = !isVisible
+            scrollView.window?.invalidateCursorRects(for: textView)
+            scrollView.window?.invalidateCursorRects(for: scrollView)
+        }
+        textView.isEditable = isEnabled && isVisible
         textView.onSave = onSave
         textView.onInsertImages = onInsertImages
         textView.onPasteImage = onPasteImage
@@ -131,7 +140,7 @@ struct MarkdownEditor: NSViewRepresentable {
             textView.setSelectedRange(NSRange(location: location, length: min(oldSelection.length, length - location)))
             textView.highlightMarkdown()
         }
-        if isEnabled, let focusRequest {
+        if isEnabled && isVisible, let focusRequest {
             context.coordinator.scheduleFocus(focusRequest, documentID: documentID)
         }
     }
@@ -167,6 +176,8 @@ struct MarkdownEditor: NSViewRepresentable {
                       self.documentID == expectedDocumentID,
                       self.parent.focusRequest == request,
                       self.lastFocusRequest != request.id,
+                      self.parent.isVisible,
+                      !textView.isHiddenOrHasHiddenAncestor,
                       textView.isEditable,
                       let window = textView.window, window.makeFirstResponder(textView) else { return }
                 self.lastFocusRequest = request.id
