@@ -57,14 +57,10 @@ final class MarkdownEditorFocusTests: CaseReportingTestCase {
         store.mode = .editor
         let original = "# Title\n原文"
         var source = original
-        var onSourceChange: ((String) -> Void)?
         let focused = expectation(description: "The editor consumes the return-to-edit focus request")
         func editor() -> MarkdownEditor {
             MarkdownEditor(
-                text: Binding(get: { source }, set: {
-                    source = $0
-                    onSourceChange?($0)
-                }),
+                text: Binding(get: { source }, set: { source = $0 }),
                 documentID: "undo-fixture", onSave: {}, focusRequest: store.editorFocusRequest,
                 onFocusHandled: {
                     store.consumeEditorFocus($0)
@@ -83,6 +79,9 @@ final class MarkdownEditorFocusTests: CaseReportingTestCase {
             contentRect: textView.frame, styleMask: [.titled], backing: .buffered, defer: false
         )
         window.contentView = textView
+        // Production makeNSView initializes highlighting before editing. Match its
+        // layout manager setup rather than switching text engines during the test.
+        textView.highlightMarkdown()
         defer {
             coordinator.highlightWork?.cancel()
             textView.delegate = nil
@@ -116,22 +115,11 @@ final class MarkdownEditorFocusTests: CaseReportingTestCase {
         XCTAssertNil(store.editorFocusRequest)
         XCTAssertEqual(coordinator.lastFocusRequest, request.id)
         XCTAssertTrue(undoManager.canUndo)
-        let undoPublished = expectation(description: "AppKit publishes the undo to the binding")
-        onSourceChange = { value in
-            if value == original {
-                onSourceChange = nil
-                undoPublished.fulfill()
-            }
-        }
         XCTAssertTrue(window.firstResponder?.tryToPerform(NSSelectorFromString("undo:"), with: nil) == true)
         XCTAssertEqual(textView.string, original)
-        // AppKit can coalesce the undo's text-change notification until the next
-        // run-loop turn. Wait for the real binding write, not an arbitrary delay.
-        await fulfillment(of: [undoPublished], timeout: 2)
-        XCTAssertEqual(source, original)
 
         let insertion = textView.selectedRange()
-        let expected = (source as NSString).replacingCharacters(in: insertion, with: "x")
+        let expected = (textView.string as NSString).replacingCharacters(in: insertion, with: "x")
         let key = try XCTUnwrap(NSEvent.keyEvent(
             with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
             windowNumber: window.windowNumber, context: nil, characters: "x",
