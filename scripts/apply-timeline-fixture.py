@@ -20,7 +20,7 @@ def digest(path):
 
 def apply_overlay(run_name, date_groups=False):
     source = PROJECT / "Tests/Fixtures/DateGroups" if date_groups else SOURCE
-    article_ids = (12001, 12002, 12003, 12004, 12005, 12006) if date_groups else ARTICLE_IDS
+    article_ids = tuple(range(12001, 12019)) if date_groups else ARTICLE_IDS
     category_id = 107 if date_groups else 106
     category_name = "Date Groups" if date_groups else "Timeline"
     if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}", run_name):
@@ -95,7 +95,8 @@ if __name__ == "__main__":
     try:
         apply_overlay(args.run_name, date_groups=args.date_groups)
         scenario = "Date Groups" if args.date_groups else "Timeline"
-        print(f"Applied {scenario} to {args.run_name}: 6 new articles; All 13; existing Library articles and media preserved.")
+        count = 18 if args.date_groups else len(ARTICLE_IDS)
+        print(f"Applied {scenario} to {args.run_name}: {count} new articles; All {7 + count}; existing Library articles and media preserved.")
         print(f"Launch with: ./scripts/run-preview-app.sh --reopen {args.run_name}")
     except (ValueError, OSError, sqlite3.Error) as error:
         parser.exit(1, f"{error}\n")

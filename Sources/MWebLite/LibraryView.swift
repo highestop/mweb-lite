@@ -133,18 +133,8 @@ struct LibraryView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 2) {
-                            ForEach(ArticleTimelineGrouping.entries(articles: store.visibleArticles)) { entry in
-                                VStack(spacing: 2) {
-                                    if let heading = entry.heading {
-                                        articleMonthHeading(heading)
-                                    }
-                                    articleRow(entry.article, width: width - 20, showsDate: entry.showsDate)
-                                }
-                                .id(entry.id)
-                            }
-                        }.padding(10)
+                    ArticleTimelineList(entries: ArticleTimelineGrouping.entries(articles: store.visibleArticles)) { entry in
+                        articleRow(entry.article, width: width - 20, showsDate: entry.showsDate)
                     }
                     .onChange(of: store.selectedArticleID) { _, selected in
                         if let selected { proxy.scrollTo(selected) }
@@ -160,30 +150,6 @@ struct LibraryView: View {
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .background(Color(nsColor: .controlBackgroundColor))
-    }
-
-    private func articleMonthHeading(_ heading: ArticleTimelineGrouping.Heading) -> some View {
-        HStack(spacing: 10) {
-            Group {
-                switch heading {
-                case .month(let date):
-                    Text(date, format: .dateTime.year().month(.wide))
-                case .undated:
-                    Text("无日期")
-                }
-            }
-            .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: true, vertical: false)
-            .accessibilityAddTraits(.isHeader)
-            Rectangle()
-                .fill(.primary.opacity(0.08))
-                .frame(height: 1)
-                .accessibilityHidden(true)
-        }
-        .padding(.horizontal, 10)
-        .padding(.top, 12)
-        .padding(.bottom, 6)
     }
 
     private func articleRow(_ article: MWebArticle, width: CGFloat, showsDate: Bool) -> some View {

@@ -26,6 +26,11 @@ final class ArticleTimelineGroupingTests: CaseReportingTestCase {
         XCTAssertEqual(entries.map(\.id), articles.map(\.id), "Pinned and nonchronological order must remain intact")
         XCTAssertEqual(entries.map(\.article), articles)
         XCTAssertEqual(entries.map(\.showsDate), [true, true, false, true, true, true, false, false, true, false])
+        XCTAssertEqual(entries.map(\.yearHeading), [
+            date("2025-12-31T15:59:00Z"), date("2025-12-31T16:01:00Z"),
+            nil, nil, nil, date("2025-12-30T16:00:00Z"),
+            nil, nil, date("2026-01-01T08:00:00Z"), nil
+        ], "A year heading starts each local year run, including a return to an earlier year")
         XCTAssertEqual(entries.map(\.heading), [
             .month(date("2025-12-31T15:59:00Z")),
             .month(date("2025-12-31T16:01:00Z")),
@@ -37,13 +42,19 @@ final class ArticleTimelineGroupingTests: CaseReportingTestCase {
         ])
         XCTAssertTrue(ArticleTimelineGrouping.entries(articles: [], calendar: shanghai).isEmpty)
         let undated = ArticleTimelineGrouping.entries(articles: [articles[6], articles[7]], calendar: shanghai)
+        XCTAssertEqual(undated.map(\.yearHeading), [nil, nil])
         XCTAssertEqual(undated.map(\.heading), [.undated, nil])
         XCTAssertEqual(undated.map(\.showsDate), [false, false])
 
         let filtered = ArticleTimelineGrouping.entries(articles: [articles[2], articles[3]], calendar: shanghai)
+        XCTAssertEqual(filtered.map(\.yearHeading), [date("2026-01-01T14:00:00Z"), nil],
+                       "The first search result gets its own year heading")
         XCTAssertEqual(filtered.map(\.showsDate), [true, true], "The first search result gets its own date")
         XCTAssertEqual(filtered.map(\.heading), [.month(date("2026-01-01T14:00:00Z")), nil])
         let interrupted = ArticleTimelineGrouping.entries(articles: [articles[1], articles[6], articles[2]], calendar: shanghai)
+        XCTAssertEqual(interrupted.map(\.yearHeading), [
+            date("2025-12-31T16:01:00Z"), nil, date("2026-01-01T14:00:00Z")
+        ], "An undated run interrupts the year grouping")
         XCTAssertEqual(interrupted.map(\.showsDate), [true, false, true])
         XCTAssertEqual(interrupted.map(\.heading), [
             .month(date("2025-12-31T16:01:00Z")), .undated, .month(date("2026-01-01T14:00:00Z"))
@@ -51,9 +62,26 @@ final class ArticleTimelineGroupingTests: CaseReportingTestCase {
         let anotherYear = ArticleTimelineGrouping.entries(articles: [
             articles[0], article("december-next-year", modified: "2026-12-31T15:59:00Z")
         ], calendar: shanghai)
+        XCTAssertEqual(anotherYear.map(\.yearHeading), [
+            date("2025-12-31T15:59:00Z"), date("2026-12-31T15:59:00Z")
+        ], "The same numeric month in a different year needs a separate year heading")
         XCTAssertEqual(anotherYear.map(\.heading), [
             .month(date("2025-12-31T15:59:00Z")), .month(date("2026-12-31T15:59:00Z"))
         ], "The same numeric month in a different year starts a new heading")
+        let sameYear = ArticleTimelineGrouping.entries(articles: [
+            articles[1], article("february", modified: "2026-02-01T08:00:00Z")
+        ], calendar: shanghai)
+        XCTAssertEqual(sameYear.map(\.yearHeading), [date("2025-12-31T16:01:00Z"), nil],
+                       "A month change within the same local year must not repeat the year heading")
+        XCTAssertEqual(sameYear.map(\.heading), [
+            .month(date("2025-12-31T16:01:00Z")), .month(date("2026-02-01T08:00:00Z"))
+        ])
+
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        let utcYearBoundary = ArticleTimelineGrouping.entries(articles: Array(articles.prefix(2)), calendar: utc)
+        XCTAssertEqual(utcYearBoundary.map(\.yearHeading), [date("2025-12-31T15:59:00Z"), nil],
+                       "The injected calendar's time zone determines the year boundary")
 
         var newYork = Calendar(identifier: .gregorian)
         newYork.timeZone = try XCTUnwrap(TimeZone(identifier: "America/New_York"))
@@ -66,9 +94,8 @@ final class ArticleTimelineGroupingTests: CaseReportingTestCase {
             let local = ArticleTimelineGrouping.entries(articles: run, calendar: newYork)
             XCTAssertEqual(local.map(\.showsDate), [true, false, false, true],
                            "Spring-forward and repeated fall-back hours remain in their local day")
+            XCTAssertEqual(local.map(\.yearHeading), [date(timestamps[0]), nil, nil, nil])
             XCTAssertEqual(local.map(\.heading), [.month(date(timestamps[0])), nil, nil, nil])
-            var utc = Calendar(identifier: .gregorian)
-            utc.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
             XCTAssertEqual(ArticleTimelineGrouping.entries(articles: run, calendar: utc).map(\.showsDate),
                            [true, false, true, false], "The injected calendar's time zone determines the day boundary")
         }
