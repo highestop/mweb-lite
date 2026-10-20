@@ -32,19 +32,21 @@ struct CategoryTreeView: View {
     }
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 2) {
-                    ForEach(collectionRows) { row in categoryRow(row) }
-                    Text("分类").font(.system(size: 11)).foregroundStyle(.secondary)
-                        .padding(.horizontal, 10).padding(.top, 16).padding(.bottom, 4)
-                    ForEach(categoryRows) { row in categoryRow(row) }
+        GeometryReader { viewport in
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 2) {
+                        ForEach(collectionRows) { row in categoryRow(row) }
+                        Text("分类").font(.system(size: 11)).foregroundStyle(.secondary)
+                            .padding(.horizontal, 10).padding(.top, 16).padding(.bottom, 4)
+                        ForEach(categoryRows) { row in categoryRow(row) }
+                    }
+                    .padding(.horizontal, 10).padding(.bottom, 10)
+                    .overlayScrollbars(viewportWidth: viewport.size.width)
                 }
-                .padding(.horizontal, 10).padding(.bottom, 10)
-                .overlayScrollbars()
+                .background(CategoryTreeKeyboardSelection(controller: keyboard, onCommand: navigate))
+                .onChange(of: selectedCategory) { _, selected in proxy.scrollTo(selected) }
             }
-            .background(CategoryTreeKeyboardSelection(controller: keyboard, onCommand: navigate))
-            .onChange(of: selectedCategory) { _, selected in proxy.scrollTo(selected) }
         }
     }
 

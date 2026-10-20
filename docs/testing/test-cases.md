@@ -1,6 +1,6 @@
 # Test cases
 
-This document defines the shared case format and indexes the individual case files. Each file records behavior, test level, verification path, data source, and execution instructions. It contains 75 cases: 51 Swift tests, 6 preview-component integration cases, 17 full-app preview cases, and 1 release-app case. Execution results are separate in [CI results](ci-test-result.md) and [manual end-to-end results](e2e-test-result.md). Follow the [test guide](test-guide.md) for setup and implementation. A passing test verifies only its **Then** statement at the recorded revision; it does not certify the whole feature or subsequent changes. In particular, AppKit component tests and `PreviewTests.app` are integration tests, not full-application end-to-end tests.
+This document defines the shared case format and indexes the individual case files. Each file records behavior, test level, verification path, data source, and execution instructions. It contains 76 cases: 52 Swift tests, 6 preview-component integration cases, 17 full-app preview cases, and 1 release-app case. Execution results are separate in [CI results](ci-test-result.md) and [manual end-to-end results](e2e-test-result.md). Follow the [test guide](test-guide.md) for setup and implementation. A passing test verifies only its **Then** statement at the recorded revision; it does not certify the whole feature or subsequent changes. In particular, AppKit component tests and `PreviewTests.app` are integration tests, not full-application end-to-end tests.
 
 ## Format and result rules
 
@@ -126,11 +126,12 @@ Open a case to read or update its GWT statements, execution details, and data so
 - [MEDIA-002](cases/MEDIA-002.md) — Find images beyond the summary prefix and refresh references after a save.
 - [THUMB-001](cases/THUMB-001.md) — Decode local thumbnails with bounded caching, path confinement, and stale-request protection.
 
-### Drawer layout
+### Drawer and scroll layout
 
 - [DRAWER-001](cases/DRAWER-001.md) — Move both navigation columns together while keeping the document's right edge fixed.
 - [DRAWER-002](cases/DRAWER-002.md) — Keep a hosted native scroll view's right edge fixed when its preferred width differs from the layout proposal.
 - [DRAWER-003](cases/DRAWER-003.md) — Give native resize handles cursor and drag ownership with clean disabling and teardown.
+- [SCROLL-001](cases/SCROLL-001.md) — Preserve measured timeline row width when hosted content starts or stops overflowing.
 
 ### Markdown editing rules
 
