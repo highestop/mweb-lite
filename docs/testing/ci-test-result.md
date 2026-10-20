@@ -1,7 +1,7 @@
 # CI test result
 
-CI run: [39403986242 (attempt 1)](https://github.com/highestop/mweb-lite/actions/runs/39403986242/attempts/1)
-Tested commit: [481e1d5ebe457c211343d47cc0c0d9a25d4bd243](https://github.com/highestop/mweb-lite/commit/481e1d5ebe457c211343d47cc0c0d9a25d4bd243)
+CI run: [39414707019 (attempt 1)](https://github.com/highestop/mweb-lite/actions/runs/39414707019/attempts/1)
+Tested commit: [9ee0a0a34994279b4ac501d2ce0af4f67bb16c90](https://github.com/highestop/mweb-lite/commit/9ee0a0a34994279b4ac501d2ce0af4f67bb16c90)
 
 | Case ID | Status |
 | --- | --- |
@@ -43,6 +43,8 @@ Tested commit: [481e1d5ebe457c211343d47cc0c0d9a25d4bd243](https://github.com/hig
 | [LIB-012](cases/LIB-012.md) | Passed |
 | [LIB-013](cases/LIB-013.md) | Passed |
 | [LIB-014](cases/LIB-014.md) | Passed |
+| [MEDIA-001](cases/MEDIA-001.md) | Passed |
+| [MEDIA-002](cases/MEDIA-002.md) | Passed |
 | [PV-001](cases/PV-001.md) | Passed |
 | [PV-002](cases/PV-002.md) | Passed |
 | [PV-003](cases/PV-003.md) | Passed |
@@ -57,3 +59,4 @@ Tested commit: [481e1d5ebe457c211343d47cc0c0d9a25d4bd243](https://github.com/hig
 | [SELECT-004](cases/SELECT-004.md) | Passed |
 | [STORE-001](cases/STORE-001.md) | Passed |
 | [STORE-002](cases/STORE-002.md) | Passed |
+| [THUMB-001](cases/THUMB-001.md) | Passed |
