@@ -209,7 +209,7 @@ struct LibraryView: View {
             .accessibilityIdentifier("new-article")
             .disabled(store.isBusy)
             Spacer(minLength: 0)
-            if store.isBusy { ProgressView().controlSize(.small) }
+            if store.isBusy && !store.isSwitchingArticle { ProgressView().controlSize(.small) }
             modeSwitch
         }
         .padding(.leading, columnVisibility == .detailOnly ? 88 : 14)
@@ -236,8 +236,11 @@ struct LibraryView: View {
             .accessibilityIdentifier("toggle-editor-mode")
             modeIcon("pencil", mode: .editor)
         }
-        .disabled(store.document == nil || store.isBusy)
-        .opacity(store.document == nil || store.isBusy ? 0.45 : 1)
+        // Keep the native switch's appearance stable during article I/O.
+        // The store also guards actions from accessibility and menu commands.
+        .disabled(store.document == nil)
+        .allowsHitTesting(!store.isBusy)
+        .opacity(store.document == nil ? 0.45 : 1)
     }
 
     private func modeIcon(_ symbol: String, mode: EditorMode) -> some View {
@@ -279,12 +282,12 @@ private struct ToolbarButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         let pressed = isEnabled && configuration.isPressed
         let highlighted = isEnabled && (isHovered || pressed)
+        // Loading briefly disables actions without fading the toolbar.
         return configuration.label
             .foregroundStyle(highlighted ? Color.primary : Color.secondary)
             .background(Color.primary.opacity(pressed ? 0.12 : highlighted ? 0.06 : 0),
                         in: RoundedRectangle(cornerRadius: 7))
             .contentShape(RoundedRectangle(cornerRadius: 7))
-            .opacity(isEnabled ? 1 : 0.45)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovered)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: pressed)
     }

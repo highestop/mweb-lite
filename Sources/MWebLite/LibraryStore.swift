@@ -73,6 +73,7 @@ final class LibraryStore: ObservableObject {
 
     var isDirty: Bool { document.map { $0.content != draft } ?? false }
     var selectedArticleID: String? { pendingArticleID ?? document?.articleID }
+    var isSwitchingArticle: Bool { pendingArticleID != nil }
     var hasPendingWrites: Bool { isDirty || isSaving || creationTask != nil }
     var currentTitle: String { Self.title(draft, fallback: document?.title ?? "未命名文章") }
     var libraryName: String { rootURL?.lastPathComponent ?? "MWeb 文库" }
@@ -129,7 +130,7 @@ final class LibraryStore: ObservableObject {
     }
 
     func setMode(_ mode: EditorMode) {
-        guard mode != self.mode else { return }
+        guard !isBusy, mode != self.mode else { return }
         NSApp.keyWindow?.makeFirstResponder(nil)
         self.mode = mode
         editorFocusRequest = mode == .editor ? EditorFocusRequest(selection: .preserveSelection) : nil
@@ -187,7 +188,7 @@ final class LibraryStore: ObservableObject {
         NSApp.keyWindow?.makeFirstResponder(nil)
         isBusy = true
         Task {
-            defer { pendingArticleID = nil; isBusy = false }
+            defer { isBusy = false; pendingArticleID = nil }
             guard await flush() else { return }
             do { try await load(id) } catch { errorMessage = error.localizedDescription }
         }

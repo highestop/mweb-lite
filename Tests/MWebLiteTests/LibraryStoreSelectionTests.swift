@@ -19,6 +19,7 @@ final class LibraryStoreSelectionTests: CaseReportingTestCase {
         XCTAssertEqual(store.document?.articleID, "10001")
         XCTAssertEqual(store.draft, "# Updated A\n")
         XCTAssertTrue(store.isBusy)
+        XCTAssertTrue(store.isSwitchingArticle)
 
         await waitUntilIdle(store)
 
@@ -26,6 +27,7 @@ final class LibraryStoreSelectionTests: CaseReportingTestCase {
         XCTAssertEqual(store.selectedArticleID, "10002")
         XCTAssertEqual(store.document?.articleID, "10002")
         XCTAssertEqual(store.draft, "# Article B\n")
+        XCTAssertFalse(store.isSwitchingArticle)
         XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("docs/10001.md")), "# Updated A\n")
     }
 
@@ -72,17 +74,34 @@ final class LibraryStoreSelectionTests: CaseReportingTestCase {
         let root = try makeLibrary()
         defer { try? FileManager.default.removeItem(at: root) }
         let store = try await open(root)
+        XCTAssertEqual(store.mode, .preview)
 
         store.selectArticle("10002")
         store.selectArticle("10001")
         store.selectArticle(nil)
+        store.setMode(.editor)
+        store.createArticle()
 
         XCTAssertTrue(store.isBusy)
+        XCTAssertTrue(store.isSwitchingArticle)
         XCTAssertEqual(store.selectedArticleID, "10002")
+        XCTAssertEqual(store.mode, .preview)
+        XCTAssertNil(store.editorFocusRequest)
         await waitUntilIdle(store)
         XCTAssertNil(store.errorMessage)
+        XCTAssertFalse(store.isSwitchingArticle)
         XCTAssertEqual(store.selectedArticleID, "10002")
         XCTAssertEqual(store.document?.articleID, "10002")
+        XCTAssertEqual(store.mode, .preview)
+        XCTAssertNil(store.editorFocusRequest)
+        XCTAssertEqual(Set(store.activeArticles.map(\.id)), ["10001", "10002"])
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent("docs").path).sorted(),
+                       ["10001.md", "10002.md"])
+        XCTAssertFalse(store.hasPendingWrites)
+
+        store.setMode(.editor)
+        XCTAssertEqual(store.mode, .editor)
+        XCTAssertEqual(store.editorFocusRequest?.selection, .preserveSelection)
     }
 
     @MainActor
