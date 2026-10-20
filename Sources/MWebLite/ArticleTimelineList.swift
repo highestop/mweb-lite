@@ -19,6 +19,7 @@ struct ArticleTimelineList<Row: View>: View {
         GeometryReader { viewport in
             ScrollView {
                 timelineContent
+                    .overlayScrollbars()
                     .overlayPreferenceValue(TimelineSectionAnchorKey.self) { anchors in
                         GeometryReader { content in
                             let origin = content.frame(in: .named(scrollCoordinateSpace)).origin
