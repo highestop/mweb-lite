@@ -135,8 +135,14 @@ struct LibraryView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 2) {
-                            ForEach(store.visibleArticles) { article in
-                                articleRow(article, width: width - 20).id(article.id)
+                            ForEach(ArticleTimelineGrouping.entries(articles: store.visibleArticles)) { entry in
+                                VStack(spacing: 2) {
+                                    if let heading = entry.heading {
+                                        articleMonthHeading(heading)
+                                    }
+                                    articleRow(entry.article, width: width - 20, showsDate: entry.showsDate)
+                                }
+                                .id(entry.id)
                             }
                         }.padding(10)
                     }
@@ -156,13 +162,38 @@ struct LibraryView: View {
         .background(Color(nsColor: .controlBackgroundColor))
     }
 
-    private func articleRow(_ article: MWebArticle, width: CGFloat) -> some View {
+    private func articleMonthHeading(_ heading: ArticleTimelineGrouping.Heading) -> some View {
+        HStack(spacing: 10) {
+            Group {
+                switch heading {
+                case .month(let date):
+                    Text(date, format: .dateTime.year().month(.wide))
+                case .undated:
+                    Text("无日期")
+                }
+            }
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: true, vertical: false)
+            .accessibilityAddTraits(.isHeader)
+            Rectangle()
+                .fill(.primary.opacity(0.08))
+                .frame(height: 1)
+                .accessibilityHidden(true)
+        }
+        .padding(.horizontal, 10)
+        .padding(.top, 12)
+        .padding(.bottom, 6)
+    }
+
+    private func articleRow(_ article: MWebArticle, width: CGFloat, showsDate: Bool) -> some View {
         let selected = store.selectedArticleID == article.id
         return ArticleTimelineContent(
             article: article,
             title: article.id == store.document?.articleID ? store.currentTitle : article.title,
             libraryRoot: store.rootURL,
-            width: width - 20
+            width: width - 20,
+            showsDate: showsDate
         )
         .padding(10)
         .background(selected ? Color(nsColor: .unemphasizedSelectedContentBackgroundColor) : .clear,
