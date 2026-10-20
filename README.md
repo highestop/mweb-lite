@@ -74,7 +74,9 @@ This is a focused compatible editor, not a pixel-for-pixel replacement for every
 
 ## Verify
 
-See the [testing guide](docs/testing/test-guide.md) for test scope, authoring, and full-app verification. The [GWT case catalog](docs/testing/test-cases.md) records each case's level, execution path, data source, result, and evidence. Versioned synthetic inputs live in [Tests/Fixtures](Tests/Fixtures); generated libraries and app bundles stay in ignored `build/`.
+See the [testing guide](docs/testing/test-guide.md) for test scope, authoring, and full-app verification. The [case specification and index](docs/testing/test-cases.md) links to [individual case files](docs/testing/cases), each with vertically arranged GWT, level, execution path, data source, and latest recorded result/evidence fields. Results live only in the case file, with their date and tested revision. `—` means no execution record; later code changes do not erase past results or extend them to untested revisions. Versioned synthetic inputs live in [Tests/Fixtures](Tests/Fixtures).
+
+Generated libraries, app bundles, run reports, logs, and screenshots stay in ignored `build/`. Reports are not committed. Each case's evidence links to GitHub Actions or explicitly labeled `local-only` report paths.
 
 ```sh
 python3 scripts/check-test-cases.py

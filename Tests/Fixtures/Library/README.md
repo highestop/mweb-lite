@@ -15,4 +15,4 @@ Hidden Trash (10005) has state 0. Selection A starts first because timestamps ar
 
 Run `./scripts/run-preview-app.sh <run-name>` from the repository root to build and open an isolated app with a writable copy. Use a fresh run name per independent case. Never open this source directory as a library or store a `mainlib.db` here. See [the test guide](../../../docs/testing/test-guide.md) and [case catalog](../../../docs/testing/test-cases.md).
 
-When changing this fixture, update the manifest, affected GWT cases, and fixture version together. Reset their recorded verification status to Pending until rerun. All text and artwork here were created for testing; there is no personal MWeb content.
+When changing this fixture, update the manifest, affected GWT cases, and fixture version together. Preserve each case's latest recorded result and tested revision until another execution replaces it; an earlier pass does not verify changed inputs. All text and artwork here were created for testing; there is no personal MWeb content.

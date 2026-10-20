@@ -2,6 +2,8 @@
 .build/
 .swiftpm/
 build/
+# Test run reports stay local, including the former report location.
+docs/testing/runs/
 dist/
 DerivedData/
 xcuserdata/
