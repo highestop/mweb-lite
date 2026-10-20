@@ -120,7 +120,7 @@ private struct CategoryTreeRow: View {
     @State private var isHovered = false
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 6) {
             if entry.hasChildren {
                 Button(action: onToggle) {
                     Image(systemName: "chevron.right")
@@ -128,7 +128,7 @@ private struct CategoryTreeRow: View {
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
                         .frame(width: 18, height: 28, alignment: .center)
                 }
-                .buttonStyle(CategoryTreeButtonStyle())
+                .buttonStyle(CategoryTreeButtonStyle(showsPressedBackground: false))
                 .focusEffectDisabled()
                 .accessibilityLabel("\(isExpanded ? "收起" : "展开") \(entry.name)")
                 .accessibilityValue(isExpanded ? "已展开" : "已收起")
@@ -163,12 +163,13 @@ private struct CategoryTreeRow: View {
 }
 
 private struct CategoryTreeButtonStyle: ButtonStyle {
+    var showsPressedBackground = true
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .foregroundStyle(Color.primary)
-            .background(Color.primary.opacity(isEnabled && configuration.isPressed ? 0.08 : 0),
+            .background(Color.primary.opacity(showsPressedBackground && isEnabled && configuration.isPressed ? 0.08 : 0),
                         in: RoundedRectangle(cornerRadius: 4))
             .opacity(isEnabled ? 1 : 0.45)
     }
