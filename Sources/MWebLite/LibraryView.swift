@@ -59,8 +59,8 @@ struct LibraryView: View {
             }
             .navigationSplitViewColumnWidth(min: 401, ideal: 486, max: 721)
         } detail: {
-            // Reserve the window controls' top edge when navigation is hidden.
-            detail.ignoresSafeArea(.container, edges: columnVisibility == .detailOnly ? [] : .top)
+            // Keep the toolbar on the same top row in both navigation states.
+            detail.ignoresSafeArea(.container, edges: .top)
         }
         .navigationSplitViewStyle(.balanced)
         .toolbar(removing: .sidebarToggle)
@@ -202,25 +202,45 @@ struct LibraryView: View {
             }
             .accessibilityIdentifier("new-article")
             .disabled(store.isBusy)
+            Spacer(minLength: 0)
+            if store.isBusy { ProgressView().controlSize(.small) }
+            modeSwitch
+        }
+        .padding(.leading, columnVisibility == .detailOnly ? 88 : 14)
+        .padding(.trailing, 14)
+        .frame(height: headerHeight)
+        .background(WindowDragArea())
+        .background(Color(nsColor: .controlBackgroundColor))
+    }
+
+    private var modeSwitch: some View {
+        HStack(spacing: 6) {
+            modeIcon("eye", mode: .preview)
             Toggle("编辑模式", isOn: Binding(
                 get: { store.mode == .editor },
                 set: { store.setMode($0 ? .editor : .preview) }
             ))
             .toggleStyle(.switch)
+            .tint(Color(white: 0.25))
             .controlSize(.small)
             .labelsHidden()
             .frame(width: 32, height: 32, alignment: .center)
-            .help("开启为编辑，关闭为预览 · ⌘R")
+            .help("深色开启为编辑，浅色关闭为预览 · ⌘R")
             .accessibilityLabel("编辑模式")
             .accessibilityIdentifier("toggle-editor-mode")
-            .disabled(store.document == nil || store.isBusy)
-            Spacer(minLength: 0)
-            if store.isBusy { ProgressView().controlSize(.small) }
+            modeIcon("pencil", mode: .editor)
         }
-        .padding(.horizontal, 14)
-        .frame(height: headerHeight)
-        .background(WindowDragArea())
-        .background(Color(nsColor: .controlBackgroundColor))
+        .disabled(store.document == nil || store.isBusy)
+        .opacity(store.document == nil || store.isBusy ? 0.45 : 1)
+    }
+
+    private func modeIcon(_ symbol: String, mode: EditorMode) -> some View {
+        Image(systemName: symbol)
+            .symbolRenderingMode(.monochrome)
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(store.mode == mode ? Color.primary : Color.secondary.opacity(0.5))
+            .frame(width: 16, height: 32, alignment: .center)
+            .accessibilityHidden(true)
     }
 }
 
