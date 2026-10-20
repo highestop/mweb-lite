@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "activeArticleIDs": ["10001", "10002", "10003", "10004"],
+  "trashedArticleIDs": ["10005"],
+  "categoryArticleIDs": {"101": ["10001", "10002", "10003"], "102": ["10001", "10002"], "103": ["10003"], "104": []},
+  "uncategorizedArticleIDs": ["10004"],
+  "media": ["docs/media/10003/checker.svg"]
+}
