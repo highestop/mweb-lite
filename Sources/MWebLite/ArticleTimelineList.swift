@@ -28,7 +28,7 @@ struct ArticleTimelineList<Row: View>: View {
                         }
                     }
             }
-            .scrollIndicators(.hidden)
+            .scrollIndicators(.never)
             .frame(width: viewport.size.width, height: viewport.size.height)
             .coordinateSpace(name: scrollCoordinateSpace)
         }
