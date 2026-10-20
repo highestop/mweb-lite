@@ -76,7 +76,6 @@ final class LibraryStore: ObservableObject {
     var isSwitchingArticle: Bool { pendingArticleID != nil }
     var hasPendingWrites: Bool { isDirty || isSaving || creationTask != nil }
     var currentTitle: String { Self.title(draft, fallback: document?.title ?? "未命名文章") }
-    var libraryName: String { rootURL?.lastPathComponent ?? "MWeb 文库" }
     var activeArticles: [MWebArticle] { articles.filter { !$0.isTrashed } }
     var visibleArticles: [MWebArticle] {
         let query = search.trimmingCharacters(in: .whitespacesAndNewlines)

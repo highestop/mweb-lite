@@ -35,7 +35,8 @@ struct LibraryView: View {
                 .foregroundStyle(.secondary).padding(.top, 22)
             Button { store.chooseLibrary() } label: {
                 Label("选择文库目录", systemImage: "folder").fontWeight(.medium).padding(.horizontal, 18).padding(.vertical, 7)
-            }.buttonStyle(.borderedProminent).controlSize(.large).padding(.top, 28).disabled(store.isBusy)
+            }.buttonStyle(.borderedProminent).buttonBorderShape(.capsule)
+                .controlSize(.large).padding(.top, 28).disabled(store.isBusy)
             Text("目录中应包含 mainlib.db 和 docs 文件夹")
                 .font(.caption).foregroundStyle(.tertiary).padding(.top, 14)
             if store.isBusy { ProgressView().controlSize(.small).padding(.top, 18) }
@@ -68,24 +69,16 @@ struct LibraryView: View {
     }
 
     private var sidebar: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(store.libraryName).font(.headline).lineLimit(1)
-                    Text("本地文库").font(.caption).foregroundStyle(.secondary)
-                }
-                Spacer()
-            }.padding(.horizontal, 17).padding(.vertical, 12)
-                .background(WindowDragArea())
-            CategoryTreeView(
-                nodes: store.categoryTree, selectedCategory: $store.selectedCategory,
-                allCount: store.activeArticles.count,
-                uncategorizedCount: store.activeArticles.filter { $0.categoryIDs.isEmpty }.count,
-                expandedIDs: $expandedCategoryIDs
-            )
-            .id(store.rootURL)
-            .disabled(store.isBusy)
-        }.frame(maxHeight: .infinity, alignment: .top)
+        CategoryTreeView(
+            nodes: store.categoryTree, selectedCategory: $store.selectedCategory,
+            allCount: store.activeArticles.count,
+            uncategorizedCount: store.activeArticles.filter { $0.categoryIDs.isEmpty }.count,
+            expandedIDs: $expandedCategoryIDs
+        )
+        .id(store.rootURL)
+        .disabled(store.isBusy)
+        .padding(.top, 10)
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 
     private var articleList: some View {
@@ -98,8 +91,8 @@ struct LibraryView: View {
                         Button { store.search = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary) }.buttonStyle(.plain)
                     }
                 }
-                .font(.system(size: 12)).padding(.horizontal, 8).frame(height: 32)
-                .background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 7))
+                .font(.system(size: 12)).padding(.horizontal, 12).frame(height: 32)
+                .background(.quaternary.opacity(0.55), in: Capsule())
             }.padding(.horizontal, 14).frame(height: headerHeight)
             Divider()
             if store.visibleArticles.isEmpty {
@@ -210,7 +203,7 @@ struct LibraryView: View {
             .disabled(store.isBusy)
             Spacer(minLength: 0)
             if store.isBusy && !store.isSwitchingArticle { ProgressView().controlSize(.small) }
-            modeSwitch
+            modeButtons
         }
         .padding(.leading, columnVisibility == .detailOnly ? 88 : 14)
         .padding(.trailing, 14)
@@ -219,37 +212,46 @@ struct LibraryView: View {
         .background(Color(nsColor: .controlBackgroundColor))
     }
 
-    private var modeSwitch: some View {
-        HStack(spacing: 6) {
-            modeIcon("eye", mode: .preview)
-            Toggle("编辑模式", isOn: Binding(
-                get: { store.mode == .editor },
-                set: { store.setMode($0 ? .editor : .preview) }
-            ))
-            .toggleStyle(.switch)
-            .tint(Color(white: 0.25))
-            .controlSize(.small)
-            .labelsHidden()
-            .frame(width: 32, height: 32, alignment: .center)
-            .help("深色开启为编辑，浅色关闭为预览 · ⌘R")
-            .accessibilityLabel("编辑模式")
-            .accessibilityIdentifier("toggle-editor-mode")
-            modeIcon("pencil", mode: .editor)
+    private var modeButtons: some View {
+        HStack(spacing: 2) {
+            EditorModeButton(title: "预览", symbol: "eye", isSelected: store.mode == .preview) {
+                store.setMode(.preview)
+            }
+            .accessibilityIdentifier("show-preview-mode")
+            EditorModeButton(title: "编辑", symbol: "pencil", isSelected: store.mode == .editor) {
+                store.setMode(.editor)
+            }
+            .accessibilityIdentifier("show-editor-mode")
         }
-        // Keep the native switch's appearance stable during article I/O.
-        // The store also guards actions from accessibility and menu commands.
-        .disabled(store.document == nil)
-        .allowsHitTesting(!store.isBusy)
+        .padding(2)
+        .background(Color.primary.opacity(0.025), in: Capsule())
+        // Custom buttons can block input without changing their loading appearance.
+        .disabled(store.document == nil || store.isBusy)
         .opacity(store.document == nil ? 0.45 : 1)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("文章视图")
     }
+}
 
-    private func modeIcon(_ symbol: String, mode: EditorMode) -> some View {
-        Image(systemName: symbol)
-            .symbolRenderingMode(.monochrome)
-            .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(store.mode == mode ? Color.primary : Color.secondary.opacity(0.5))
-            .frame(width: 16, height: 32, alignment: .center)
-            .accessibilityHidden(true)
+private struct EditorModeButton: View {
+    let title: String
+    let symbol: String
+    let isSelected: Bool
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .symbolRenderingMode(.monochrome)
+                .font(.system(size: 12, weight: .medium))
+                .frame(width: 34, height: 28, alignment: .center)
+        }
+        .buttonStyle(ToolbarButtonStyle(isHovered: isHovered, isSelected: isSelected))
+        .onHover { isHovered = $0 }
+        .help("\(title) · ⌘R 切换视图")
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -276,6 +278,7 @@ private struct ToolbarIconButton: View {
 
 private struct ToolbarButtonStyle: ButtonStyle {
     let isHovered: Bool
+    var isSelected = false
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -284,11 +287,12 @@ private struct ToolbarButtonStyle: ButtonStyle {
         let highlighted = isEnabled && (isHovered || pressed)
         // Loading briefly disables actions without fading the toolbar.
         return configuration.label
-            .foregroundStyle(highlighted ? Color.primary : Color.secondary)
-            .background(Color.primary.opacity(pressed ? 0.12 : highlighted ? 0.06 : 0),
-                        in: RoundedRectangle(cornerRadius: 7))
-            .contentShape(RoundedRectangle(cornerRadius: 7))
+            .foregroundStyle(isSelected || highlighted ? Color.primary : Color.secondary)
+            .background(Color.primary.opacity(pressed ? 0.12 : isSelected ? 0.08 : highlighted ? 0.06 : 0),
+                        in: Capsule())
+            .contentShape(Capsule())
             .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovered)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: pressed)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isSelected)
     }
 }
