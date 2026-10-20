@@ -9,6 +9,7 @@ struct MarkdownPreview: NSViewRepresentable {
     var markdown: String
     var documentURL: URL?
     var libraryRoot: URL?
+    var isVisible = true
     var onOpenArticle: (String) -> Void = { _ in }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -18,6 +19,7 @@ struct MarkdownPreview: NSViewRepresentable {
         configuration.websiteDataStore = .nonPersistent()
         configuration.setURLSchemeHandler(context.coordinator.resources, forURLScheme: "mweblite")
         let view = WKWebView(frame: .zero, configuration: configuration)
+        view.isHidden = !isVisible
         view.navigationDelegate = context.coordinator
         view.setValue(false, forKey: "drawsBackground")
         view.load(URLRequest(url: URL(string: "mweblite://app/Preview.html")!))
@@ -25,6 +27,10 @@ struct MarkdownPreview: NSViewRepresentable {
     }
 
     func updateNSView(_ view: WKWebView, context: Context) {
+        if view.isHidden == isVisible {
+            view.isHidden = !isVisible
+            view.window?.invalidateCursorRects(for: view)
+        }
         let coordinator = context.coordinator
         coordinator.onOpenArticle = onOpenArticle
         coordinator.resources.libraryRoot = libraryRoot

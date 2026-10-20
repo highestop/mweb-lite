@@ -92,7 +92,6 @@ struct LibraryView: View {
                 .accessibilityHidden(!navigationVisible)
                 .zIndex(3)
             }
-            .coordinateSpace(name: "drawer-workspace")
             .clipped()
         }
         .ignoresSafeArea(.container, edges: .top)
@@ -166,7 +165,7 @@ struct LibraryView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(6)
+        .padding(10)
         .background(selected ? Color(nsColor: .unemphasizedSelectedContentBackgroundColor) : .clear,
                     in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(ArticleRowMouseSelection(controller: articleListSelection) { store.selectArticle(article.id) })
@@ -194,7 +193,7 @@ struct LibraryView: View {
                 ZStack {
                     // Keep the native editor across mode changes, but start each file
                     // with a fresh view so delayed native scrolling cannot leak across files.
-                    MarkdownEditor(text: Binding(get: { store.draft }, set: { if store.document?.articleID == document.articleID { store.edit($0) } }), documentID: document.articleID,
+                    MarkdownEditor(text: Binding(get: { store.draft }, set: { if store.document?.articleID == document.articleID { store.edit($0) } }), documentID: document.articleID, isVisible: store.mode == .editor,
                         onSave: { store.saveNow() }, onInsertImages: { store.insertImages($0) }, onPasteImage: { store.pasteImage($0) },
                         focusRequest: store.editorFocusRequest, onFocusHandled: { store.consumeEditorFocus($0) })
                         .id(document.fileURL)
@@ -202,7 +201,7 @@ struct LibraryView: View {
                         .opacity(store.mode == .editor ? 1 : 0)
                         .allowsHitTesting(store.mode == .editor)
                         .accessibilityHidden(store.mode != .editor)
-                    MarkdownPreview(markdown: store.draft, documentURL: document.fileURL, libraryRoot: store.rootURL,
+                    MarkdownPreview(markdown: store.draft, documentURL: document.fileURL, libraryRoot: store.rootURL, isVisible: store.mode == .preview,
                         onOpenArticle: { store.openArticleLink($0) })
                         .opacity(store.mode == .preview ? 1 : 0)
                         .allowsHitTesting(store.mode == .preview)
@@ -260,7 +259,7 @@ struct LibraryView: View {
             }
             .accessibilityIdentifier("show-editor-mode")
         }
-        .padding(2)
+        .padding(3)
         .background(Color.primary.opacity(0.025), in: Capsule())
         // Custom buttons can block input without changing their loading appearance.
         .disabled(store.document == nil || store.isBusy)
@@ -281,8 +280,8 @@ private struct EditorModeButton: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .symbolRenderingMode(.monochrome)
-                .font(.system(size: 12, weight: .medium))
-                .frame(width: 34, height: 28, alignment: .center)
+                .font(.system(size: 14, weight: .medium))
+                .frame(width: 32, height: 32, alignment: .center)
         }
         .buttonStyle(ToolbarButtonStyle(isHovered: isHovered, isSelected: isSelected))
         .onHover { isHovered = $0 }
@@ -326,8 +325,8 @@ private struct ToolbarButtonStyle: ButtonStyle {
         return configuration.label
             .foregroundStyle(isSelected || highlighted ? Color.primary : Color.secondary)
             .background(Color.primary.opacity(pressed ? 0.12 : isSelected ? 0.08 : highlighted ? 0.06 : 0),
-                        in: Capsule())
-            .contentShape(Capsule())
+                        in: Circle())
+            .contentShape(Circle())
             .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovered)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: pressed)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isSelected)

@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import WebKit
 import XCTest
 import CaseReporting
 @testable import MWebCore
@@ -217,7 +218,13 @@ final class MarkdownEditorFocusTests: CaseReportingTestCase {
         XCTAssertNil(store.errorMessage)
         let articleB = try XCTUnwrap(editor(in: host))
         let scrollB = try XCTUnwrap(articleB.enclosingScrollView)
+        let previewB = try XCTUnwrap(preview(in: host))
         XCTAssertFalse(priorEditor === articleB, "Each file owns its native editor and pending scroll work")
+        XCTAssertFalse(scrollB.isHidden)
+        XCTAssertFalse(articleB.isHiddenOrHasHiddenAncestor)
+        XCTAssertNotNil(scrollB.hitTest(NSPoint(x: scrollB.frame.midX, y: scrollB.frame.midY)))
+        XCTAssertTrue(previewB.isHidden, "The inactive native WebKit view is hidden, not only transparent")
+        XCTAssertNil(previewB.hitTest(NSPoint(x: previewB.frame.midX, y: previewB.frame.midY)))
         XCTAssertEqual(articleB.selectedRange(), NSRange(location: 0, length: 0))
         XCTAssertEqual(scrollB.contentView.bounds.minY, 0, accuracy: 0.5)
         await withCheckedContinuation { continuation in
@@ -237,17 +244,27 @@ final class MarkdownEditorFocusTests: CaseReportingTestCase {
         articleB.scrollRangeToVisible(selection)
         XCTAssertGreaterThan(scrollB.contentView.bounds.minY, 0)
         store.setMode(.preview)
-        await waitFor("Preview disables the mounted editor") {
+        await waitFor("Preview hides the native editor and reveals the native WebKit view") {
             host.layoutSubtreeIfNeeded()
-            return !articleB.isEditable
+            return !articleB.isEditable && scrollB.isHidden && !previewB.isHidden
         }
         XCTAssertTrue(editor(in: host) === articleB)
+        XCTAssertTrue(articleB.isHiddenOrHasHiddenAncestor)
+        XCTAssertNil(scrollB.hitTest(NSPoint(x: scrollB.frame.midX, y: scrollB.frame.midY)),
+                     "The hidden editor must not handle native pointer hits over the preview")
+        XCTAssertFalse(previewB.isHiddenOrHasHiddenAncestor)
+        XCTAssertNotNil(previewB.hitTest(NSPoint(x: previewB.frame.midX, y: previewB.frame.midY)))
         store.setMode(.editor)
         await waitFor("Editing restores focus to the same mounted editor") {
             host.layoutSubtreeIfNeeded()
-            return articleB.isEditable && store.editorFocusRequest == nil
+            return articleB.isEditable && !scrollB.isHidden && previewB.isHidden
+                && store.editorFocusRequest == nil
         }
         XCTAssertTrue(editor(in: host) === articleB)
+        XCTAssertTrue(preview(in: host) === previewB)
+        XCTAssertFalse(articleB.isHiddenOrHasHiddenAncestor)
+        XCTAssertNotNil(scrollB.hitTest(NSPoint(x: scrollB.frame.midX, y: scrollB.frame.midY)))
+        XCTAssertNil(previewB.hitTest(NSPoint(x: previewB.frame.midX, y: previewB.frame.midY)))
         XCTAssertEqual(articleB.selectedRange(), selection)
         XCTAssertGreaterThan(scrollB.contentView.bounds.minY, 0)
     }
@@ -257,6 +274,15 @@ final class MarkdownEditorFocusTests: CaseReportingTestCase {
         if let editor = view as? MarkdownTextView { return editor }
         for child in view.subviews {
             if let editor = editor(in: child) { return editor }
+        }
+        return nil
+    }
+
+    @MainActor
+    private func preview(in view: NSView) -> WKWebView? {
+        if let preview = view as? WKWebView { return preview }
+        for child in view.subviews {
+            if let preview = preview(in: child) { return preview }
         }
         return nil
     }

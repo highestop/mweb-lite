@@ -97,31 +97,10 @@ struct DrawerResizeHandle: View {
     let width: CGFloat
     let onResize: (CGFloat) -> Void
     let onHighlight: (Bool) -> Void
-    @State private var initialWidth: CGFloat?
-    @State private var isHovered = false
     @Environment(\.isEnabled) private var isEnabled
 
     var body: some View {
-        Color.clear
-            .contentShape(Rectangle())
-            .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .named("drawer-workspace"))
-                .onChanged { value in
-                    if initialWidth == nil { initialWidth = width }
-                    onHighlight(true)
-                    onResize((initialWidth ?? width) + value.translation.width)
-                }
-                .onEnded { _ in initialWidth = nil; onHighlight(isHovered) })
-            .onHover { hovering in
-                updateCursor(hovering && isEnabled)
-            }
-            .onChange(of: isEnabled) { _, enabled in
-                if !enabled {
-                    initialWidth = nil
-                    updateCursor(false)
-                    onHighlight(false)
-                }
-            }
-            .onDisappear { initialWidth = nil; updateCursor(false); onHighlight(false) }
+        DrawerResizeRegion(width: width, isEnabled: isEnabled, onResize: onResize, onHighlight: onHighlight)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(title)
             .accessibilityValue("\(Int(width))")
@@ -134,12 +113,131 @@ struct DrawerResizeHandle: View {
             }
             .help(title)
     }
+}
 
-    private func updateCursor(_ hovering: Bool) {
-        guard hovering != isHovered else { return }
-        isHovered = hovering
-        onHighlight(hovering || initialWidth != nil)
-        if hovering { NSCursor.resizeLeftRight.push() }
-        else { NSCursor.pop() }
+private struct DrawerResizeRegion: NSViewRepresentable {
+    let width: CGFloat
+    let isEnabled: Bool
+    let onResize: (CGFloat) -> Void
+    let onHighlight: (Bool) -> Void
+
+    func makeNSView(context: Context) -> DrawerResizeView {
+        let view = DrawerResizeView()
+        view.configure(width: width, isEnabled: isEnabled, onResize: onResize, onHighlight: onHighlight)
+        return view
+    }
+
+    func updateNSView(_ view: DrawerResizeView, context: Context) {
+        view.configure(width: width, isEnabled: isEnabled, onResize: onResize, onHighlight: onHighlight)
+    }
+
+    static func dismantleNSView(_ view: DrawerResizeView, coordinator: ()) {
+        view.invalidate()
+    }
+}
+
+/// Owns the divider's native hit region and cursor updates, without a global
+/// cursor stack that can restore another view's stale I-beam on exit.
+final class DrawerResizeView: NSView {
+    private var columnWidth: CGFloat = 0
+    private var resizeEnabled = false
+    private var initialDrag: (x: CGFloat, width: CGFloat)?
+    private var hovering = false
+    private var resizeTrackingArea: NSTrackingArea?
+    private var onResize: ((CGFloat) -> Void)?
+    private var onHighlight: ((Bool) -> Void)?
+
+    override var mouseDownCanMoveWindow: Bool { false }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func isAccessibilityElement() -> Bool { false }
+
+    func configure(width: CGFloat, isEnabled: Bool,
+                   onResize: @escaping (CGFloat) -> Void, onHighlight: @escaping (Bool) -> Void) {
+        columnWidth = width
+        self.onResize = onResize
+        self.onHighlight = onHighlight
+        guard resizeEnabled != isEnabled else { return }
+        resizeEnabled = isEnabled
+        if !isEnabled { endInteraction() }
+        updateTrackingAreas()
+        window?.invalidateCursorRects(for: self)
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard resizeEnabled, !isHiddenOrHasHiddenAncestor else { return nil }
+        return super.hitTest(point)
+    }
+
+    override func resetCursorRects() {
+        super.resetCursorRects()
+        if resizeEnabled, !isHiddenOrHasHiddenAncestor {
+            addCursorRect(visibleRect, cursor: .resizeLeftRight)
+        }
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let resizeTrackingArea { removeTrackingArea(resizeTrackingArea) }
+        resizeTrackingArea = nil
+        guard resizeEnabled else { return }
+        let area = NSTrackingArea(rect: .zero,
+                                  options: [.cursorUpdate, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+                                  owner: self, userInfo: nil)
+        addTrackingArea(area)
+        resizeTrackingArea = area
+    }
+
+    override func cursorUpdate(with event: NSEvent) {
+        guard resizeEnabled, !isHiddenOrHasHiddenAncestor else { return }
+        NSCursor.resizeLeftRight.set()
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        guard resizeEnabled else { return }
+        hovering = true
+        onHighlight?(true)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        hovering = false
+        onHighlight?(initialDrag != nil)
+        // AppKit chooses the destination view's cursor; do not pop or force one.
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        guard resizeEnabled, !isHiddenOrHasHiddenAncestor else { return }
+        initialDrag = (event.locationInWindow.x, columnWidth)
+        onHighlight?(true)
+        NSCursor.resizeLeftRight.set()
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard resizeEnabled, let initialDrag else { return }
+        // The handle moves during resizing, so use stable window coordinates.
+        onResize?(initialDrag.width + event.locationInWindow.x - initialDrag.x)
+        NSCursor.resizeLeftRight.set()
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard initialDrag != nil else { return }
+        initialDrag = nil
+        hovering = resizeEnabled && visibleRect.contains(convert(event.locationInWindow, from: nil))
+        onHighlight?(hovering)
+        window?.invalidateCursorRects(for: self)
+    }
+
+    func invalidate() {
+        resizeEnabled = false
+        endInteraction()
+        updateTrackingAreas()
+        window?.invalidateCursorRects(for: self)
+        onResize = nil
+        onHighlight = nil
+    }
+
+    private func endInteraction() {
+        initialDrag = nil
+        hovering = false
+        onHighlight?(false)
     }
 }

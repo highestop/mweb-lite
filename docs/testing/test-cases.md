@@ -1,6 +1,6 @@
 # Test cases
 
-This document defines the shared case format and indexes the individual case files. Each file records behavior, test level, verification path, data source, and execution instructions. It contains 67 cases: 46 Swift tests, 6 preview-component integration cases, 14 full-app preview cases, and 1 release-app case. Execution results are separate in [CI results](ci-test-result.md) and [manual end-to-end results](e2e-test-result.md). Follow the [test guide](test-guide.md) for setup and implementation. A passing test verifies only its **Then** statement at the recorded revision; it does not certify the whole feature or subsequent changes. In particular, AppKit component tests and `PreviewTests.app` are integration tests, not full-application end-to-end tests.
+This document defines the shared case format and indexes the individual case files. Each file records behavior, test level, verification path, data source, and execution instructions. It contains 68 cases: 47 Swift tests, 6 preview-component integration cases, 14 full-app preview cases, and 1 release-app case. Execution results are separate in [CI results](ci-test-result.md) and [manual end-to-end results](e2e-test-result.md). Follow the [test guide](test-guide.md) for setup and implementation. A passing test verifies only its **Then** statement at the recorded revision; it does not certify the whole feature or subsequent changes. In particular, AppKit component tests and `PreviewTests.app` are integration tests, not full-application end-to-end tests.
 
 ## Format and result rules
 
@@ -122,6 +122,7 @@ Open a case to read or update its GWT statements, execution details, and data so
 
 - [DRAWER-001](cases/DRAWER-001.md) — Move both navigation columns together while keeping the document's right edge fixed.
 - [DRAWER-002](cases/DRAWER-002.md) — Keep a hosted native scroll view's right edge fixed when its preferred width differs from the layout proposal.
+- [DRAWER-003](cases/DRAWER-003.md) — Give native resize handles cursor and drag ownership with clean disabling and teardown.
 
 ### Markdown editing rules
 
