@@ -35,7 +35,7 @@ final class OverlayScrollbarsTests: CaseReportingTestCase {
         scrollView.scrollerStyle = .legacy
         scrollView.needsLayout = true
 
-        for (revision, sample) in [(18, CGFloat(360)), (1, 360), (18, 420), (1, 420), (18, 360)].enumerated() {
+        for (revision, sample) in [(18, CGFloat(360)), (18, 360), (1, 360), (18, 420), (1, 420), (18, 360)].enumerated() {
             window.setContentSize(NSSize(width: sample.1, height: 400))
             host.rootView = ScrollbarTimelineFixture(count: sample.0, revision: revision + 1, probe: probe)
             // A representable update and overlay style can precede AppKit's next
@@ -49,71 +49,41 @@ final class OverlayScrollbarsTests: CaseReportingTestCase {
                     || document.frame.height > scrollView.contentView.bounds.height
                 return probe.revision == revision + 1
                     && scrollView.scrollerStyle == .overlay
+                    && scrollView.hasVerticalScroller
                     && abs(width - sample.1) <= 0.5
                     && abs(scrollView.frame.width - width) <= 0.5
                     && abs(scrollView.contentView.frame.width - width) <= 0.5
                     && abs(row.bounds.width - (width - 20)) <= 0.5
+                    && abs(row.convert(row.bounds, to: host).minX - (host.bounds.minX + 10)) <= 0.5
+                    && abs(row.convert(row.bounds, to: host).maxX - (host.bounds.maxX - 10)) <= 0.5
                     && contentHeightMatches
             }
             await withCheckedContinuation { continuation in
                 DispatchQueue.main.async { continuation.resume() }
             }
             host.layoutSubtreeIfNeeded()
-            if revision == 0, ProcessInfo.processInfo.environment["MWEB_SCROLL_DIAGNOSTICS"] == "1" {
-                @MainActor func dump(_ label: String) {
-                    print("SCROLL_DIAGNOSTIC \(label) host=\(host.frame) scroll=\(scrollView.frame) "
-                          + "clip=\(scrollView.contentView.frame)")
-                    var current: NSView? = scrollView
-                    while let view = current {
-                        print("  \(type(of: view)) frame=\(view.frame) "
-                              + "intrinsic=\(view.intrinsicContentSize) needsLayout=\(view.needsLayout)")
-                        current = view.superview
-                    }
-                }
-                dump("before")
-                scrollView.tile()
-                host.layoutSubtreeIfNeeded()
-                await withCheckedContinuation { continuation in
-                    DispatchQueue.main.async { continuation.resume() }
-                }
-                dump("tile")
-                scrollView.invalidateIntrinsicContentSize()
-                scrollView.needsLayout = true
-                host.layoutSubtreeIfNeeded()
-                await withCheckedContinuation { continuation in
-                    DispatchQueue.main.async { continuation.resume() }
-                }
-                dump("intrinsic")
-                scrollView.superview?.needsLayout = true
-                scrollView.superview?.layoutSubtreeIfNeeded()
-                host.needsLayout = true
-                host.layoutSubtreeIfNeeded()
-                await withCheckedContinuation { continuation in
-                    DispatchQueue.main.async { continuation.resume() }
-                }
-                dump("parent layout")
-                scrollView.superview?.invalidateIntrinsicContentSize()
-                host.invalidateIntrinsicContentSize()
-                host.layoutSubtreeIfNeeded()
-                await withCheckedContinuation { continuation in
-                    DispatchQueue.main.async { continuation.resume() }
-                }
-                dump("parent intrinsic")
-            }
             let row = try XCTUnwrap(probe.firstRow)
             let expectedWidth = host.bounds.width - 20
+            let rowInHost = row.convert(row.bounds, to: host)
+            let scrollInHost = scrollView.convert(scrollView.bounds, to: host)
             let diagnostic = "count=\(sample.0), style=\(scrollView.scrollerStyle.rawValue), "
                 + "preferred=\(NSScroller.preferredScrollerStyle.rawValue), "
                 + "scroll=\(scrollView.frame), clip=\(scrollView.contentView.frame), "
                 + "document=\(String(describing: scrollView.documentView?.frame)), "
-                + "insets=\(scrollView.contentInsets), row=\(row.frame)"
+                + "insets=\(scrollView.contentInsets), row=\(row.frame), rowInHost=\(rowInHost)"
 
             XCTAssertTrue(row === firstRow, "Filtering keeps the first row mounted")
             XCTAssertTrue(row.enclosingScrollView === scrollView, "Filtering keeps the scroll container mounted")
             XCTAssertEqual(scrollView.frame.width, host.bounds.width, accuracy: 0.5, diagnostic)
             XCTAssertEqual(scrollView.contentView.frame.width, host.bounds.width, accuracy: 0.5, diagnostic)
             XCTAssertEqual(row.bounds.width, expectedWidth, accuracy: 0.5, diagnostic)
+            XCTAssertEqual(rowInHost.minX, host.bounds.minX + 10, accuracy: 0.5, diagnostic)
+            XCTAssertEqual(rowInHost.maxX, host.bounds.maxX - 10, accuracy: 0.5, diagnostic)
+            XCTAssertEqual(scrollInHost.minX, host.bounds.minX, accuracy: 0.5, diagnostic)
+            XCTAssertEqual(scrollInHost.maxX, host.bounds.maxX, accuracy: 0.5, diagnostic)
             XCTAssertEqual(scrollView.scrollerStyle, .overlay, diagnostic)
+            XCTAssertTrue(scrollView.hasVerticalScroller, "SwiftUI updates retain the native overlay scroller")
+            XCTAssertTrue(scrollView.autohidesScrollers, "Short content can hide its native overlay knob")
             if sample.0 > 1 {
                 XCTAssertGreaterThan(try XCTUnwrap(scrollView.documentView).frame.height,
                                      scrollView.contentView.bounds.height, diagnostic)
