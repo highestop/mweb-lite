@@ -186,12 +186,27 @@ final class MarkdownEditorFocusTests: CaseReportingTestCase {
             host.layoutSubtreeIfNeeded()
             return self.editor(in: host)?.string.hasPrefix("# Article A") == true
         }
-        let articleA = try XCTUnwrap(editor(in: host))
-        let scrollA = try XCTUnwrap(articleA.enclosingScrollView)
-        articleA.setSelectedRange(NSRange(location: (articleA.string as NSString).length, length: 0))
-        articleA.scrollRangeToVisible(articleA.selectedRange())
-        XCTAssertGreaterThan(scrollA.contentView.bounds.minY, 0, "Article A starts scrolled down")
+        let savedMarker = "A-only undo marker"
+        weak var priorEditor: MarkdownTextView?
+        do {
+            let articleA = try XCTUnwrap(editor(in: host))
+            priorEditor = articleA
+            let scrollA = try XCTUnwrap(articleA.enclosingScrollView)
+            articleA.setSelectedRange(NSRange(location: (articleA.string as NSString).length, length: 0))
+            let undoManager = try XCTUnwrap(articleA.undoManager)
+            let groupsByEvent = undoManager.groupsByEvent
+            undoManager.groupsByEvent = false
+            undoManager.beginUndoGrouping()
+            articleA.insertText(savedMarker, replacementRange: articleA.selectedRange())
+            undoManager.endUndoGrouping()
+            undoManager.groupsByEvent = groupsByEvent
+            XCTAssertTrue(undoManager.canUndo, "Article A has a real native undo action before switching files")
+            XCTAssertTrue(store.draft.hasSuffix(savedMarker))
+            articleA.scrollRangeToVisible(articleA.selectedRange())
+            XCTAssertGreaterThan(scrollA.contentView.bounds.minY, 0, "Article A starts scrolled down")
+        }
 
+        // Retain A only weakly so this test does not prevent its native teardown.
         store.selectArticle("10002")
 
         await waitFor("The production view mounts Article B's native editor") {
@@ -202,7 +217,7 @@ final class MarkdownEditorFocusTests: CaseReportingTestCase {
         XCTAssertNil(store.errorMessage)
         let articleB = try XCTUnwrap(editor(in: host))
         let scrollB = try XCTUnwrap(articleB.enclosingScrollView)
-        XCTAssertFalse(articleA === articleB, "Each file owns its native editor and pending scroll work")
+        XCTAssertFalse(priorEditor === articleB, "Each file owns its native editor and pending scroll work")
         XCTAssertEqual(articleB.selectedRange(), NSRange(location: 0, length: 0))
         XCTAssertEqual(scrollB.contentView.bounds.minY, 0, accuracy: 0.5)
         await withCheckedContinuation { continuation in
@@ -210,6 +225,10 @@ final class MarkdownEditorFocusTests: CaseReportingTestCase {
         }
         host.layoutSubtreeIfNeeded()
         XCTAssertEqual(scrollB.contentView.bounds.minY, 0, accuracy: 0.5)
+        let undoB = try XCTUnwrap(articleB.undoManager)
+        XCTAssertFalse(undoB.canUndo, "The new document must not inherit Article A's undo action")
+        XCTAssertEqual(articleB.string, try String(contentsOf: root.appendingPathComponent("docs/10002.md")))
+        XCTAssertTrue(try String(contentsOf: root.appendingPathComponent("docs/10001.md")).hasSuffix(savedMarker))
 
         // Switching only the view mode must keep this document's editor alive.
         let selection = (articleB.string as NSString).range(of: "Paragraph 145")
