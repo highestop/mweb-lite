@@ -145,7 +145,7 @@ Open a case to read or update its GWT statements, execution details, and data so
 
 ### Preview-app end-to-end cases
 
-- [E2E-001](cases/E2E-001.md) — Browse the category tree and article counts.
+- [E2E-001](cases/E2E-001.md) — Browse the category tree and article counts with neutral gray selection.
 - [E2E-002](cases/E2E-002.md) — Search article titles and clear the query.
 - [E2E-003](cases/E2E-003.md) — Create an article in the current category from the document toolbar.
 - [E2E-004](cases/E2E-004.md) — Create an uncategorized article from the keyboard.
@@ -153,8 +153,8 @@ Open a case to read or update its GWT statements, execution details, and data so
 - [E2E-006](cases/E2E-006.md) — Save edits across article switches and app restart.
 - [E2E-007](cases/E2E-007.md) — Commit real Chinese composition across focus changes.
 - [E2E-008](cases/E2E-008.md) — Keep one light-gray selection through mouse-down, release, and keyboard navigation.
-- [E2E-009](cases/E2E-009.md) — Show document-toolbar compose-button hover and pressed feedback.
-- [E2E-010](cases/E2E-010.md) — Align the document toolbar, simplify sidebar icons, and hide/restore both left columns.
+- [E2E-009](cases/E2E-009.md) — Center the compact compose icon and show gray hover/pressed feedback.
+- [E2E-010](cases/E2E-010.md) — Keep neutral styling, compact centered toolbar icons, and usable column layout.
 - [E2E-011](cases/E2E-011.md) — Render the showcase and follow an internal article link.
 - [E2E-012](cases/E2E-012.md) — Preserve the UI draft after an external-file conflict.
 

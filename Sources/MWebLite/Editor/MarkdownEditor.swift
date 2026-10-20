@@ -79,7 +79,7 @@ struct MarkdownEditor: NSViewRepresentable {
         textView.isContinuousSpellCheckingEnabled = false
         textView.font = .monospacedSystemFont(ofSize: 14, weight: .regular)
         textView.textColor = .textColor
-        textView.insertionPointColor = .controlAccentColor
+        textView.insertionPointColor = .textColor
         textView.backgroundColor = .textBackgroundColor
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineSpacing = 6
