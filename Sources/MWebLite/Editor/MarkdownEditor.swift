@@ -100,6 +100,7 @@ struct MarkdownEditor: NSViewRepresentable {
         context.coordinator.textView = textView
         context.coordinator.documentID = documentID
         textView.highlightMarkdown()
+        textView.setSelectedRange(NSRange(location: 0, length: 0))
         return scrollView
     }
 
