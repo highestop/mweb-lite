@@ -1,37 +1,12 @@
-# EDIT-002
-
-## Given
-
-List-like text appears inside backtick/tilde code fences, with different fence lengths and indentation.
-
-## When
-
-Compute newline edits inside and after fences.
-
-## Then
-
-Code content does not gain Markdown list prefixes, indentation is retained, and list continuation resumes outside the closed fence.
-
-## Level
-
-Unit
-
-## Path
-
-CI
-
-## Data
-
-Inline
-
-## Status
-
-CI passed
-
-## Verification
-
-`MarkdownEditingTests/testFencedCodeDoesNotContinueMarkdownLists`
-
-## Evidence
-
-[2026-10-20 · 78de482](https://github.com/highestop/mweb-lite/actions/runs/39355435845)
+| Field | Content |
+| --- | --- |
+| ID | EDIT-002 |
+| Given | List-like text appears inside backtick/tilde code fences, with different fence lengths and indentation. |
+| When | Compute newline edits inside and after fences. |
+| Then | Code content does not gain Markdown list prefixes, indentation is retained, and list continuation resumes outside the closed fence. |
+| Level | Unit |
+| Path | CI |
+| Data | Inline |
+| Status | CI passed |
+| Verification | `MarkdownEditingTests/testFencedCodeDoesNotContinueMarkdownLists` |
+| Evidence | [2026-10-20 · 78de482](https://github.com/highestop/mweb-lite/actions/runs/39355435845) |

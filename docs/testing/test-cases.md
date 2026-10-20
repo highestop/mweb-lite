@@ -4,7 +4,28 @@ This document defines the shared case format and indexes the individual case fil
 
 ## Format and result rules
 
-Store each case in `cases/<ID>.md`. The first line is `# <ID>`. Follow it with exactly these nine second-level headings, in this order: `Given`, `When`, `Then`, `Level`, `Path`, `Data`, `Status`, `Verification`, and `Evidence`. Put each field's content below its heading as one vertical block; do not maintain a duplicate row or another ID field. Keep the case file as the single source of its assertions and recorded result.
+Store each case in `cases/<ID>.md` as exactly one two-column Markdown table. Use `| Field | Content |` as the header and `| --- | --- |` as its separator. Follow them with exactly ten rows in this order: `ID`, `Given`, `When`, `Then`, `Level`, `Path`, `Data`, `Status`, `Verification`, and `Evidence`. The ID value must equal the filename without `.md`. Do not add a title, section headings, or content outside the table. Keep the case file as the single source of its assertions and recorded result.
+
+Keep each row on one source line. Field content may use inline Markdown; use `<br>` for displayed line breaks. Escape every literal pipe as `\|`, including pipes inside code spans, so it cannot be mistaken for a column delimiter.
+
+### Case file template
+
+Copy the complete table below into a new case file and replace the placeholders. Replace a source-link placeholder with a real relative link when Data is Fixture or Mixed. Keep Status and Evidence as `—` until an execution is recorded.
+
+```markdown
+| Field | Content |
+| --- | --- |
+| ID | <ID> |
+| Given | <Initial state and required data> |
+| When | <Action or sequence under test> |
+| Then | <Observable expected results> |
+| Level | <Unit, Integration, or End-to-end> |
+| Path | <CI, Local script, Preview app, or Release app> |
+| Data | <Inline, Fixture: source link, or Mixed: source link + generated setup> |
+| Status | — |
+| Verification | <Exact automated selector or full-app execution steps> |
+| Evidence | — |
+```
 
 Use relative links from the case file's directory: fixture links start with `../../../Tests/Fixtures/`, and local report links start with `../../../build/test-results/runs/`. Commands and runtime paths remain relative to the repository root. Follow the [test guide](test-guide.md) for execution setup and shared fixture expectations.
 
@@ -12,7 +33,7 @@ Each case has a permanent ID and explicit **Given / When / Then (GWT)** statemen
 
 | Field | Meaning |
 | --- | --- |
-| ID | Stable identifier used in logs and review discussions; the filename and first-level heading, not a repeated field. |
+| ID | Stable identifier used in logs and review discussions; equals the filename without `.md`. |
 | Given | Initial state and required data. |
 | When | The action under test. |
 | Then | Observable assertions that determine the result. |
