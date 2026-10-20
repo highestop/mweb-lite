@@ -220,6 +220,13 @@ final class MarkdownTextView: NSTextView {
     var onInsertImages: (([URL]) -> [String])?
     var onPasteImage: ((Data) -> String?)?
 
+    override func adjustScroll(_ newVisible: NSRect) -> NSRect {
+        // Keep an explicit document-origin request at zero instead of allowing
+        // NSTextView's line alignment to scroll away the first line's top inset.
+        if newVisible.minY == 0 { return newVisible }
+        return super.adjustScroll(newVisible)
+    }
+
     func scrollToDocumentBeginning() {
         guard let scrollView = enclosingScrollView else { return }
         if let textContainer { layoutManager?.ensureLayout(for: textContainer) }
