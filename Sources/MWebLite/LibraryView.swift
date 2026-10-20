@@ -4,7 +4,9 @@ import MWebCore
 struct LibraryView: View {
     @ObservedObject var store: LibraryStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var navigationVisible = true
+    @State private var categoryWidth: CGFloat = 243
+    @State private var articleWidth: CGFloat = 243
     @State private var expandedCategoryIDs: Set<String> = []
     @StateObject private var articleListSelection = ArticleListSelectionController()
     private let headerHeight: CGFloat = 56
@@ -50,22 +52,42 @@ struct LibraryView: View {
     }
 
     private var workspace: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
-            // macOS keeps a three-column split's middle column visible. Group
-            // both navigation panes into one sidebar so they collapse together.
-            HSplitView {
-                sidebar.frame(minWidth: 180, idealWidth: 215, maxWidth: 320)
-                articleList.frame(minWidth: 220, idealWidth: 270, maxWidth: 400)
-                    .ignoresSafeArea(.container, edges: .top)
+        GeometryReader { proxy in
+            let geometry = DrawerGeometry(size: proxy.size, progress: navigationVisible ? 1 : 0,
+                                          categoryWidth: categoryWidth, articleWidth: articleWidth)
+            DrawerWorkspaceLayout(progress: navigationVisible ? 1 : 0,
+                                  categoryWidth: categoryWidth, articleWidth: articleWidth) {
+                detail
+                    .padding(.leading, 16)
+                    .background(Color(nsColor: .controlBackgroundColor))
+                    .zIndex(0)
+                articleList
+                    .padding(.leading, 16)
+                    .background(Color(nsColor: .controlBackgroundColor))
+                    .modifier(DrawerPanel(visible: navigationVisible))
+                    .zIndex(1)
+                sidebar
+                    .padding(.top, max(28, proxy.safeAreaInsets.top))
+                    .background(Color(nsColor: .windowBackgroundColor))
+                    .modifier(DrawerPanel(visible: navigationVisible))
+                    .zIndex(2)
+                DrawerResizeHandle(title: "调整分类栏宽度", width: geometry.categoryWidth) {
+                    categoryWidth = min(max($0, 180), min(320, max(180, proxy.size.width - 420 - geometry.articleWidth)))
+                }
+                .allowsHitTesting(navigationVisible)
+                .accessibilityHidden(!navigationVisible)
+                .zIndex(3)
+                DrawerResizeHandle(title: "调整文章栏宽度", width: geometry.articleWidth) {
+                    articleWidth = min(max($0, 220), min(400, max(220, proxy.size.width - 420 - geometry.categoryWidth)))
+                }
+                .allowsHitTesting(navigationVisible)
+                .accessibilityHidden(!navigationVisible)
+                .zIndex(3)
             }
-            .frame(maxHeight: .infinity, alignment: .top)
-            .navigationSplitViewColumnWidth(min: 401, ideal: 486, max: 721)
-        } detail: {
-            // Keep the toolbar on the same top row in both navigation states.
-            detail.ignoresSafeArea(.container, edges: .top)
+            .coordinateSpace(name: "drawer-workspace")
+            .clipped()
         }
-        .navigationSplitViewStyle(.balanced)
-        .toolbar(removing: .sidebarToggle)
+        .ignoresSafeArea(.container, edges: .top)
     }
 
     private var sidebar: some View {
@@ -188,11 +210,16 @@ struct LibraryView: View {
     private var documentToolbar: some View {
         HStack(spacing: 6) {
             ToolbarIconButton(
-                title: columnVisibility == .detailOnly ? "展开侧边栏" : "收起侧边栏",
+                title: navigationVisible ? "收起侧边栏" : "展开侧边栏",
                 symbol: "sidebar.left", help: "展开或收起分类和文章列表"
             ) {
+                // End navigation input before it goes offscreen; leave an active
+                // editor's selection, composition, and undo history in place.
+                if navigationVisible, !(NSApp.keyWindow?.firstResponder is MarkdownTextView) {
+                    NSApp.keyWindow?.makeFirstResponder(nil)
+                }
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) {
-                    columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
+                    navigationVisible.toggle()
                 }
             }
             .accessibilityIdentifier("toggle-navigation")
@@ -205,7 +232,7 @@ struct LibraryView: View {
             if store.isBusy && !store.isSwitchingArticle { ProgressView().controlSize(.small) }
             modeButtons
         }
-        .padding(.leading, columnVisibility == .detailOnly ? 88 : 14)
+        .padding(.leading, navigationVisible ? 14 : 88)
         .padding(.trailing, 14)
         .frame(height: headerHeight)
         .background(WindowDragArea())
