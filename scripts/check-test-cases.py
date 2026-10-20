@@ -7,7 +7,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 INDEX = ROOT / "docs/testing/test-cases.md"
 CASE_DIR = INDEX.parent / "cases"
-FIELDS = ["ID", "Given", "When", "Then", "Level", "Path", "Data", "Verification"]
+FIELDS = ["ID", "Verification", "Given", "When", "Then", "Level", "Path", "Data"]
 LEVELS = {"Unit", "Integration", "End-to-end"}
 PATHS = {"CI", "Local script", "Preview app", "Release app"}
 
