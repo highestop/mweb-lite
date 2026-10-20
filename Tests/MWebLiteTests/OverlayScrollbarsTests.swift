@@ -59,6 +59,47 @@ final class OverlayScrollbarsTests: CaseReportingTestCase {
                 DispatchQueue.main.async { continuation.resume() }
             }
             host.layoutSubtreeIfNeeded()
+            if revision == 0, ProcessInfo.processInfo.environment["MWEB_SCROLL_DIAGNOSTICS"] == "1" {
+                @MainActor func dump(_ label: String) {
+                    print("SCROLL_DIAGNOSTIC \(label) host=\(host.frame) scroll=\(scrollView.frame) "
+                          + "clip=\(scrollView.contentView.frame)")
+                    var current: NSView? = scrollView
+                    while let view = current {
+                        print("  \(type(of: view)) frame=\(view.frame) "
+                              + "intrinsic=\(view.intrinsicContentSize) needsLayout=\(view.needsLayout)")
+                        current = view.superview
+                    }
+                }
+                dump("before")
+                scrollView.tile()
+                host.layoutSubtreeIfNeeded()
+                await withCheckedContinuation { continuation in
+                    DispatchQueue.main.async { continuation.resume() }
+                }
+                dump("tile")
+                scrollView.invalidateIntrinsicContentSize()
+                scrollView.needsLayout = true
+                host.layoutSubtreeIfNeeded()
+                await withCheckedContinuation { continuation in
+                    DispatchQueue.main.async { continuation.resume() }
+                }
+                dump("intrinsic")
+                scrollView.superview?.needsLayout = true
+                scrollView.superview?.layoutSubtreeIfNeeded()
+                host.needsLayout = true
+                host.layoutSubtreeIfNeeded()
+                await withCheckedContinuation { continuation in
+                    DispatchQueue.main.async { continuation.resume() }
+                }
+                dump("parent layout")
+                scrollView.superview?.invalidateIntrinsicContentSize()
+                host.invalidateIntrinsicContentSize()
+                host.layoutSubtreeIfNeeded()
+                await withCheckedContinuation { continuation in
+                    DispatchQueue.main.async { continuation.resume() }
+                }
+                dump("parent intrinsic")
+            }
             let row = try XCTUnwrap(probe.firstRow)
             let expectedWidth = host.bounds.width - 20
             let diagnostic = "count=\(sample.0), style=\(scrollView.scrollerStyle.rawValue), "
