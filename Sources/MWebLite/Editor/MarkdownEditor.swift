@@ -194,6 +194,15 @@ final class MarkdownTextView: NSTextView {
     var onInsertImages: (([URL]) -> [String])?
     var onPasteImage: ((Data) -> String?)?
 
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        // Keep the native scroll view full-width while centering its text column.
+        // widthTracksTextView updates wrapping when these insets change.
+        let horizontalInset = max(16, (bounds.width - 900) / 2)
+        guard textContainerInset.width != horizontalInset else { return }
+        textContainerInset = NSSize(width: horizontalInset, height: textContainerInset.height)
+    }
+
     override func resignFirstResponder() -> Bool {
         let wasComposing = hasMarkedText()
         guard super.resignFirstResponder() else { return false }

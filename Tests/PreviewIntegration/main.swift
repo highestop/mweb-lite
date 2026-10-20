@@ -26,7 +26,7 @@ final class CaseResults {
     private let summaries = [
         "PV-001": "Local media confinement assertions passed",
         "PV-002": "Article URL parsing assertions passed",
-        "PV-003": "Bundled Markdown, MWeb extensions and local image assertions passed",
+        "PV-003": "Bundled Markdown, local images and responsive centered 900-point content assertions passed",
         "PV-004": "Script execution and unsafe HTML attribute assertions passed",
         "PV-005": "MathJax, Mermaid, ECharts and Prism assertions passed",
         "PV-006": "Document changes reset preview scrolling and same-document updates retain position"
@@ -217,6 +217,86 @@ final class Delegate: NSObject, WKNavigationDelegate {
                 if !runtimeAvailable {
                     results.skip("PV-005", reason: "Optional MWeb runtimes are unavailable")
                 }
+                self.checkContentWidth(webView, wide: true)
+            }
+        }
+    }
+
+    func checkContentWidth(_ webView: WKWebView, wide: Bool) {
+        activeRenderCaseID = "PV-003"
+        let width: CGFloat = wide ? 1200 : 420
+        // Resize the real WebKit viewport; changing an article style would not test reflow.
+        window.setContentSize(NSSize(width: width, height: 900))
+        window.orderBack(nil)
+        webView.layoutSubtreeIfNeeded()
+        let script = #"""
+        if (wide) {
+          window.renderMarkdown('# Content width verification\n\nA paragraph measures the usable text column.\n\n' +
+            '![Oversized-w1600](media/test.png)\n\n![Column-w900](media/test.png)\n\n' +
+            '![Small-w140](media/test.png)\n\n![Natural](media/test.png)',
+            'mweblite://library/docs/', false, true);
+        }
+        const images = Array.from(document.querySelectorAll('article img'));
+        await Promise.race([
+          (async () => {
+            await Promise.all(images.map(image => image.complete ? Promise.resolve() :
+              new Promise(resolve => {
+                image.addEventListener('load', resolve, {once: true});
+                image.addEventListener('error', resolve, {once: true});
+              })));
+            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          })(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Content layout timeout')), 3000))
+        ]);
+        const text = document.querySelector('article > p').getBoundingClientRect();
+        const viewport = document.documentElement.clientWidth;
+        const oversized = document.querySelector('img[width="1600"]').getBoundingClientRect();
+        return {
+          windowWidth: window.innerWidth, viewport, textWidth: text.width,
+          leftInset: text.left, rightInset: viewport - text.right,
+          imagesLoaded: images.length === 4 && images.every(image => image.complete && image.naturalWidth > 0),
+          imagesContained: images.every(image => {
+            const rect = image.getBoundingClientRect();
+            return rect.width > 0 && rect.left >= text.left - 1 && rect.right <= text.right + 1;
+          }),
+          oversizedFits: Math.abs(oversized.width - text.width) <= 1,
+          noHorizontalOverflow: document.documentElement.scrollWidth <= viewport + 1
+        };
+        """#
+        webView.callAsyncJavaScript(script, arguments: ["wide": wide], in: nil, in: .page) { result in
+            guard case .success(let value) = result, let state = value as? [String: Any] else {
+                abort("Preview content width check failed: \(result)", caseID: "PV-003")
+            }
+            let viewport = state["viewport"] as? Double ?? .nan
+            let textWidth = state["textWidth"] as? Double ?? .nan
+            let leftInset = state["leftInset"] as? Double ?? .nan
+            let rightInset = state["rightInset"] as? Double ?? .nan
+            let label = wide ? "Wide" : "Narrow"
+            let measurements = "\(label) viewport \(viewport), text \(textWidth), insets \(leftInset)/\(rightInset)"
+            results.expect("PV-003", abs((state["windowWidth"] as? Double ?? .nan) - Double(width)) <= 1,
+                           "\(label) WebKit viewport did not resize to \(width) points")
+            if wide {
+                results.expect("PV-003", viewport > 932 && abs(textWidth - 900) <= 1,
+                               "Wide preview text was not limited to 900 points: \(measurements)")
+                results.expect("PV-003", leftInset >= 16 && abs(leftInset - rightInset) <= 1,
+                               "Wide preview text was not centered: \(measurements)")
+            } else {
+                results.expect("PV-003", abs(leftInset - 16) <= 1 && abs(rightInset - 16) <= 1,
+                               "Narrow preview did not keep 16-point side insets: \(measurements)")
+                results.expect("PV-003", abs(textWidth - (viewport - 32)) <= 1,
+                               "Narrow preview did not use its available text width: \(measurements)")
+            }
+            results.expect("PV-003", state["imagesLoaded"] as? Bool == true,
+                           "\(label) preview did not load all four fixture image references")
+            results.expect("PV-003", state["imagesContained"] as? Bool == true && state["oversizedFits"] as? Bool == true,
+                           "\(label) preview images did not fit within the text column")
+            results.expect("PV-003", state["noHorizontalOverflow"] as? Bool == true,
+                           "\(label) preview overflowed its viewport horizontally")
+            if wide {
+                self.checkContentWidth(webView, wide: false)
+            } else {
+                window.setContentSize(NSSize(width: 900, height: 900))
+                webView.layoutSubtreeIfNeeded()
                 self.checkScrollReset(webView)
             }
         }

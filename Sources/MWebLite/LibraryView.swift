@@ -7,6 +7,8 @@ struct LibraryView: View {
     @State private var navigationVisible = true
     @State private var categoryWidth: CGFloat = 243
     @State private var articleWidth: CGFloat = 243
+    @State private var categoryEdgeHighlighted = false
+    @State private var articleEdgeHighlighted = false
     @State private var expandedCategoryIDs: Set<String> = []
     @StateObject private var articleListSelection = ArticleListSelectionController()
     private let headerHeight: CGFloat = 56
@@ -64,22 +66,28 @@ struct LibraryView: View {
                 articleList
                     .padding(.leading, 16)
                     .background(Color(nsColor: .controlBackgroundColor))
-                    .modifier(DrawerPanel(visible: navigationVisible))
+                    .modifier(DrawerPanel(visible: navigationVisible, highlighted: articleEdgeHighlighted))
                     .zIndex(1)
                 sidebar
                     .padding(.top, max(28, proxy.safeAreaInsets.top))
                     .background(Color(nsColor: .windowBackgroundColor))
-                    .modifier(DrawerPanel(visible: navigationVisible))
+                    .modifier(DrawerPanel(visible: navigationVisible, highlighted: categoryEdgeHighlighted))
                     .zIndex(2)
                 DrawerResizeHandle(title: "调整分类栏宽度", width: geometry.categoryWidth) {
                     categoryWidth = min(max($0, 180), min(320, max(180, proxy.size.width - 420 - geometry.articleWidth)))
+                } onHighlight: {
+                    categoryEdgeHighlighted = $0
                 }
+                .disabled(!navigationVisible)
                 .allowsHitTesting(navigationVisible)
                 .accessibilityHidden(!navigationVisible)
                 .zIndex(3)
                 DrawerResizeHandle(title: "调整文章栏宽度", width: geometry.articleWidth) {
                     articleWidth = min(max($0, 220), min(400, max(220, proxy.size.width - 420 - geometry.categoryWidth)))
+                } onHighlight: {
+                    articleEdgeHighlighted = $0
                 }
+                .disabled(!navigationVisible)
                 .allowsHitTesting(navigationVisible)
                 .accessibilityHidden(!navigationVisible)
                 .zIndex(3)
@@ -215,7 +223,9 @@ struct LibraryView: View {
             ) {
                 // End navigation input before it goes offscreen; leave an active
                 // editor's selection, composition, and undo history in place.
-                if navigationVisible, !(NSApp.keyWindow?.firstResponder is MarkdownTextView) {
+                let responder = NSApp.keyWindow?.firstResponder
+                if navigationVisible,
+                   responder is NavigationKeyboardResponder || (responder as? NSTextView)?.isFieldEditor == true {
                     NSApp.keyWindow?.makeFirstResponder(nil)
                 }
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) {

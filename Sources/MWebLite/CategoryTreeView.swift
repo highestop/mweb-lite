@@ -217,7 +217,7 @@ private struct CategoryTreeKeyboardSelection: NSViewRepresentable {
     }
 }
 
-private final class CategoryTreeKeyboardView: NSView {
+private final class CategoryTreeKeyboardView: NSView, NavigationKeyboardResponder {
     private weak var controller: CategoryTreeKeyboardController?
     private var onCommand: ((CategoryTreeCommand) -> Void)?
     private var selectionEnabled = false
