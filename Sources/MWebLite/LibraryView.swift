@@ -73,7 +73,7 @@ struct LibraryView: View {
                 rowLabel("未分类", count: store.activeArticles.filter { $0.categoryIDs.isEmpty }.count).tag("uncategorized")
                 Section("分类") {
                     OutlineGroup(store.categoryTree, children: \.children) { node in
-                        rowLabel(node.name, count: node.count).tag(node.id)
+                        rowLabel(node.name, count: node.count).padding(.leading, 6).tag(node.id)
                     }
                 }
             }.listStyle(.sidebar).disabled(store.isBusy)
