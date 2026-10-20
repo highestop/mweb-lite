@@ -6,6 +6,8 @@ A native macOS app for opening an existing MWeb document library, browsing its c
 
 Requires macOS 14 or later and Xcode Command Line Tools with Swift 5.9 or later.
 
+The build generates the app icon from vector sources. Xcode 26 or later also compiles its native Icon Composer version. See [icon sources and attribution](Support/IconSource/README.md).
+
 ```sh
 ./scripts/build-app.sh
 open "build/MWeb Lite.app"
