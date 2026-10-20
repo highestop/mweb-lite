@@ -1,6 +1,55 @@
 import AppKit
 import SwiftUI
 
+/// Keep native hit testing, tracking and fade timing; only the knob is painted.
+final class LightOverlayScroller: NSScroller {
+    override class var isCompatibleWithOverlayScrollers: Bool { true }
+
+    override func drawKnob() {
+        var knob = rect(for: .knob)
+        guard !knob.isEmpty else { return }
+        if bounds.height >= bounds.width {
+            knob.origin.x = knob.midX - min(knob.width, 6) / 2
+            knob.size.width = min(knob.width, 6)
+        } else {
+            knob.origin.y = knob.midY - min(knob.height, 6) / 2
+            knob.size.height = min(knob.height, 6)
+        }
+        NSColor.labelColor.withAlphaComponent(0.22).setFill()
+        NSBezierPath(roundedRect: knob, xRadius: 3, yRadius: 3).fill()
+    }
+
+    override func drawKnobSlot(in slotRect: NSRect, highlight flag: Bool) {}
+}
+
+@MainActor
+enum OverlayScrollbarStyle {
+    static func configure(_ scrollView: NSScrollView) {
+        if !(scrollView.verticalScroller is LightOverlayScroller) {
+            scrollView.verticalScroller = LightOverlayScroller(
+                frame: scrollView.verticalScroller?.frame ?? NSRect(x: 0, y: 0, width: 15, height: 100)
+            )
+        }
+        if scrollView.hasHorizontalScroller, !(scrollView.horizontalScroller is LightOverlayScroller) {
+            scrollView.horizontalScroller = LightOverlayScroller(
+                frame: scrollView.horizontalScroller?.frame ?? NSRect(x: 0, y: 0, width: 100, height: 15)
+            )
+        }
+        if scrollView.scrollerStyle != .overlay { scrollView.scrollerStyle = .overlay }
+        if !scrollView.hasVerticalScroller { scrollView.hasVerticalScroller = true }
+        if !scrollView.autohidesScrollers { scrollView.autohidesScrollers = true }
+    }
+}
+
+/// Editors own their scroll view, so enforce the same per-view policy even when
+/// AppKit reapplies a changed mouse/system preference.
+final class OverlayScrollView: NSScrollView {
+    override var scrollerStyle: NSScroller.Style {
+        get { super.scrollerStyle }
+        set { super.scrollerStyle = .overlay }
+    }
+}
+
 extension View {
     /// Apply to the content of a ScrollView with `.scrollIndicators(.never)`.
     /// SwiftUI then reserves no legacy gutter; this probe restores native overlay
@@ -100,16 +149,7 @@ private final class OverlayScrollbarView: NSView {
                 }
             }
         }
-        if scrollView.scrollerStyle != .overlay {
-            scrollView.scrollerStyle = .overlay
-        }
-        if !scrollView.hasVerticalScroller {
-            scrollView.hasVerticalScroller = true
-        }
-        if !scrollView.autohidesScrollers {
-            scrollView.autohidesScrollers = true
-        }
-        // AppKit owns the overlay knob's translucency, hover and fade animation.
+        OverlayScrollbarStyle.configure(scrollView)
     }
 
     @objc private func preferredScrollerStyleDidChange() {

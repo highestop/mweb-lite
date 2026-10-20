@@ -2,6 +2,140 @@
 (() => {
   "use strict";
   const content = document.getElementById("content");
+  // WebKit on macOS renders its scrollbars outside the public NSView hierarchy.
+  // Keep its native scrolling and add only the visible, interactive overlay.
+  function makeScrollbar(target, vertical) {
+    const root = target === document.documentElement;
+    const track = document.createElement("div");
+    const thumb = document.createElement("div");
+    track.className = `preview-scrollbar ${vertical ? "vertical" : "horizontal"}`;
+    thumb.className = "preview-scrollbar-thumb";
+    track.append(thumb);
+    track.tabIndex = 0;
+    track.setAttribute("role", "scrollbar");
+    track.setAttribute("aria-label", vertical ? "滚动文章" : "横向滚动内容");
+    track.setAttribute("aria-orientation", vertical ? "vertical" : "horizontal");
+    track.setAttribute("aria-valuemin", "0");
+    track.setAttribute("aria-controls", target.id || "content");
+    document.body.append(track);
+    let timer, drag = null, geometry = null;
+    const source = () => root ? document.scrollingElement : target;
+    const value = () => vertical ? source().scrollTop : source().scrollLeft;
+    const setValue = (position) => source().scrollTo(vertical
+      ? { top: position, behavior: "instant" } : { left: position, behavior: "instant" });
+    const show = () => {
+      track.classList.add("active");
+      clearTimeout(timer);
+      timer = setTimeout(() => track.classList.remove("active"), 900);
+    };
+    const update = () => {
+      const element = source();
+      const rect = root ? { left: 0, top: 0, right: innerWidth, bottom: innerHeight }
+        : target.getBoundingClientRect();
+      const extent = vertical ? element.scrollHeight : element.scrollWidth;
+      const viewport = vertical ? (root ? innerHeight : target.clientHeight) : target.clientWidth;
+      const start = vertical ? 2 : Math.max(0, rect.left) + 2;
+      const end = vertical ? innerHeight - 2 : Math.min(innerWidth, rect.right) - 2;
+      const length = Math.max(0, end - start);
+      const maximum = Math.max(0, extent - viewport);
+      const thumbLength = Math.min(length, Math.max(24, length * viewport / extent));
+      const travel = length - thumbLength;
+      geometry = { start, maximum, thumbLength, travel };
+      track.hidden = maximum < 1 || length < 1 || (!root &&
+        (rect.bottom <= 0 || rect.bottom > innerHeight || rect.right <= 0 || rect.left >= innerWidth));
+      if (vertical) {
+        track.style.top = `${start}px`;
+        track.style.height = `${length}px`;
+        thumb.style.height = `${thumbLength}px`;
+        thumb.style.transform = `translateY(${maximum ? Math.max(0, Math.min(maximum, value())) / maximum * travel : 0}px)`;
+      } else {
+        track.style.left = `${start}px`;
+        track.style.top = `${rect.bottom - 10}px`;
+        track.style.width = `${length}px`;
+        thumb.style.width = `${thumbLength}px`;
+        thumb.style.transform = `translateX(${maximum ? Math.max(0, Math.min(maximum, value())) / maximum * travel : 0}px)`;
+      }
+      track.setAttribute("aria-valuemax", String(Math.round(maximum)));
+      track.setAttribute("aria-valuenow", String(Math.round(value())));
+    };
+    const coordinate = (event) => vertical ? event.clientY : event.clientX;
+    const move = (event) => {
+      if (!drag || drag.id !== event.pointerId || !geometry?.travel) return;
+      setValue((coordinate(event) - geometry.start - drag.grip) / geometry.travel * geometry.maximum);
+      update();
+      show();
+    };
+    const stop = () => {
+      const previous = drag;
+      drag = null;
+      if (previous && track.hasPointerCapture(previous.id)) track.releasePointerCapture(previous.id);
+      track.classList.remove("dragging");
+      show();
+    };
+    track.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      update();
+      const rect = thumb.getBoundingClientRect();
+      drag = { id: event.pointerId, grip: event.target === thumb
+        ? coordinate(event) - (vertical ? rect.top : rect.left) : geometry.thumbLength / 2 };
+      track.classList.add("dragging");
+      // Synthetic integration-test events have no active pointer to capture.
+      if (event.isTrusted) track.setPointerCapture(event.pointerId);
+      move(event);
+    });
+    track.addEventListener("pointermove", move);
+    track.addEventListener("pointerup", stop);
+    track.addEventListener("pointercancel", stop);
+    track.addEventListener("lostpointercapture", stop);
+    track.addEventListener("pointerenter", show);
+    track.addEventListener("keydown", (event) => {
+      const step = vertical ? innerHeight : target.clientWidth;
+      const delta = { ArrowUp: -40, ArrowLeft: -40, ArrowDown: 40, ArrowRight: 40,
+        PageUp: -step, PageDown: step }[event.key];
+      if (delta === undefined && !["Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      setValue(event.key === "Home" ? 0 : event.key === "End" ? geometry.maximum : value() + delta);
+      show();
+    });
+    const onScroll = () => { update(); show(); };
+    (root ? window : target).addEventListener("scroll", onScroll, { passive: true });
+    return { update, stop, destroy() {
+      clearTimeout(timer);
+      (root ? window : target).removeEventListener("scroll", onScroll);
+      track.remove();
+    } };
+  }
+
+  const pageScrollbar = makeScrollbar(document.documentElement, true);
+  const horizontalScrollbars = new Map();
+  let scrollbarFrame = null;
+  function scheduleScrollbars() {
+    if (scrollbarFrame !== null) return;
+    scrollbarFrame = requestAnimationFrame(() => {
+      scrollbarFrame = null;
+      pageScrollbar.update();
+      for (const [element, scrollbar] of horizontalScrollbars) {
+        if (element.isConnected) scrollbar.update();
+        else { scrollbar.destroy(); horizontalScrollbars.delete(element); scrollbarResizeObserver.unobserve(element); }
+      }
+      for (const element of content.querySelectorAll("pre, table, .math-display, .diagram")) {
+        if (!horizontalScrollbars.has(element)) {
+          const scrollbar = makeScrollbar(element, false);
+          horizontalScrollbars.set(element, scrollbar);
+          scrollbarResizeObserver.observe(element);
+          scrollbar.update();
+        }
+      }
+    });
+  }
+  const scrollbarResizeObserver = new ResizeObserver(scheduleScrollbars);
+  scrollbarResizeObserver.observe(content);
+  new MutationObserver(scheduleScrollbars).observe(content, { childList: true, subtree: true, characterData: true });
+  content.addEventListener("load", scheduleScrollbars, true);
+  addEventListener("resize", scheduleScrollbars);
+  addEventListener("scroll", scheduleScrollbars, { passive: true });
+  scheduleScrollbars();
   const escapeHTML = (text) => String(text).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
   const md = window.markdownit({ html: true, linkify: true, typographer: false, breaks: false })
     .use(window.markdownitFootnote)
@@ -204,6 +338,7 @@
 
   window.renderMarkdown = (source, baseURL, runtimeAvailable, resetScroll) => {
     const renderRevision = ++revision;
+    if (resetScroll) pageScrollbar.stop();
     const oldY = resetScroll ? 0 : window.scrollY;
     for (const chart of charts) chart.dispose();
     charts = [];
@@ -232,6 +367,7 @@
       });
     }
     enhance(renderRevision, runtimeAvailable);
+    scheduleScrollbars();
   };
 
   document.addEventListener("click", (event) => {

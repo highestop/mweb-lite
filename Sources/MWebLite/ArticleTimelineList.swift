@@ -4,14 +4,17 @@ import SwiftUI
 /// their visual copies without publishing scroll offsets into view state.
 struct ArticleTimelineList<Row: View>: View {
     private let sections: [TimelineYearSection]
+    private let selectedArticleID: String?
     private let row: (ArticleTimelineGrouping.Entry) -> Row
     private let yearHeight: CGFloat = 36
     private let monthHeight: CGFloat = 32
     @Namespace private var scrollCoordinateSpace
+    @StateObject private var revealCoordinator = ArticleRowRevealCoordinator()
 
-    init(entries: [ArticleTimelineGrouping.Entry],
+    init(entries: [ArticleTimelineGrouping.Entry], selectedArticleID: String? = nil,
          @ViewBuilder row: @escaping (ArticleTimelineGrouping.Entry) -> Row) {
         sections = TimelineYearSection.group(entries)
+        self.selectedArticleID = selectedArticleID
         self.row = row
     }
 
@@ -47,13 +50,12 @@ struct ArticleTimelineList<Row: View>: View {
                             LazyVStack(spacing: 2) {
                                 ForEach(month.entries) { entry in
                                     let headerInset = monthHeight + (year.date == nil ? 0 : yearHeight)
-                                    // Expand the scroll target above the row, then
-                                    // cancel that space outside the target so row
-                                    // layout and pointer bounds do not change.
                                     row(entry)
-                                        .padding(.top, headerInset)
+                                        .background(ArticleRowRevealAnchor(
+                                            articleID: entry.id, selectedArticleID: selectedArticleID,
+                                            headerInset: headerInset, coordinator: revealCoordinator
+                                        ))
                                         .id(entry.id)
-                                        .padding(.top, -headerInset)
                                 }
                             }
                         }
