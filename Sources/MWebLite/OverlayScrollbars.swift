@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 extension View {
-    /// Apply to the content of a ScrollView with `.scrollIndicators(.hidden)`.
+    /// Apply to the content of a ScrollView with `.scrollIndicators(.never)`.
     /// SwiftUI then reserves no legacy gutter; this probe restores native overlay
     /// scrollers while the rows use the containing viewport's actual width.
     func overlayScrollbars(viewportWidth: CGFloat) -> some View {

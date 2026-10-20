@@ -45,7 +45,7 @@ struct CategoryTreeView: View {
                     .overlayScrollbars(viewportWidth: viewport.size.width)
                 }
                 .frame(width: viewport.size.width, height: viewport.size.height)
-                .scrollIndicators(.hidden)
+                .scrollIndicators(.never)
                 .background(CategoryTreeKeyboardSelection(controller: keyboard, onCommand: navigate))
                 .onChange(of: selectedCategory) { _, selected in proxy.scrollTo(selected) }
             }

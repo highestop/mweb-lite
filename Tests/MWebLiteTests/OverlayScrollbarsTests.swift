@@ -30,6 +30,36 @@ final class OverlayScrollbarsTests: CaseReportingTestCase {
         }
         let scrollView = try XCTUnwrap(probe.firstRow?.enclosingScrollView)
         let firstRow = try XCTUnwrap(probe.firstRow)
+        await waitFor("The initial list uses full-width native layout before any style injection") {
+            host.layoutSubtreeIfNeeded()
+            let rowInHost = firstRow.convert(firstRow.bounds, to: host)
+            let scrollInHost = scrollView.convert(scrollView.bounds, to: host)
+            return scrollView.scrollerStyle == .overlay && scrollView.hasVerticalScroller
+                && abs(scrollView.frame.width - host.bounds.width) <= 0.5
+                && abs(scrollView.contentView.frame.width - host.bounds.width) <= 0.5
+                && abs(firstRow.bounds.width - (host.bounds.width - 20)) <= 0.5
+                && abs(rowInHost.minX - (host.bounds.minX + 10)) <= 0.5
+                && abs(rowInHost.maxX - (host.bounds.maxX - 10)) <= 0.5
+                && abs(scrollInHost.minX - host.bounds.minX) <= 0.5
+                && abs(scrollInHost.maxX - host.bounds.maxX) <= 0.5
+        }
+        await withCheckedContinuation { continuation in
+            DispatchQueue.main.async { continuation.resume() }
+        }
+        host.layoutSubtreeIfNeeded()
+        let initialRow = firstRow.convert(firstRow.bounds, to: host)
+        let initialScroll = scrollView.convert(scrollView.bounds, to: host)
+        let baseline = "Initial system-preference layout: preferred=\(NSScroller.preferredScrollerStyle.rawValue), "
+            + "host=\(host.bounds), scroll=\(initialScroll), clip=\(scrollView.contentView.frame), row=\(initialRow)"
+        print("SCROLL_BASELINE \(baseline)")
+        XCTAssertEqual(scrollView.frame.width, host.bounds.width, accuracy: 0.5, baseline)
+        XCTAssertEqual(scrollView.contentView.frame.width, host.bounds.width, accuracy: 0.5, baseline)
+        XCTAssertEqual(firstRow.bounds.width, host.bounds.width - 20, accuracy: 0.5, baseline)
+        XCTAssertEqual(initialRow.minX, host.bounds.minX + 10, accuracy: 0.5, baseline)
+        XCTAssertEqual(initialRow.maxX, host.bounds.maxX - 10, accuracy: 0.5, baseline)
+        XCTAssertEqual(initialScroll.minX, host.bounds.minX, accuracy: 0.5, baseline)
+        XCTAssertEqual(initialScroll.maxX, host.bounds.maxX, accuracy: 0.5, baseline)
+
         // Simulate the existing view receiving a legacy style without changing
         // the user's system preference. The production modifier must recover.
         scrollView.scrollerStyle = .legacy
