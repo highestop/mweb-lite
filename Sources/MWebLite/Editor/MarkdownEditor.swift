@@ -12,6 +12,15 @@ enum MarkdownEditorAction: String, CaseIterable {
     }
 }
 
+struct EditorFocusRequest: Equatable {
+    enum SelectionIntent: Equatable {
+        case preserveSelection, selectTitle
+    }
+
+    let id = UUID()
+    let selection: SelectionIntent
+}
+
 struct MarkdownEditor: NSViewRepresentable {
     @Environment(\.isEnabled) private var isEnabled
     @Binding var text: String
@@ -19,12 +28,12 @@ struct MarkdownEditor: NSViewRepresentable {
     var onSave: () -> Void
     var onInsertImages: (([URL]) -> [String])?
     var onPasteImage: ((Data) -> String?)?
-    var focusRequest: UUID?
+    var focusRequest: EditorFocusRequest?
     var onFocusHandled: ((UUID) -> Void)?
 
     init(text: Binding<String>, documentID: String, onSave: @escaping () -> Void,
          onInsertImages: (([URL]) -> [String])? = nil, onPasteImage: ((Data) -> String?)? = nil,
-         focusRequest: UUID? = nil, onFocusHandled: ((UUID) -> Void)? = nil) {
+         focusRequest: EditorFocusRequest? = nil, onFocusHandled: ((UUID) -> Void)? = nil) {
         _text = text
         self.documentID = documentID
         self.onSave = onSave
@@ -121,20 +130,8 @@ struct MarkdownEditor: NSViewRepresentable {
             textView.setSelectedRange(NSRange(location: location, length: min(oldSelection.length, length - location)))
             textView.highlightMarkdown()
         }
-        if isEnabled, let focusRequest, context.coordinator.lastFocusRequest != focusRequest {
-            let coordinator = context.coordinator
-            let expectedDocumentID = documentID
-            DispatchQueue.main.async { [weak coordinator, weak textView] in
-                guard let coordinator, let textView,
-                      coordinator.documentID == expectedDocumentID,
-                      coordinator.parent.focusRequest == focusRequest,
-                      coordinator.lastFocusRequest != focusRequest,
-                      textView.isEditable,
-                      let window = textView.window, window.makeFirstResponder(textView) else { return }
-                coordinator.lastFocusRequest = focusRequest
-                textView.selectTitleForEditing()
-                coordinator.parent.onFocusHandled?(focusRequest)
-            }
+        if isEnabled, let focusRequest {
+            context.coordinator.scheduleFocus(focusRequest, documentID: documentID)
         }
     }
 
@@ -158,6 +155,21 @@ struct MarkdownEditor: NSViewRepresentable {
         init(_ parent: MarkdownEditor) {
             self.parent = parent
             self.documentID = parent.documentID
+        }
+
+        func scheduleFocus(_ request: EditorFocusRequest, documentID expectedDocumentID: String) {
+            guard lastFocusRequest != request.id else { return }
+            DispatchQueue.main.async { [weak self] in
+                guard let self, let textView = self.textView,
+                      self.documentID == expectedDocumentID,
+                      self.parent.focusRequest == request,
+                      self.lastFocusRequest != request.id,
+                      textView.isEditable,
+                      let window = textView.window, window.makeFirstResponder(textView) else { return }
+                self.lastFocusRequest = request.id
+                if request.selection == .selectTitle { textView.selectTitleForEditing() }
+                self.parent.onFocusHandled?(request.id)
+            }
         }
 
         func textDidChange(_ notification: Notification) {

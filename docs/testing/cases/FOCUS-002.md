@@ -2,9 +2,9 @@
 | --- | --- |
 | ID | FOCUS-002 |
 | Verification | `MarkdownEditorFocusTests/test_FOCUS_002_FocusRoundTripPreservesSelectionAndUndo` |
-| Given | An editor contains an undoable insertion and a selected range. |
-| When | Move focus away and back, then undo. |
-| Then | Selection and undo availability survive the focus round trip; undo restores the original text. |
+| Given | A mounted editor contains an undoable insertion and a selected body range; LibraryStore is in editor mode. |
+| When | Switch to preview and back through LibraryStore.setMode, process the resulting focus request, then send undo and a key-down through the window first responder. Also queue another return-to-edit request and cancel it by switching back to preview before it executes. |
+| Then | Returning to editor requests focus with preserve-selection intent; the production coordinator restores the editor as first responder without selecting the title, consumes the request, preserves undo, and receives typing. An unconsumed request cancelled by preview does not take focus. |
 | Level | Integration |
 | Path | CI |
 | Data | Inline |
