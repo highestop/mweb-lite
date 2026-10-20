@@ -4,8 +4,8 @@ import MWebCore
 struct LibraryView: View {
     @ObservedObject var store: LibraryStore
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var expandedCategoryIDs: Set<String> = []
     @StateObject private var articleListSelection = ArticleListSelectionController()
-    private let accent = Color(red: 0.18, green: 0.48, blue: 0.40)
     private let headerHeight: CGFloat = 56
 
     var body: some View {
@@ -13,7 +13,8 @@ struct LibraryView: View {
             if store.rootURL == nil { welcome }
             else { workspace }
         }
-        .tint(accent)
+        .tint(.gray)
+        .onChange(of: store.rootURL) { _, _ in expandedCategoryIDs.removeAll() }
         .toolbar(.hidden, for: .windowToolbar)
         .alert("MWeb Lite", isPresented: Binding(get: { store.errorMessage != nil }, set: { if !$0 { store.errorMessage = nil } })) {
             Button("好", role: .cancel) { store.errorMessage = nil }
@@ -24,8 +25,8 @@ struct LibraryView: View {
         VStack(spacing: 0) {
             Spacer()
             Image(systemName: "doc.text").font(.system(size: 46, weight: .light))
-                .foregroundStyle(accent).padding(25)
-                .background(accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 25))
+                .foregroundStyle(.secondary).padding(25)
+                .background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 25))
             Text("MWeb Lite").font(.system(size: 32, weight: .semibold, design: .rounded)).padding(.top, 24)
             Text("熟悉的文库，专注的写作空间。")
                 .font(.system(size: 16)).foregroundStyle(.secondary).padding(.top, 10)
@@ -74,20 +75,15 @@ struct LibraryView: View {
                 Spacer()
             }.padding(.horizontal, 17).padding(.vertical, 12)
                 .background(WindowDragArea())
-            List(selection: $store.selectedCategory) {
-                rowLabel("所有文章", count: store.activeArticles.count).tag("all")
-                rowLabel("未分类", count: store.activeArticles.filter { $0.categoryIDs.isEmpty }.count).tag("uncategorized")
-                Section("分类") {
-                    OutlineGroup(store.categoryTree, children: \.children) { node in
-                        rowLabel(node.name, count: node.count).padding(.leading, 6).tag(node.id)
-                    }
-                }
-            }.listStyle(.sidebar).disabled(store.isBusy)
+            CategoryTreeView(
+                nodes: store.categoryTree, selectedCategory: $store.selectedCategory,
+                allCount: store.activeArticles.count,
+                uncategorizedCount: store.activeArticles.filter { $0.categoryIDs.isEmpty }.count,
+                expandedIDs: $expandedCategoryIDs
+            )
+            .id(store.rootURL)
+            .disabled(store.isBusy)
         }
-    }
-
-    private func rowLabel(_ name: String, count: Int) -> some View {
-        HStack { Text(name).lineLimit(1); Spacer(minLength: 5); Text("\(count)").font(.caption).foregroundStyle(.tertiary).monospacedDigit() }
     }
 
     private var articleList: some View {
@@ -193,12 +189,12 @@ struct LibraryView: View {
         HStack(spacing: 6) {
             ToolbarIconButton(
                 title: columnVisibility == .detailOnly ? "展开侧边栏" : "收起侧边栏",
-                symbol: "sidebar.left", help: "展开或收起分类和文章列表", accent: accent
+                symbol: "sidebar.left", help: "展开或收起分类和文章列表"
             ) {
                 columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
             }
             .accessibilityIdentifier("toggle-navigation")
-            ToolbarIconButton(title: "新建文章", symbol: "square.and.pencil", help: "新建文章 · ⌘N", accent: accent) {
+            ToolbarIconButton(title: "新建文章", symbol: "square.and.pencil", help: "新建文章 · ⌘N") {
                 store.createArticle()
             }
             .accessibilityIdentifier("new-article")
@@ -206,7 +202,7 @@ struct LibraryView: View {
             ToolbarIconButton(
                 title: store.mode == .preview ? "切换到编辑" : "切换到预览",
                 symbol: store.mode == .preview ? "pencil" : "eye",
-                help: store.mode == .preview ? "切换到编辑 · ⌘R" : "切换到预览 · ⌘R", accent: accent
+                help: store.mode == .preview ? "切换到编辑 · ⌘R" : "切换到预览 · ⌘R"
             ) {
                 store.setMode(store.mode == .preview ? .editor : .preview)
             }
@@ -226,15 +222,17 @@ private struct ToolbarIconButton: View {
     let title: String
     let symbol: String
     let help: String
-    let accent: Color
     let action: () -> Void
     @State private var isHovered = false
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol).font(.system(size: 16)).frame(width: 32, height: 32)
+            Image(systemName: symbol)
+                .symbolRenderingMode(.monochrome)
+                .font(.system(size: 14))
+                .frame(width: 32, height: 32, alignment: .center)
         }
-        .buttonStyle(ToolbarButtonStyle(accent: accent, isHovered: isHovered))
+        .buttonStyle(ToolbarButtonStyle(isHovered: isHovered))
         .onHover { isHovered = $0 }
         .accessibilityLabel(title)
         .help(help)
@@ -242,7 +240,6 @@ private struct ToolbarIconButton: View {
 }
 
 private struct ToolbarButtonStyle: ButtonStyle {
-    let accent: Color
     let isHovered: Bool
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -251,15 +248,10 @@ private struct ToolbarButtonStyle: ButtonStyle {
         let pressed = isEnabled && configuration.isPressed
         let highlighted = isEnabled && (isHovered || pressed)
         return configuration.label
-            .foregroundStyle(highlighted ? accent : .secondary)
-            .background(accent.opacity(pressed ? 0.20 : highlighted ? 0.10 : 0),
+            .foregroundStyle(highlighted ? Color.primary : Color.secondary)
+            .background(Color.primary.opacity(pressed ? 0.12 : highlighted ? 0.06 : 0),
                         in: RoundedRectangle(cornerRadius: 7))
-            .overlay {
-                RoundedRectangle(cornerRadius: 7)
-                    .strokeBorder(accent.opacity(highlighted ? 0.18 : 0), lineWidth: 1)
-            }
             .contentShape(RoundedRectangle(cornerRadius: 7))
-            .scaleEffect(pressed && !reduceMotion ? 0.92 : 1)
             .opacity(isEnabled ? 1 : 0.45)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovered)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: pressed)

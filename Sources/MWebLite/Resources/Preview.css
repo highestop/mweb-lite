@@ -1,4 +1,4 @@
-:root { color-scheme: light dark; --text: #30383c; --muted: #7d8789; --line: #e3e6e4; --soft: #f4f6f4; --accent: #467c69; }
+:root { color-scheme: light dark; --text: #333333; --muted: #6b6b6b; --line: #e3e3e3; --soft: #f5f5f5; --accent: #595959; --quote-line: #aaaaaa; }
 * { box-sizing: border-box; }
 html { background: transparent; }
 body { margin: 0; color: var(--text); font: 15px/1.85 -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", sans-serif; overflow-wrap: break-word; }
@@ -8,8 +8,8 @@ h1,h2,h3,h4,h5,h6 { color: var(--text); font-weight: 620; line-height: 1.4; marg
 h1 { font-size: 2em; padding-bottom: .35em; border-bottom: 1px solid var(--line); }
 h2 { font-size: 1.5em; padding-bottom: .25em; border-bottom: 1px solid var(--line); }
 h3 { font-size: 1.23em; } h4 { font-size: 1.08em; } h5,h6 { font-size: 1em; }
-p { margin: .85em 0; } a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
-strong { font-weight: 650; } blockquote { margin: 1.2em 0; padding: .1em 1.1em; color: var(--muted); border-left: 3px solid #91b9a7; background: var(--soft); }
+p { margin: .85em 0; } a { color: var(--accent); text-decoration: underline; text-decoration-color: color-mix(in srgb,var(--accent) 45%,transparent); text-underline-offset: .16em; } a:hover { color: var(--text); text-decoration-color: currentColor; }
+strong { font-weight: 650; } blockquote { margin: 1.2em 0; padding: .1em 1.1em; color: var(--muted); border-left: 3px solid var(--quote-line); background: var(--soft); }
 ul,ol { padding-left: 1.8em; } li { margin: .18em 0; } li > p { margin: .4em 0; }
 hr { height: 1px; border: 0; background: var(--line); margin: 2em 0; }
 img,video { max-width: 100%; height: auto; } img { border-radius: 4px; vertical-align: middle; } audio { max-width: 100%; }
@@ -35,4 +35,4 @@ pre code { padding: 0; font-size: 1em; background: none; }
 .token.operator,.token.entity,.token.url,.token.variable { color: #88704a; }
 .token.atrule,.token.attr-value,.token.function,.token.class-name { color: #487ca2; }
 .token.keyword { color: #956caa; }
-@media (prefers-color-scheme: dark) { :root { --text: #d7ddda; --muted: #97a39c; --line: #3a423e; --soft: #272f2a; --accent: #92c9ad; } .token.string { color: #9acb9d; } .token.keyword { color: #cba6de; } .token.number { color: #e2a196; } }
+@media (prefers-color-scheme: dark) { :root { --text: #dcdcdc; --muted: #a3a3a3; --line: #404040; --soft: #2b2b2b; --accent: #bdbdbd; --quote-line: #767676; } .token.string { color: #9acb9d; } .token.keyword { color: #cba6de; } .token.number { color: #e2a196; } }
