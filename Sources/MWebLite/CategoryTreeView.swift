@@ -175,11 +175,11 @@ private struct CategoryTreeButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
+        // A document load blocks input without fading the category tree.
         configuration.label
             .foregroundStyle(Color.primary)
             .background(Color.primary.opacity(showsPressedBackground && isEnabled && configuration.isPressed ? 0.08 : 0),
                         in: RoundedRectangle(cornerRadius: 6))
-            .opacity(isEnabled ? 1 : 0.45)
     }
 }
 
