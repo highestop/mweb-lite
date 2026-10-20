@@ -138,7 +138,7 @@ struct LibraryView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(6)
         .background(selected ? Color(nsColor: .unemphasizedSelectedContentBackgroundColor) : .clear,
-                    in: RoundedRectangle(cornerRadius: 6))
+                    in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(ArticleRowMouseSelection(controller: articleListSelection) { store.selectArticle(article.id) })
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)

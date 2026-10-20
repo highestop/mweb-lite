@@ -164,7 +164,7 @@ private struct CategoryTreeRow: View {
         .background(
             isSelected ? Color(nsColor: .unemphasizedSelectedContentBackgroundColor)
                 : Color.primary.opacity(isEnabled && isHovered ? 0.04 : 0),
-            in: RoundedRectangle(cornerRadius: 6)
+            in: Capsule()
         )
         .onHover { isHovered = $0 }
     }
@@ -179,7 +179,7 @@ private struct CategoryTreeButtonStyle: ButtonStyle {
         configuration.label
             .foregroundStyle(Color.primary)
             .background(Color.primary.opacity(showsPressedBackground && isEnabled && configuration.isPressed ? 0.08 : 0),
-                        in: RoundedRectangle(cornerRadius: 6))
+                        in: Capsule())
     }
 }
 
