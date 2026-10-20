@@ -111,6 +111,8 @@ final class OverlayScrollbarsTests: CaseReportingTestCase {
             XCTAssertEqual(scrollInHost.minX, host.bounds.minX, accuracy: 0.5, diagnostic)
             XCTAssertEqual(scrollInHost.maxX, host.bounds.maxX, accuracy: 0.5, diagnostic)
             XCTAssertEqual(scrollView.scrollerStyle, .overlay, diagnostic)
+            XCTAssertTrue(scrollView.verticalScroller is LightOverlayScroller,
+                          "SwiftUI updates retain the shared light native scroller")
             XCTAssertTrue(scrollView.hasVerticalScroller, "SwiftUI updates retain the native overlay scroller")
             XCTAssertTrue(scrollView.autohidesScrollers, "Short content can hide its native overlay knob")
             if sample.0 > 1 {
@@ -118,6 +120,96 @@ final class OverlayScrollbarsTests: CaseReportingTestCase {
                                      scrollView.contentView.bounds.height, diagnostic)
             }
         }
+        try await verifyNativeScrollerInteraction(scrollView) { host.layoutSubtreeIfNeeded() }
+        try await verifyEditorScroller()
+    }
+
+    @MainActor
+    private func verifyNativeScrollerInteraction(
+        _ scrollView: NSScrollView, layout: () -> Void
+    ) async throws {
+        let scroller = try XCTUnwrap(scrollView.verticalScroller as? LightOverlayScroller)
+        XCTAssertTrue(LightOverlayScroller.isCompatibleWithOverlayScrollers,
+                      "Custom drawing must not trigger AppKit's legacy-scroller fallback")
+        XCTAssertEqual(scroller.scrollerStyle, .overlay)
+        let originalWidth = scrollView.contentView.frame.width
+        let originalOrigin = scrollView.contentView.bounds.origin
+
+        // Deliver a real pixel-wheel event to AppKit without posting an OS event
+        // or entering NSScroller's interactive mouse-tracking loop.
+        let wheel = try XCTUnwrap(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1,
+                                         wheel1: -120, wheel2: 0, wheel3: 0))
+        let event = try XCTUnwrap(NSEvent(cgEvent: wheel))
+        scrollView.scrollWheel(event)
+        await waitFor("The native scroll view responds to a pixel-wheel event") {
+            layout()
+            return abs(scrollView.contentView.bounds.origin.y - originalOrigin.y) > 0.5
+        }
+        XCTAssertEqual(scrollView.contentView.frame.width, originalWidth, accuracy: 0.5,
+                       "Showing the floating scroller must not resize the viewport")
+        XCTAssertTrue(scrollView.verticalScroller === scroller)
+        scrollView.flashScrollers()
+        layout()
+        let knob = scroller.rect(for: .knob)
+        XCTAssertGreaterThan(knob.width, 0)
+        XCTAssertGreaterThan(knob.height, 0)
+        // NSScroller.testPart accepts window coordinates, unlike rect(for:).
+        let knobCenter = scroller.convert(NSPoint(x: knob.midX, y: knob.midY), to: nil)
+        XCTAssertEqual(scroller.testPart(knobCenter), .knob,
+                       "The custom-painted knob must retain AppKit's hit geometry")
+    }
+
+    @MainActor
+    private func verifyEditorScroller() async throws {
+        let window = NSWindow(
+            contentRect: NSRect(x: 100, y: 100, width: 420, height: 400),
+            styleMask: [.borderless], backing: .buffered, defer: false
+        )
+        window.isReleasedWhenClosed = false
+        let markdown = (0..<100).map { "Line \($0): synthetic editor scrolling content." }.joined(separator: "\n")
+        let host = NSHostingView(rootView: MarkdownEditor(
+            text: .constant(markdown), documentID: "SCROLL-001-editor", onSave: {}
+        ))
+        host.sizingOptions = []
+        window.contentView = host
+        window.setContentSize(NSSize(width: 420, height: 400))
+        defer {
+            window.contentView = nil
+            window.close()
+        }
+        await waitFor("The production editor installs its shared overlay scroller") {
+            host.layoutSubtreeIfNeeded()
+            guard let scrollView = self.editorScrollView(in: host),
+                  let textView = scrollView.documentView as? MarkdownTextView else { return false }
+            if let container = textView.textContainer { textView.layoutManager?.ensureLayout(for: container) }
+            return scrollView.verticalScroller is LightOverlayScroller
+                && scrollView.scrollerStyle == .overlay
+                && scrollView.hasVerticalScroller
+                && abs(scrollView.contentView.frame.width - host.bounds.width) <= 0.5
+                && textView.frame.height > scrollView.contentView.bounds.height
+        }
+        let scrollView = try XCTUnwrap(editorScrollView(in: host))
+        let textView = try XCTUnwrap(scrollView.documentView as? MarkdownTextView)
+        XCTAssertEqual(scrollView.contentView.frame.width, host.bounds.width, accuracy: 0.5)
+        XCTAssertEqual(textView.frame.width, scrollView.contentView.bounds.width, accuracy: 0.5)
+        XCTAssertTrue(scrollView.autohidesScrollers)
+        XCTAssertEqual(textView.string, markdown)
+        scrollView.scrollerStyle = .legacy
+        XCTAssertEqual(scrollView.scrollerStyle, .overlay,
+                       "The owned editor scroll view retains overlay style after an AppKit preference update")
+        try await verifyNativeScrollerInteraction(scrollView) { host.layoutSubtreeIfNeeded() }
+        XCTAssertEqual(textView.string, markdown, "Scrolling must not edit the synthetic document")
+    }
+
+    @MainActor
+    private func editorScrollView(in view: NSView) -> NSScrollView? {
+        if let scrollView = view as? NSScrollView, scrollView.documentView is MarkdownTextView {
+            return scrollView
+        }
+        for child in view.subviews {
+            if let scrollView = editorScrollView(in: child) { return scrollView }
+        }
+        return nil
     }
 
     @MainActor

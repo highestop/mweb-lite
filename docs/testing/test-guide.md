@@ -22,7 +22,7 @@ Integration tests do not inherently require an app bundle. A test that creates a
 
 | Path | Execution environment and entry point | Current use |
 | --- | --- | --- |
-| `CI` | GitHub Actions runs the checked-out revision and scripts on its macOS runner. | The 52 XCTest cases and baseline WebKit cases PV-001 through PV-004 and PV-006. |
+| `CI` | GitHub Actions runs the checked-out revision and scripts on its macOS runner. | The 53 XCTest cases and baseline WebKit cases PV-001 through PV-004 and PV-006. |
 | `Local script` | A developer runs the documented command locally and records its output and environment. | PV-005 needs optional runtimes from an installed MWeb app; all CI commands can also be investigated locally. |
 | `Preview app` | The complete app runs on macOS with a per-run bundle identifier and copied fixture library selected by `--library`. | Repeatable UI, editing, selection, rendering, and save/restart flows. |
 | `Release app` | The normal app runs with its production bundle identifier, preferences, installation location, and normal launch entry point. | Installation, Finder/Dock icon, library chooser, and remembered-library restoration. |
@@ -48,7 +48,7 @@ Run commands from the repository root on macOS 14 or later with Swift 5.9 or lat
 | `scripts/prepare-test-library.py` | Materializes a runnable library from the full-app fixture. |
 | `scripts/run-preview-app.sh` | Builds and starts the full Preview app with a copied fixture library for end-to-end tests. |
 
-Run all 52 cataloged XCTest cases, or select a class or method while investigating a change:
+Run all 53 cataloged XCTest cases, or select a class or method while investigating a change:
 
 ```sh
 swift test
@@ -213,9 +213,9 @@ This remains an end-to-end case, with Path `Release app`. A successful Preview a
 
 E2E-015 uses the [Timeline fixture](../../Tests/Fixtures/Timeline/README.md). Prepare a fresh Preview run, apply its overlay before opening the app, then follow the case to inspect date/text columns and square mosaics at normal and narrow article-list widths. MEDIA-001/002 and THUMB-001 cover extraction, index refresh, decoding, caching, and file boundaries; they do not establish the appearance or selection behavior of the assembled list.
 
-E2E-016 uses the [Date Groups fixture](../../Tests/Fixtures/DateGroups/README.md) to check separate year/month headings, their two-level sticky behavior while scrolling, repeated-day labels, and search results in the real app. DATE-001 verifies the underlying adjacency rules with a fixed calendar and time zone, including midnight boundaries and unsorted pinned articles.
+E2E-016 uses the [Date Groups fixture](../../Tests/Fixtures/DateGroups/README.md) to check separate year/month headings, their two-level sticky behavior while scrolling, repeated-day labels, and search results in the real app. DATE-001 verifies the underlying adjacency rules with a fixed calendar and time zone, including midnight boundaries and unsorted pinned articles. SCROLL-002 measures selected-row visibility below the 68-point sticky-header area in a hosted production list. It checks that fully visible selections and same-selection updates preserve the scroll origin, including an explicit native-anchor remount using the shared coordinator; actual keyboard interaction still requires the full app.
 
-E2E-017 uses the same Date Groups overlay for the article-list scrollbar. At a fixed window and column width, compare the selected row while the slightly translucent overlay thumb is visible and after it fades, then compare the 18-row list with the single `Date Anchor B` search result. Row widths, text wrapping, and horizontal positions must remain unchanged without a reserved scrollbar gutter. Check wheel scrolling over both pinned headings and drag the thumb, then repeat the visibility comparison after resizing the article column. This focused full-app case does not establish overflow behavior in the shorter category tree; E2E-010 retains its separate layout flow. SCROLL-001 separately mounts the production list in an `NSHostingView` and measures its native row and clip widths while alternating long and short content; reporting overlay scroller style alone does not prove that SwiftUI releases the reserved width.
+E2E-017 checks the same light, translucent overlay treatment in the category tree, article list, editor, and preview. Use the [Scrollbars setup](../../Tests/Fixtures/Scrollbars/README.md): prepare a fresh run, apply DateGroups, import the committed 30-category SQL into that ignored runtime database in read/write mode, copy both existing Scroll long documents, and reopen. Expand/collapse Empty Category to change tree overflow without changing the selected category; use the short Uncategorized Note for the document comparison and Image Demos for preview image bounds. At fixed widths, compare each thumb while shown and after fading, then change between overflowing and short content. Content edges, wrapping, and selection-card widths must stay fixed without a reserved gutter. Check wheel input over both pinned article headings and drag every region's thumb. SCROLL-001 separately measures hosted article-list/editor geometry, shared scroller wiring, direct native wheel handling, and knob hit geometry. It does not establish full-app thumb dragging, fading, or the other regions' visual integration. Follow all four regions in E2E-017 before recording a pass.
 
 ## Record manual end-to-end results
 
@@ -270,7 +270,7 @@ python3 scripts/collect-test-results.py \
   --markdown build/test-results/ci-test-result.md
 ```
 
-`--markdown` is optional and renders a local inspection copy. Do not attach a CI URL to results from a different local execution. Add `--require-xctest` when the XCTest runner succeeded and `--require-preview` when the WebKit runner succeeded: these flags require complete reporting for that successful runner. The workflow sets them from each runner's outcome. Failed or interrupted runners may supply partial observed results without those flags; absent results are never filled in. A complete baseline run currently produces 57 CI records: 52 XCTest cases and five WebKit cases, excluding local-only PV-005.
+`--markdown` is optional and renders a local inspection copy. Do not attach a CI URL to results from a different local execution. Add `--require-xctest` when the XCTest runner succeeded and `--require-preview` when the WebKit runner succeeded: these flags require complete reporting for that successful runner. The workflow sets them from each runner's outcome. Failed or interrupted runners may supply partial observed results without those flags; absent results are never filled in. A complete baseline run currently produces 58 CI records: 53 XCTest cases and five WebKit cases, excluding local-only PV-005.
 
 The runner has its own checkout and temporary data; it does not access a developer's library. CI does not currently drive the Preview app or Release app with mouse and keyboard or perform visual review. PV-005 and all full-app cases are excluded from the CI result summary because their Paths are local. A local run of the same command cannot substitute for CI evidence.
 

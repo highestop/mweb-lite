@@ -133,7 +133,8 @@ struct LibraryView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollViewReader { proxy in
-                    ArticleTimelineList(entries: ArticleTimelineGrouping.entries(articles: store.visibleArticles)) { entry in
+                    ArticleTimelineList(entries: ArticleTimelineGrouping.entries(articles: store.visibleArticles),
+                                        selectedArticleID: store.selectedArticleID) { entry in
                         articleRow(entry.article, width: width - 20, showsDate: entry.showsDate)
                     }
                     .onChange(of: store.selectedArticleID) { _, selected in

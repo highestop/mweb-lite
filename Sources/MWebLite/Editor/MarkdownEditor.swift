@@ -48,10 +48,9 @@ struct MarkdownEditor: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
     func makeNSView(context: Context) -> NSScrollView {
-        let scrollView = NSScrollView()
-        scrollView.hasVerticalScroller = true
+        let scrollView = OverlayScrollView()
         scrollView.hasHorizontalScroller = false
-        scrollView.autohidesScrollers = true
+        OverlayScrollbarStyle.configure(scrollView)
         scrollView.automaticallyAdjustsContentInsets = false
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = true

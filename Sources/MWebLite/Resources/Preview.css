@@ -37,3 +37,21 @@ pre code { padding: 0; font-size: 1em; background: none; }
 .token.atrule,.token.attr-value,.token.function,.token.class-name { color: #487ca2; }
 .token.keyword { color: #956caa; }
 @media (prefers-color-scheme: dark) { :root { --page-background: #1e1e1e; --text: #dcdcdc; --muted: #a3a3a3; --line: #404040; --soft: #2b2b2b; --accent: #bdbdbd; --quote-line: #767676; } .token.string { color: #9acb9d; } .token.keyword { color: #cba6de; } .token.number { color: #e2a196; } }
+
+/* These overlays never reserve a gutter or change the document's usable width. */
+html, pre, table, .math-display, .diagram { scrollbar-width: none; }
+html::-webkit-scrollbar, pre::-webkit-scrollbar, table::-webkit-scrollbar,
+.math-display::-webkit-scrollbar, .diagram::-webkit-scrollbar { width: 0; height: 0; }
+.preview-scrollbar { position: fixed; z-index: 20; opacity: 0; transition: opacity .18s ease;
+  user-select: none; touch-action: none; cursor: default; }
+.preview-scrollbar[hidden] { display: none; }
+.preview-scrollbar.vertical { right: 0; width: 10px; }
+.preview-scrollbar.horizontal { height: 10px; }
+.preview-scrollbar-thumb { position: absolute; border-radius: 999px; background: rgb(0 0 0 / 22%); }
+.preview-scrollbar.vertical .preview-scrollbar-thumb { left: 2px; width: 6px; }
+.preview-scrollbar.horizontal .preview-scrollbar-thumb { top: 2px; height: 6px; }
+.preview-scrollbar.active, .preview-scrollbar:hover, .preview-scrollbar.dragging,
+.preview-scrollbar:focus-visible { opacity: 1; }
+.preview-scrollbar:focus-visible { outline: 1px solid var(--muted); outline-offset: -1px; border-radius: 5px; }
+@media (prefers-color-scheme: dark) { .preview-scrollbar-thumb { background: rgb(255 255 255 / 22%); } }
+@media (prefers-reduced-motion: reduce) { .preview-scrollbar { transition: none; } }

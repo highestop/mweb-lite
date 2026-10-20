@@ -29,7 +29,7 @@ final class CaseResults {
         "PV-003": "Bundled Markdown, local images and responsive centered 900-point content assertions passed",
         "PV-004": "Script execution and unsafe HTML attribute assertions passed",
         "PV-005": "MathJax, Mermaid, ECharts and Prism assertions passed",
-        "PV-006": "Document changes reset preview scrolling and same-document updates retain position"
+        "PV-006": "Document scrolling resets correctly and overlay scrollbars preserve width and support dragging"
     ]
 
     init(path: String) throws {
@@ -332,8 +332,49 @@ final class Delegate: NSObject, WKNavigationDelegate {
         window.renderMarkdown(a, base, false, true);
         window.renderMarkdown(b, base, false, true);
         await nextFrame();
-        return {preserved, immediate, settled, latest: window.scrollY === 0 &&
-          document.querySelector('h1').textContent === 'Scroll B'};
+        const latest = window.scrollY === 0 && document.querySelector('h1').textContent === 'Scroll B';
+        const rootTrack = document.querySelector('body > .preview-scrollbar.vertical');
+        const rootThumb = rootTrack.querySelector('.preview-scrollbar-thumb');
+        const overlay = !rootTrack.hidden && getComputedStyle(rootTrack).position === 'fixed' &&
+          Math.abs(rootTrack.getBoundingClientRect().right - innerWidth) < 1 &&
+          document.documentElement.clientWidth === innerWidth;
+        const pointer = (node, type, x, y) => node.dispatchEvent(new PointerEvent(type,
+          {bubbles:true, cancelable:true, pointerId:1, pointerType:'mouse', button:0,
+           buttons:type === 'pointerup' ? 0 : 1, clientX:x, clientY:y}));
+        const thumbRect = rootThumb.getBoundingClientRect();
+        const x = thumbRect.left + thumbRect.width / 2, y = thumbRect.top + thumbRect.height / 2;
+        pointer(rootThumb, 'pointerdown', x, y);
+        pointer(rootTrack, 'pointermove', x, y + 80);
+        pointer(rootTrack, 'pointerup', x, y + 80);
+        const dragged = window.scrollY > 100;
+        const beforeClick = window.scrollY;
+        const trackRect = rootTrack.getBoundingClientRect();
+        pointer(rootTrack, 'pointerdown', x, trackRect.bottom - 20);
+        pointer(rootTrack, 'pointerup', x, trackRect.bottom - 20);
+        const trackClicked = window.scrollY > beforeClick;
+
+        window.renderMarkdown('# Horizontal overlay\n\n```\n' + 'A very wide code line '.repeat(100) + '\n```', base, false, true);
+        await nextFrame();
+        const pre = document.querySelector('pre');
+        const horizontal = document.querySelector('body > .preview-scrollbar.horizontal:not([hidden])');
+        const horizontalThumb = horizontal?.querySelector('.preview-scrollbar-thumb');
+        let horizontalDragged = false;
+        if (horizontalThumb) {
+          const rect = horizontalThumb.getBoundingClientRect();
+          const startX = rect.left + rect.width / 2, startY = rect.top + rect.height / 2;
+          pointer(horizontalThumb, 'pointerdown', startX, startY);
+          pointer(horizontal, 'pointermove', startX + 80, startY);
+          pointer(horizontal, 'pointerup', startX + 80, startY);
+          horizontalDragged = pre.scrollLeft > 100;
+        }
+        const horizontalOverlay = !!horizontal && pre.scrollWidth > pre.clientWidth &&
+          Math.abs(pre.getBoundingClientRect().height - pre.clientHeight - 2) < 1;
+        window.renderMarkdown('# Short article\n\nNo scrollbar needed.', base, false, true);
+        await nextFrame();
+        const shortWidthStable = rootTrack.hidden && document.documentElement.clientWidth === innerWidth &&
+          !document.querySelector('body > .preview-scrollbar.horizontal');
+        return {preserved, immediate, settled, latest, overlay, dragged, trackClicked,
+          horizontalDragged, horizontalOverlay, shortWidthStable};
         """#
         webView.callAsyncJavaScript(script, arguments: [:], in: nil, in: .page) { result in
             guard case .success(let value) = result, let state = value as? [String: Bool] else {
@@ -343,6 +384,12 @@ final class Delegate: NSObject, WKNavigationDelegate {
             results.expect("PV-006", state["immediate"] == true, "New document did not immediately start at the top")
             results.expect("PV-006", state["settled"] == true, "Old TOC scroll moved the replacement document after layout")
             results.expect("PV-006", state["latest"] == true, "Rapid article replacement did not settle at the latest article's top")
+            results.expect("PV-006", state["overlay"] == true, "Preview scrollbar reserved a gutter or was not a viewport overlay")
+            results.expect("PV-006", state["dragged"] == true, "Dragging the vertical overlay thumb did not scroll the document")
+            results.expect("PV-006", state["trackClicked"] == true, "Clicking the overlay track did not move the document")
+            results.expect("PV-006", state["horizontalDragged"] == true, "Dragging the code block overlay thumb did not scroll horizontally")
+            results.expect("PV-006", state["horizontalOverlay"] == true, "Horizontal overflow reserved scrollbar height")
+            results.expect("PV-006", state["shortWidthStable"] == true, "Short content retained stale bars or changed usable width")
             results.completeObservedCases()
             print("\(results.hasFailures ? "FAIL" : "PASS"): preview integration checks finished; skipped cases are not verified")
             fflush(stdout)
