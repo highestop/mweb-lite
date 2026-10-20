@@ -7,6 +7,7 @@ struct ArticleTimelineList<Row: View>: View {
     private let row: (ArticleTimelineGrouping.Entry) -> Row
     private let yearHeight: CGFloat = 36
     private let monthHeight: CGFloat = 32
+    @Namespace private var scrollCoordinateSpace
 
     init(entries: [ArticleTimelineGrouping.Entry],
          @ViewBuilder row: @escaping (ArticleTimelineGrouping.Entry) -> Row) {
@@ -15,70 +16,88 @@ struct ArticleTimelineList<Row: View>: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                ForEach(sections) { year in
-                    VStack(spacing: 0) {
-                        if let date = year.date {
+        GeometryReader { viewport in
+            ScrollView {
+                timelineContent
+                    .overlayPreferenceValue(TimelineSectionAnchorKey.self) { anchors in
+                        GeometryReader { content in
+                            let origin = content.frame(in: .named(scrollCoordinateSpace)).origin
+                            stickyHeaders(anchors, geometry: content, origin: origin, viewportSize: viewport.size)
+                                .offset(x: -origin.x, y: -origin.y)
+                        }
+                    }
+            }
+            .coordinateSpace(name: scrollCoordinateSpace)
+        }
+    }
+
+    private var timelineContent: some View {
+        VStack(spacing: 0) {
+            ForEach(sections) { year in
+                VStack(spacing: 0) {
+                    if let date = year.date {
+                        yearHeader(date)
+                    }
+                    ForEach(year.months) { month in
+                        VStack(spacing: 0) {
+                            monthHeader(month.heading)
+                            LazyVStack(spacing: 2) {
+                                ForEach(month.entries) { entry in
+                                    row(entry).id(entry.id)
+                                }
+                            }
+                        }
+                        .anchorPreference(key: TimelineSectionAnchorKey.self, value: .bounds) {
+                            TimelineSectionAnchors(months: [month.id: $0])
+                        }
+                    }
+                }
+                .transformAnchorPreference(key: TimelineSectionAnchorKey.self, value: .bounds) {
+                    $0.years[year.id] = $1
+                }
+            }
+        }
+        .padding(10)
+    }
+
+    /// Keeping the overlay inside the scroll content lets header wheel events
+    /// reach the enclosing scroll view while its tap targets still block rows.
+    private func stickyHeaders(
+        _ anchors: TimelineSectionAnchors, geometry: GeometryProxy,
+        origin: CGPoint, viewportSize: CGSize
+    ) -> some View {
+        ZStack(alignment: .topLeading) {
+            ForEach(sections) { year in
+                if let anchor = anchors.years[year.id] {
+                    let bounds = geometry[anchor].offsetBy(dx: origin.x, dy: origin.y)
+                    let height = year.date == nil ? 0 : yearHeight
+                    let yearY = min(max(bounds.minY, 0), bounds.maxY - height)
+                    let monthTop = max(0, yearY + height)
+                    ForEach(year.months) { month in
+                        if let anchor = anchors.months[month.id] {
+                            let monthBounds = geometry[anchor].offsetBy(dx: origin.x, dy: origin.y)
+                            let monthY = min(max(monthBounds.minY, monthTop),
+                                             monthBounds.maxY - monthHeight)
+                            positionedHeader(bounds: monthBounds, y: monthY, height: monthHeight,
+                                             minimumY: monthTop, viewportHeight: viewportSize.height) {
+                                monthHeader(month.heading)
+                            }
+                        }
+                    }
+                    if let date = year.date {
+                        positionedHeader(bounds: bounds, y: yearY, height: yearHeight,
+                                         minimumY: 0, viewportHeight: viewportSize.height) {
                             yearHeader(date)
                         }
-                        ForEach(year.months) { month in
-                            VStack(spacing: 0) {
-                                monthHeader(month.heading)
-                                LazyVStack(spacing: 2) {
-                                    ForEach(month.entries) { entry in
-                                        row(entry).id(entry.id)
-                                    }
-                                }
-                            }
-                            .anchorPreference(key: TimelineSectionAnchorKey.self, value: .bounds) {
-                                TimelineSectionAnchors(months: [month.id: $0])
-                            }
-                        }
-                    }
-                    .transformAnchorPreference(key: TimelineSectionAnchorKey.self, value: .bounds) {
-                        $0.years[year.id] = $1
+                        .zIndex(1)
                     }
                 }
             }
-            .padding(10)
         }
-        .overlayPreferenceValue(TimelineSectionAnchorKey.self) { anchors in
-            GeometryReader { geometry in
-                ZStack(alignment: .topLeading) {
-                    ForEach(sections) { year in
-                        if let anchor = anchors.years[year.id] {
-                            let bounds = geometry[anchor]
-                            let height = year.date == nil ? 0 : yearHeight
-                            let yearY = min(max(bounds.minY, 0), bounds.maxY - height)
-                            let monthTop = max(0, yearY + height)
-                            ForEach(year.months) { month in
-                                if let anchor = anchors.months[month.id] {
-                                    let monthBounds = geometry[anchor]
-                                    let monthY = min(max(monthBounds.minY, monthTop),
-                                                     monthBounds.maxY - monthHeight)
-                                    positionedHeader(bounds: monthBounds, y: monthY, height: monthHeight,
-                                                     minimumY: monthTop, viewportHeight: geometry.size.height) {
-                                        monthHeader(month.heading)
-                                    }
-                                }
-                            }
-                            if let date = year.date {
-                                positionedHeader(bounds: bounds, y: yearY, height: yearHeight,
-                                                 minimumY: 0, viewportHeight: geometry.size.height) {
-                                    yearHeader(date)
-                                }
-                                .zIndex(1)
-                            }
-                        }
-                    }
-                }
-                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
-                .clipped()
-                .accessibilityHidden(true)
-                .transaction { $0.animation = nil }
-            }
-        }
+        .frame(width: viewportSize.width, height: viewportSize.height, alignment: .topLeading)
+        .clipped()
+        .accessibilityHidden(true)
+        .transaction { $0.animation = nil }
     }
 
     /// Clip an outgoing month below its year, including fractional scroll offsets.
