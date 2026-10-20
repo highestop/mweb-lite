@@ -43,7 +43,7 @@ struct ArticleTimelineContent: View {
             }
             .frame(maxWidth: .infinity, minHeight: 58, alignment: .topLeading)
         }
-        .frame(width: max(0, width), alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -70,7 +70,7 @@ struct ArticleTimelineContent: View {
     }
 
     private func day(_ date: Date) -> some View {
-        Text(date, format: .dateTime.day(.twoDigits))
+        Text(String(format: "%02d", Calendar.current.component(.day, from: date)))
             .font(.system(size: 23, weight: .regular, design: .rounded))
             .monospacedDigit()
             .fixedSize()
@@ -80,7 +80,8 @@ struct ArticleTimelineContent: View {
         Text(date, format: .dateTime.month(.abbreviated))
             .font(.system(size: 10))
             .foregroundStyle(.secondary)
-            .fixedSize()
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
     }
 }
 

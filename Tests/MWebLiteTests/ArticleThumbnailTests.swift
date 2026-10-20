@@ -71,6 +71,17 @@ final class ArticleThumbnailTests: CaseReportingTestCase {
         let spacedRequest = request("media/10006/space%20image.png")
         XCTAssertEqual(ArticleThumbnailLoader.sourceURL(for: spacedRequest), spaced.resolvingSymlinksInPath())
         _ = try await loader.load(spacedRequest)
+        let nestedDocument = root.appendingPathComponent("docs/nested/note.md")
+        try FileManager.default.createDirectory(at: nestedDocument.deletingLastPathComponent(),
+                                                withIntermediateDirectories: true)
+        let parentRelative = ArticleThumbnailRequest(reference: "../media/10006/space%20image.png",
+                                                     documentURL: nestedDocument, libraryRoot: root)
+        XCTAssertEqual(ArticleThumbnailLoader.sourceURL(for: parentRelative), spaced.resolvingSymlinksInPath())
+        _ = try await loader.load(parentRelative)
+        for reference in ["/docs/media/10006/space%20image.png",
+                          "mweblite://library/docs/media/10006/space%20image.png"] {
+            XCTAssertEqual(ArticleThumbnailLoader.sourceURL(for: request(reference)), spaced.resolvingSymlinksInPath())
+        }
         let outside = temporary.appendingPathComponent("outside.png")
         try FileManager.default.copyItem(at: spaced, to: outside)
         let link = root.appendingPathComponent("docs/media/10006/escape.png")

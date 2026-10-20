@@ -126,19 +126,25 @@ actor ArticleThumbnailLoader {
     static func sourceURL(for request: ArticleThumbnailRequest) -> URL? {
         let reference = request.reference.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !reference.isEmpty else { return nil }
-        let base = URL(string: PreviewResourceHandler.documentBase(
-            documentURL: request.documentURL, libraryRoot: request.libraryRoot
-        ))
-        guard let url = URL(string: reference, relativeTo: base)?.absoluteURL,
-              let scheme = url.scheme?.lowercased() else { return nil }
-        if ["https", "http"].contains(scheme) {
-            return url.host?.isEmpty == false ? url : nil
+        guard let components = URLComponents(string: reference) else { return nil }
+        let scheme = components.scheme?.lowercased()
+        if scheme == "https" || scheme == "http" {
+            return components.host?.isEmpty == false ? components.url : nil
         }
-        guard scheme == "mweblite", url.host == "library", let root = request.libraryRoot else { return nil }
+        let isLibraryURL = scheme == "mweblite" && components.host == "library"
+        guard isLibraryURL || (scheme == nil && components.host == nil),
+              let root = request.libraryRoot, !components.path.isEmpty else { return nil }
         let resolvedRoot = root.standardizedFileURL.resolvingSymlinksInPath()
         let document = request.documentURL.standardizedFileURL.resolvingSymlinksInPath()
         guard document.path.hasPrefix(resolvedRoot.path + "/") else { return nil }
-        return PreviewResourceHandler.confinedURL(path: url.path, root: root)
+        if isLibraryURL || components.path.hasPrefix("/") {
+            return PreviewResourceHandler.confinedURL(path: components.path, root: root)
+        }
+        // Resolve relative paths against the real document directory before URL
+        // normalization can clamp traversal to the custom scheme's host root.
+        let result = document.deletingLastPathComponent().appendingPathComponent(components.path)
+            .standardizedFileURL.resolvingSymlinksInPath()
+        return result.path.hasPrefix(resolvedRoot.path + "/") ? result : nil
     }
 
     private static func download(_ url: URL) async throws -> Data {
