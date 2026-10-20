@@ -1,0 +1,6 @@
+INSERT INTO cat (uuid, name, pid, sort) VALUES (101, 'Workspace', 0, 0), (102, 'Writing', 101, 0), (103, 'Notes', 101, 1), (104, 'Empty Category', 0, 1);
+INSERT INTO article (uuid, state, dateAdd, dateModif, dateArt) VALUES (10001, 1, 1700000000, 1700000400, 1700000000), (10002, 1, 1700000000, 1700000300, 1700000000), (10003, 1, 1700000000, 1700000200, 1700000000), (10004, 1, 1700000000, 1700000100, 1700000000), (10005, 0, 1700000000, 1700000000, 1700000000);
+INSERT INTO cat_article VALUES (102, 10001), (102, 10002), (103, 10003), (103, 10005);
+INSERT INTO tag VALUES (1, 201, 'Keep this tag');
+INSERT INTO tag_article VALUES (201, 10001);
+INSERT INTO settings VALUES ('fixtureVersion', '1');

@@ -7,9 +7,14 @@ permissions:
 jobs:
   test:
     runs-on: macos-15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - name: Check test catalog and fixture references
+        run: python3 scripts/check-test-cases.py
       - name: Unit and library integration tests
         run: swift test
+      - name: Packaged WebKit preview integration tests
+        run: ./scripts/test-preview.sh
       - name: Build application
         run: ./scripts/build-app.sh release

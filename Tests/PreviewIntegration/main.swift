@@ -3,7 +3,7 @@ import Darwin
 import Foundation
 import WebKit
 
-// This integration test builds outside SwiftPM and only writes its temporary fixture.
+// This integration test builds outside SwiftPM and only writes its temporary runtime copy.
 extension Bundle {
     static var module: Bundle {
         fatalError("Packaged preview must load its bundled resources without SwiftPM build paths")
@@ -14,14 +14,28 @@ func expect(_ condition: @autoclosure () -> Bool, _ message: String) {
     guard condition() else { print("FAIL: \(message)"); fflush(stdout); exit(1) }
 }
 
-let fixture = URL(fileURLWithPath: ProcessInfo.processInfo.environment["MWEB_PREVIEW_FIXTURE"]!)
-let library = fixture.appendingPathComponent("library")
-let media = library.appendingPathComponent("docs/media")
-try FileManager.default.createDirectory(at: media, withIntermediateDirectories: true)
-let pixel = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAEklEQVR4nGPwb0r9j4wZSBcAAKGII1EMyG3IAAAAAElFTkSuQmCC")!
-try pixel.write(to: media.appendingPathComponent("test.png"))
-try pixel.write(to: fixture.appendingPathComponent("outside.png"))
-try FileManager.default.createSymbolicLink(at: media.appendingPathComponent("outside.png"), withDestinationURL: fixture.appendingPathComponent("outside.png"))
+func environmentDirectory(_ name: String) -> URL {
+    guard let path = ProcessInfo.processInfo.environment[name], !path.isEmpty else {
+        print("FAIL: Missing \(name); run scripts/test-preview.sh")
+        exit(1)
+    }
+    return URL(fileURLWithPath: path, isDirectory: true)
+}
+
+let fixtures = environmentDirectory("MWEB_PREVIEW_FIXTURES")
+let runtime = environmentDirectory("MWEB_PREVIEW_RUNTIME_ROOT")
+let library = runtime.appendingPathComponent("library")
+let docs = library.appendingPathComponent("docs")
+let document = docs.appendingPathComponent("preview.md")
+let media = docs.appendingPathComponent("media")
+let files = FileManager.default
+try files.createDirectory(at: docs, withIntermediateDirectories: true)
+try files.copyItem(at: fixtures.appendingPathComponent("rendering.md"), to: document)
+try files.copyItem(at: fixtures.appendingPathComponent("media"), to: media)
+// The escape target and symlink belong only to this run, never to the checked-in fixtures.
+let outsideImage = runtime.appendingPathComponent("outside.png")
+try files.copyItem(at: media.appendingPathComponent("test.png"), to: outsideImage)
+try files.createSymbolicLink(at: media.appendingPathComponent("outside.png"), withDestinationURL: outsideImage)
 
 let resourceHandler = PreviewResourceHandler()
 resourceHandler.libraryRoot = library
@@ -29,55 +43,13 @@ expect(resourceHandler.localMediaURL(for: URL(string: "mweblite://library/docs/m
 expect(resourceHandler.localMediaURL(for: URL(string: "mweblite://library/docs/media/outside.png")!) == nil, "symlinks must not escape the library")
 expect(resourceHandler.localMediaURL(for: URL(string: "mweblite://library/mainlib.db")!) == nil, "the database must not be served to WebKit")
 expect(PreviewResourceHandler.confinedURL(path: "../outside.png", root: library) == nil, "parent traversal must be rejected")
+print("PASS PV-001: local media confinement")
 expect(MarkdownPreview.Coordinator.articleID(from: URL(string: "mweblib://123456789")!) == "123456789", "MWeb article links")
 expect(MarkdownPreview.Coordinator.articleID(from: URL(string: "mweblite://library/docs/123456789.md")!) == "123456789", "relative article links")
 expect(MarkdownPreview.Coordinator.articleID(from: URL(string: "mweblib://invalid")!) == nil, "invalid article IDs must be rejected")
+print("PASS PV-002: article URL parsing")
 
-let sample = #"""
-# Preview verification
-
-[TOC]
-
-## Formatting
-
-**Bold** ~~Deleted~~
-
-- [x] A task
-
-| A | B |
-| - | - |
-| 1 | 2 |
-
-A footnote[^a]. [Article](mweblib://123456789)
-
-[^a]: Footnote content
-
-![Image-w140](media/test.png)
-
-Math ``x^2``, and $a+b$.
-
-$$
-x = \frac{1}{2}
-$$
-
-```swift
-let value = 2
-```
-
-```mermaid
-graph LR
-A[Start] --> B[Done]
-```
-
-```echarts
-option = {xAxis:{type:'category',data:['A','B']},yAxis:{},series:[{type:'bar',data:[1,2]}]};
-```
-
-<script>window.noteExecuted = true</script>
-<img src="file:///etc/passwd" onerror="window.noteExecuted=true">
-<a href="javascript:window.noteExecuted=true">bad</a>
-<div style="background:url(file:///etc/passwd)">Styled</div>
-"""#
+let sample = try String(contentsOf: document, encoding: .utf8)
 
 let snapshotScript = #"""
 JSON.stringify({title:document.querySelector('h1')?.textContent,
@@ -123,7 +95,8 @@ final class Delegate: NSObject, WKNavigationDelegate {
                 }
                 let labels = state["mermaidLabels"] as? [String] ?? []
                 let ready = (state["imageLoaded"] as? Int ?? 0) > 0 && (!runtimeAvailable || (
-                    state["math"] as? Int == 3 && state["chart"] as? Int == 1 && labels.contains("Start") && labels.contains("Done")))
+                    state["math"] as? Int == 3 && state["chart"] as? Int == 1 &&
+                    (state["highlight"] as? Int ?? 0) > 0 && labels.contains("Start") && labels.contains("Done")))
                 if !ready && attempts > 0 { self.check(webView, runtimeAvailable: runtimeAvailable, attempts: attempts - 1); return }
                 expect(ready, "rendering timed out: \(json)")
                 expect(state["title"] as? String == "Preview verification", "CommonMark headings")
@@ -133,11 +106,19 @@ final class Delegate: NSObject, WKNavigationDelegate {
                 expect(state["article"] as? String == "mweblib://123456789", "article link retention")
                 expect(state["noteExecuted"] as? Bool == false, "note scripts must never execute")
                 expect(state["fileURLs"] as? Int == 0 && state["javascriptURLs"] as? Int == 0 && state["inlineHandlers"] as? Int == 0, "unsafe attributes must be stripped")
-                if !runtimeAvailable, resourceHandler.runtimeRoot != nil {
-                    self.render(webView, runtimeAvailable: true)
-                    return
+                if !runtimeAvailable {
+                    print("PASS PV-003: bundled CommonMark/GFM/MWeb rendering and local image loading")
+                    print("PASS PV-004: unsafe HTML isolation")
+                    if resourceHandler.runtimeRoot != nil {
+                        self.render(webView, runtimeAvailable: true)
+                        return
+                    }
+                    print("SKIP PV-005: optional MWeb runtimes are unavailable; install MWeb Pro and rerun")
+                } else {
+                    expect((state["highlight"] as? Int ?? 0) > 0, "Prism syntax highlighting")
+                    print("PASS PV-005: MathJax, Mermaid, ECharts and Prism rendering")
                 }
-                print("PASS: WebKit preview, GFM/MWeb extensions, local media containment, HTML isolation\(runtimeAvailable ? ", MathJax, Mermaid, ECharts and Prism" : " (optional MWeb runtimes unavailable)")")
+                print("PASS: preview integration checks finished; skipped cases are not verified")
                 fflush(stdout)
                 exit(0)
             }

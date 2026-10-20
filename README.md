@@ -74,11 +74,22 @@ This is a focused compatible editor, not a pixel-for-pixel replacement for every
 
 ## Verify
 
+See the [testing guide](docs/testing/test-guide.md) for test scope, authoring, and full-app verification. The [GWT case catalog](docs/testing/test-cases.md) records each case's level, execution path, data source, result, and evidence. Versioned synthetic inputs live in [Tests/Fixtures](Tests/Fixtures); generated libraries and app bundles stay in ignored `build/`.
+
 ```sh
+python3 scripts/check-test-cases.py
 swift test
 ./scripts/test-preview.sh
 ./scripts/build-app.sh release
 ```
+
+For a full-app end-to-end run with an isolated fixture copy:
+
+```sh
+./scripts/run-preview-app.sh my-first-run
+```
+
+This creates `MWeb Lite Preview.app` with its own bundle identifier. The separate `PreviewTests.app` created by `test-preview.sh` tests only the WebKit component. GitHub Actions runs the catalog check, XCTest, WebKit integration, and release build; full-app UI results must be recorded separately.
 
 Tests create synthetic temporary libraries. They cover article creation and category membership, waiting for pending writes, conflicts, rollback, unknown-field preservation, WAL backups, private backup permissions, snapshot retention, UTF-8/BOM/CRLF, path boundaries, Markdown text transformations, and native editor focus/Chinese composition. The separate preview test runs a real WKWebView from a standalone app bundle against temporary fixtures, with no SwiftPM resource fallback, and checks rendering and content isolation. MWeb-dependent rendering assertions run when the local runtime is available.
 
