@@ -4,7 +4,7 @@ This document defines the shared case format and indexes the individual case fil
 
 ## Format and result rules
 
-Store each case in `cases/<ID>.md` as exactly one two-column Markdown table. Use `| Field | Content |` as the header and `| --- | --- |` as its separator. Follow them with exactly eight rows in this order: `ID`, `Given`, `When`, `Then`, `Level`, `Path`, `Data`, and `Verification`. The ID value must equal the filename without `.md`. Do not add a title, section headings, or content outside the table. Keep execution results out of case definitions.
+Store each case in `cases/<ID>.md` as exactly one two-column Markdown table. Use `| Field | Content |` as the header and `| --- | --- |` as its separator. Follow them with exactly eight rows in this order: `ID`, `Verification`, `Given`, `When`, `Then`, `Level`, `Path`, and `Data`. The ID value must equal the filename without `.md`. Do not add a title, section headings, or content outside the table. Keep execution results out of case definitions.
 
 Keep each row on one source line. Field content may use inline Markdown; use `<br>` for displayed line breaks. Escape every literal pipe as `\|`, including pipes inside code spans, so it cannot be mistaken for a column delimiter.
 
@@ -16,13 +16,13 @@ Copy the complete table below into a new case file and replace the placeholders.
 | Field | Content |
 | --- | --- |
 | ID | <ID> |
+| Verification | <Exact automated selector or full-app execution steps> |
 | Given | <Initial state and required data> |
 | When | <Action or sequence under test> |
 | Then | <Observable expected results> |
 | Level | <Unit, Integration, or End-to-end> |
 | Path | <CI, Local script, Preview app, or Release app> |
 | Data | <Inline, Fixture: source link, or Mixed: source link + generated setup> |
-| Verification | <Exact automated selector or full-app execution steps> |
 ```
 
 Use relative links from the case file's directory: fixture links start with `../../../Tests/Fixtures/`. Commands and runtime paths remain relative to the repository root. Follow the [test guide](test-guide.md) for execution setup and shared fixture expectations.
@@ -32,13 +32,13 @@ Each case has a permanent ID and explicit **Given / When / Then (GWT)** statemen
 | Field | Meaning |
 | --- | --- |
 | ID | Stable identifier used in logs and review discussions; equals the filename without `.md`. |
+| Verification | Exact automated selector, or full-app steps and fixture reference. |
 | Given | Initial state and required data. |
 | When | The action under test. |
 | Then | Observable assertions that determine the result. |
 | Level | `Unit`, `Integration`, or `End-to-end`. The level describes the test's scope independently of where or how it runs. |
 | Path | `CI`, `Local script`, `Preview app`, or `Release app`. The path identifies the execution environment and application variant used to verify this case. |
 | Data | Initial input source and any additional generated setup: `Inline` for literals/setup in test code, `Fixture: <source link>` for committed fixture inputs, or `Mixed: <source link> + <generated setup>` when both are required. Links identify source files/directories, not a mutable run copy. |
-| Verification | Exact automated selector, or full-app steps and fixture reference. |
 
 XCTest methods include their stable case ID, replacing its hyphen with an underscore: `test_LIB_001_<Behavior>`. Verification must name the exact `ClassName/test_LIB_001_<Behavior>` selector implemented in code. Test classes inherit from `CaseReportingTestCase`, which appends structured results to `MWEB_XCTEST_RESULTS_PATH` when configured. The WebKit integration program emits explicit PV case IDs to `MWEB_CASE_RESULTS_PATH`. Result collection uses these IDs, not test order or a guessed match from a description; see the [guide](test-guide.md) for fresh-output setup and collection commands.
 
