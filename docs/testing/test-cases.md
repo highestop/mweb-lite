@@ -27,7 +27,7 @@ Copy the complete table below into a new case file and replace the placeholders.
 | Evidence | — |
 ```
 
-Use relative links from the case file's directory: fixture links start with `../../../Tests/Fixtures/`, and local report links start with `../../../build/test-results/runs/`. Commands and runtime paths remain relative to the repository root. Follow the [test guide](test-guide.md) for execution setup and shared fixture expectations.
+Use relative links from the case file's directory: fixture links start with `../../../Tests/Fixtures/`, and local report links start with `../../../build/test-results/`. Commands and runtime paths remain relative to the repository root. Follow the [test guide](test-guide.md) for execution setup and shared fixture expectations.
 
 Each case has a permanent ID and explicit **Given / When / Then (GWT)** statements. Keep IDs when renaming tests. Add a separate case file when a scenario needs a different setup, test level, verification path, or result. Update the implementation, fixture, and case together when behavior changes; replace its recorded result and evidence only after another execution.
 
@@ -50,7 +50,7 @@ Starting an app, passing a build, or running a related lower-level test is insuf
 
 Data describes the case's initial inputs. Runtime database materialization and copying a fixture into an isolated run do not turn a Fixture case into Inline or Mixed. Action inputs such as text typed in the app belong in When; they do not change a fixture-based case's Data label. Mixed is used when the setup adds separate generated inputs, such as PV-001's outside-file and symlink escape probes. Record the resulting run directory in evidence, keeping it separate from the committed source link.
 
-Do not commit test-run reports, generated databases, app bundles, screenshots, or logs. Link CI results directly to the GitHub Actions run. Keep local reports under ignored `build/test-results/runs/` and other generated artifacts in the ignored run directory. Label local report links local-only: they may not exist in another checkout, and they are not downloadable CI evidence. Each case file retains its result and evidence reference; it does not embed the report. This index does not repeat statuses, data classifications, or evidence.
+Do not commit test-run reports, generated databases, app bundles, screenshots, or logs. Link CI results directly to the GitHub Actions run. Keep local reports under ignored `build/test-results/` and other generated artifacts in the ignored run directory. Label local report links local-only: they may not exist in another checkout, and they are not downloadable CI evidence. Each case file retains its result and evidence reference; it does not embed the report. This index does not repeat statuses, data classifications, or evidence.
 
 ## Case index
 
