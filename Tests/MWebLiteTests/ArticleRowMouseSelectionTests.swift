@@ -7,72 +7,128 @@ final class ArticleRowMouseSelectionTests: CaseReportingTestCase {
     func test_ROW_001_AnchorAttachesToWholeRowAndUpdatesReusedAction() async throws {
         try await MainActor.run {
             _ = NSApplication.shared
-            let firstRow = NSTableRowView(frame: NSRect(x: 0, y: 0, width: 300, height: 80))
-            let secondRow = NSTableRowView(frame: firstRow.frame)
-            let container = NSView(frame: NSRect(x: 6, y: 0, width: 288, height: 80))
-            let anchor = ArticleRowSelectionAnchor(frame: container.bounds)
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 160),
+                                  styleMask: [.borderless], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            defer { window.close() }
+            let firstRow = NSView(frame: NSRect(x: 0, y: 0, width: 300, height: 80))
+            let secondRow = NSView(frame: NSRect(x: 0, y: 80, width: 300, height: 80))
+            let controller = ArticleListSelectionController()
+            let keyboard = ArticleListKeyboardAnchor()
+            window.contentView?.addSubview(keyboard)
+            let anchor = ArticleRowSelectionAnchor(frame: firstRow.bounds)
             var selected = ""
-            firstRow.addSubview(container)
-            container.addSubview(anchor)
-            anchor.configure(isEnabled: true) { selected = "first" }
+            var selections = 0
+            var moves: [Int] = []
+            window.contentView?.addSubview(firstRow)
+            window.contentView?.addSubview(secondRow)
+            firstRow.addSubview(anchor)
+            anchor.configure(isEnabled: true, controller: controller, onSelect: {
+                selected = "first"
+                selections += 1
+                window.makeFirstResponder(nil)
+            })
+            keyboard.configure(isEnabled: true, controller: controller, onMove: {
+                moves.append($0)
+                window.makeFirstResponder(nil)
+            })
 
-            let recognizer = try XCTUnwrap(firstRow.gestureRecognizers.first as? ArticleRowMouseDownRecognizer)
-            XCTAssertTrue(recognizer.view === firstRow)
-            XCTAssertTrue(recognizer.delaysPrimaryMouseButtonEvents)
-            XCTAssertNil(anchor.hitTest(NSPoint(x: 10, y: 10)))
-            recognizer.onMouseDown?()
-            XCTAssertEqual(selected, "first")
+            XCTAssertTrue(firstRow.hitTest(NSPoint(x: 1, y: 1)) === anchor)
+            XCTAssertTrue(firstRow.hitTest(NSPoint(x: 299, y: 79)) === anchor)
+            anchor.mouseDown(with: try mouseEvent(.leftMouseDown))
+            XCTAssertEqual(selected, "first") // Assert before sending any mouse-up.
+            XCTAssertEqual(selections, 1)
+            XCTAssertTrue(window.firstResponder === keyboard)
+            XCTAssertTrue(anchor.gestureRecognizers.isEmpty)
+            XCTAssertEqual(keyboard.focusRingType, .none)
+            XCTAssertNil(keyboard.hitTest(.zero))
+            keyboard.keyDown(with: try arrowEvent(125))
+            keyboard.keyDown(with: try arrowEvent(126))
+            XCTAssertEqual(moves, [1, -1])
+            XCTAssertTrue(window.firstResponder === keyboard)
 
-            container.removeFromSuperview()
-            secondRow.addSubview(container)
-            anchor.configure(isEnabled: true) { selected = "second" }
+            anchor.removeFromSuperview()
+            XCTAssertTrue(window.firstResponder === keyboard)
+            keyboard.keyDown(with: try arrowEvent(125))
+            XCTAssertEqual(moves, [1, -1, 1])
+            secondRow.addSubview(anchor)
+            anchor.configure(isEnabled: true, controller: controller, onSelect: {
+                selected = "second"
+                selections += 1
+            })
+            keyboard.configure(isEnabled: true, controller: controller, onMove: { moves.append($0 * 10) })
 
-            XCTAssertFalse(firstRow.gestureRecognizers.contains { $0 === recognizer })
-            XCTAssertTrue(recognizer.view === secondRow)
-            XCTAssertEqual(secondRow.gestureRecognizers.filter { $0 === recognizer }.count, 1)
-            recognizer.onMouseDown?()
+            XCTAssertTrue(firstRow.subviews.isEmpty)
+            XCTAssertTrue(anchor.superview === secondRow)
+            anchor.mouseDown(with: try mouseEvent(.leftMouseDown))
             XCTAssertEqual(selected, "second")
+            anchor.mouseUp(with: try mouseEvent(.leftMouseUp))
+            XCTAssertEqual(selections, 2)
+            keyboard.keyDown(with: try arrowEvent(125))
+            XCTAssertEqual(moves, [1, -1, 1, 10])
             anchor.invalidate()
         }
     }
 
     func test_ROW_002_DisabledAndDismantledAnchorCannotSelect() async throws {
         try await MainActor.run {
-            let row = NSTableRowView()
-            let anchor = ArticleRowSelectionAnchor()
+            let row = NSView(frame: NSRect(x: 0, y: 0, width: 300, height: 80))
+            let controller = ArticleListSelectionController()
+            let keyboard = ArticleListKeyboardAnchor()
+            let anchor = ArticleRowSelectionAnchor(frame: row.bounds)
             var count = 0
             row.addSubview(anchor)
-            anchor.configure(isEnabled: true) { count += 1 }
-            let recognizer = try XCTUnwrap(row.gestureRecognizers.first as? ArticleRowMouseDownRecognizer)
+            anchor.configure(isEnabled: true, controller: controller) { count += 1 }
 
-            anchor.configure(isEnabled: false) { count += 1 }
-            XCTAssertFalse(recognizer.isEnabled)
-            recognizer.onMouseDown?()
+            anchor.configure(isEnabled: false, controller: controller) { count += 1 }
+            keyboard.configure(isEnabled: false, controller: controller) { _ in count += 1 }
+            anchor.mouseDown(with: try mouseEvent(.leftMouseDown))
+            keyboard.keyDown(with: try arrowEvent(125))
             XCTAssertEqual(count, 0)
+            XCTAssertTrue(keyboard.acceptsFirstResponder)
 
             anchor.invalidate()
-            anchor.configure(isEnabled: true) { count += 1 }
-            anchor.layout()
-            XCTAssertNil(recognizer.view)
-            XCTAssertNil(recognizer.onMouseDown)
-            XCTAssertTrue(row.gestureRecognizers.isEmpty)
+            keyboard.invalidate()
+            anchor.configure(isEnabled: true, controller: controller) { count += 1 }
+            keyboard.configure(isEnabled: true, controller: controller) { _ in count += 1 }
+            anchor.mouseDown(with: try mouseEvent(.leftMouseDown))
+            keyboard.keyDown(with: try arrowEvent(125))
+            XCTAssertEqual(count, 0)
+            XCTAssertFalse(keyboard.acceptsFirstResponder)
+            XCTAssertNil(anchor.hitTest(NSPoint(x: 10, y: 10)))
         }
     }
 
     func test_ROW_003_OnlyUnmodifiedPrimaryMouseDownIsAccepted() async throws {
         try await MainActor.run {
-            func event(_ type: NSEvent.EventType, _ modifiers: NSEvent.ModifierFlags = []) throws -> NSEvent {
-                try XCTUnwrap(NSEvent.mouseEvent(with: type, location: .zero, modifierFlags: modifiers,
-                                                timestamp: 0, windowNumber: 0, context: nil,
-                                                eventNumber: 0, clickCount: 1, pressure: 1))
-            }
-            XCTAssertTrue(ArticleRowMouseDownRecognizer.accepts(try event(.leftMouseDown)))
-            XCTAssertTrue(ArticleRowMouseDownRecognizer.accepts(try event(.leftMouseDown, .capsLock)))
+            let controller = ArticleListSelectionController()
+            let anchor = ArticleRowSelectionAnchor()
+            var selections = 0
+            anchor.configure(isEnabled: true, controller: controller) { selections += 1 }
+            XCTAssertTrue(ArticleRowSelectionAnchor.accepts(try mouseEvent(.leftMouseDown)))
+            XCTAssertTrue(ArticleRowSelectionAnchor.accepts(try mouseEvent(.leftMouseDown, .capsLock)))
             for modifier: NSEvent.ModifierFlags in [.shift, .control, .option, .command, .function] {
-                XCTAssertFalse(ArticleRowMouseDownRecognizer.accepts(try event(.leftMouseDown, modifier)))
+                let event = try mouseEvent(.leftMouseDown, modifier)
+                XCTAssertFalse(ArticleRowSelectionAnchor.accepts(event))
+                anchor.mouseDown(with: event)
             }
-            XCTAssertFalse(ArticleRowMouseDownRecognizer.accepts(try event(.rightMouseDown)))
-            XCTAssertFalse(ArticleRowMouseDownRecognizer.accepts(try event(.leftMouseUp)))
+            XCTAssertFalse(ArticleRowSelectionAnchor.accepts(try mouseEvent(.rightMouseDown)))
+            XCTAssertFalse(ArticleRowSelectionAnchor.accepts(try mouseEvent(.leftMouseUp)))
+            XCTAssertEqual(selections, 0)
         }
+    }
+
+    private func mouseEvent(_ type: NSEvent.EventType, _ modifiers: NSEvent.ModifierFlags = []) throws -> NSEvent {
+        try XCTUnwrap(NSEvent.mouseEvent(with: type, location: .zero, modifierFlags: modifiers,
+                                        timestamp: 0, windowNumber: 0, context: nil,
+                                        eventNumber: 0, clickCount: 1, pressure: 1))
+    }
+
+    private func arrowEvent(_ keyCode: UInt16) throws -> NSEvent {
+        try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero,
+                                      modifierFlags: [.function, .numericPad],
+                                      timestamp: 0, windowNumber: 0, context: nil,
+                                      characters: keyCode == 125 ? "\u{f701}" : "\u{f700}",
+                                      charactersIgnoringModifiers: "", isARepeat: false, keyCode: keyCode))
     }
 }

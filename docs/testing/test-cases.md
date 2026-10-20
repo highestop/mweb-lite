@@ -152,7 +152,7 @@ Open a case to read or update its GWT statements, execution details, and data so
 - [E2E-005](cases/E2E-005.md) — Switch editor and preview through the toolbar, menu, and shortcut while preserving undo.
 - [E2E-006](cases/E2E-006.md) — Save edits across article switches and app restart.
 - [E2E-007](cases/E2E-007.md) — Commit real Chinese composition across focus changes.
-- [E2E-008](cases/E2E-008.md) — Select on mouse-down without blue feedback.
+- [E2E-008](cases/E2E-008.md) — Keep one light-gray selection through mouse-down, release, and keyboard navigation.
 - [E2E-009](cases/E2E-009.md) — Show document-toolbar compose-button hover and pressed feedback.
 - [E2E-010](cases/E2E-010.md) — Align the document toolbar, simplify sidebar icons, and hide/restore both left columns.
 - [E2E-011](cases/E2E-011.md) — Render the showcase and follow an internal article link.

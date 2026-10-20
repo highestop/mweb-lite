@@ -4,6 +4,7 @@ import MWebCore
 struct LibraryView: View {
     @ObservedObject var store: LibraryStore
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @StateObject private var articleListSelection = ArticleListSelectionController()
     private let accent = Color(red: 0.18, green: 0.48, blue: 0.40)
     private let headerHeight: CGFloat = 56
 
@@ -47,9 +48,17 @@ struct LibraryView: View {
 
     private var workspace: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            sidebar.navigationSplitViewColumnWidth(min: 180, ideal: 215, max: 320)
-        } content: {
-            articleList.ignoresSafeArea(.container, edges: .top).navigationSplitViewColumnWidth(min: 220, ideal: 270, max: 400)
+            // macOS keeps a three-column split's middle column visible. Group both
+            // navigation panes into one sidebar so they can collapse together.
+            GeometryReader { geometry in
+                HSplitView {
+                    sidebar.padding(.top, geometry.safeAreaInsets.top)
+                        .frame(minWidth: 180, idealWidth: 215, maxWidth: 320)
+                    articleList.frame(minWidth: 220, idealWidth: 270, maxWidth: 400)
+                }
+                .ignoresSafeArea(.container, edges: .top)
+            }
+            .navigationSplitViewColumnWidth(min: 401, ideal: 486, max: 721)
         } detail: {
             // The window controls occupy the detail's top edge when both leading columns are hidden.
             detail.ignoresSafeArea(.container, edges: columnVisibility == .detailOnly ? [] : .top)
@@ -101,22 +110,54 @@ struct LibraryView: View {
             if store.visibleArticles.isEmpty {
                 ContentUnavailableView("没有文章", systemImage: "doc.text.magnifyingglass", description: Text(store.search.isEmpty ? "这个分类中还没有文章。" : "试试其他关键词。"))
             } else {
-                List(selection: Binding<String?>(get: { store.selectedArticleID }, set: { store.selectArticle($0) })) {
-                    ForEach(store.visibleArticles) { article in
-                        VStack(alignment: .leading, spacing: 7) {
-                            Text(article.id == store.document?.articleID ? store.currentTitle : article.title)
-                                .font(.system(size: 13, weight: .semibold)).lineLimit(2)
-                            if !article.excerpt.isEmpty { Text(article.excerpt).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(2) }
-                            if let date = article.modifiedAt {
-                                Text(date, format: .dateTime.year().month().day()).font(.system(size: 10)).foregroundStyle(.tertiary)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 2) {
+                            ForEach(store.visibleArticles) { article in
+                                articleRow(article).id(article.id)
                             }
-                        }.padding(.vertical, 9)
-                            .background(ArticleRowMouseSelection { store.selectArticle(article.id) })
-                            .tag(article.id)
+                        }.padding(10)
                     }
-                }.listStyle(.inset).disabled(store.isBusy)
+                    .onChange(of: store.selectedArticleID) { _, selected in
+                        if let selected { proxy.scrollTo(selected) }
+                    }
+                    .background(ArticleListKeyboardSelection(controller: articleListSelection, onMove: selectRelativeArticle))
+                }.disabled(store.isBusy)
             }
         }.background(Color(nsColor: .controlBackgroundColor))
+    }
+
+    private func articleRow(_ article: MWebArticle) -> some View {
+        let selected = store.selectedArticleID == article.id
+        return VStack(alignment: .leading, spacing: 7) {
+            Text(article.id == store.document?.articleID ? store.currentTitle : article.title)
+                .font(.system(size: 13, weight: .semibold)).lineLimit(2)
+            if !article.excerpt.isEmpty {
+                Text(article.excerpt).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(2)
+            }
+            if let date = article.modifiedAt {
+                Text(date, format: .dateTime.year().month().day()).font(.system(size: 10)).foregroundStyle(.tertiary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 6).padding(.vertical, 12)
+        .background(selected ? Color(nsColor: .unemphasizedSelectedContentBackgroundColor) : .clear,
+                    in: RoundedRectangle(cornerRadius: 6))
+        .overlay(ArticleRowMouseSelection(controller: articleListSelection) { store.selectArticle(article.id) })
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityAction {
+            store.selectArticle(article.id)
+            articleListSelection.focus()
+        }
+    }
+
+    private func selectRelativeArticle(_ offset: Int) {
+        let articles = store.visibleArticles
+        guard !store.isBusy, !articles.isEmpty else { return }
+        let current = articles.firstIndex { $0.id == store.selectedArticleID } ?? (offset > 0 ? -1 : articles.count)
+        let target = min(max(current + offset, 0), articles.count - 1)
+        store.selectArticle(articles[target].id)
     }
 
     private var detail: some View {

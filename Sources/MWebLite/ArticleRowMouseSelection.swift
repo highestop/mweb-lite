@@ -1,21 +1,106 @@
 import AppKit
 import SwiftUI
 
-/// Handles the whole native row, including the inset outside its SwiftUI content.
+/// Holds keyboard focus outside lazy rows, without owning another selection value.
+@MainActor
+final class ArticleListSelectionController: ObservableObject {
+    fileprivate weak var keyboardView: ArticleListKeyboardAnchor?
+
+    func focus() {
+        focus(in: keyboardView?.window)
+    }
+
+    fileprivate func focus(in window: NSWindow?) {
+        guard let window, let keyboardView, keyboardView.window === window else { return }
+        window.makeFirstResponder(keyboardView)
+    }
+}
+
+/// A stable background on the ScrollView; input remains enabled/disabled with the list.
+struct ArticleListKeyboardSelection: NSViewRepresentable {
+    @Environment(\.isEnabled) private var isEnabled
+    let controller: ArticleListSelectionController
+    let onMove: (Int) -> Void
+
+    func makeNSView(context: Context) -> ArticleListKeyboardAnchor {
+        let view = ArticleListKeyboardAnchor()
+        view.configure(isEnabled: isEnabled, controller: controller, onMove: onMove)
+        return view
+    }
+
+    func updateNSView(_ nsView: ArticleListKeyboardAnchor, context: Context) {
+        nsView.configure(isEnabled: isEnabled, controller: controller, onMove: onMove)
+    }
+
+    static func dismantleNSView(_ nsView: ArticleListKeyboardAnchor, coordinator: ()) {
+        nsView.invalidate()
+    }
+}
+
+final class ArticleListKeyboardAnchor: NSView {
+    private weak var controller: ArticleListSelectionController?
+    private var onMove: ((Int) -> Void)?
+    private var selectionEnabled = false
+    private var isDismantled = false
+
+    // Retain list focus while loading temporarily disables selection.
+    override var acceptsFirstResponder: Bool { !isDismantled }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override func isAccessibilityElement() -> Bool { false }
+
+    func configure(isEnabled: Bool, controller: ArticleListSelectionController, onMove: @escaping (Int) -> Void) {
+        guard !isDismantled else { return }
+        if self.controller?.keyboardView === self { self.controller?.keyboardView = nil }
+        self.controller = controller
+        controller.keyboardView = self
+        selectionEnabled = isEnabled
+        self.onMove = onMove
+        focusRingType = .none
+    }
+
+    override func keyDown(with event: NSEvent) {
+        guard !isDismantled, selectionEnabled else { return }
+        // Hardware arrows include .function/.numericPad; preserve other key bindings.
+        let modifiers = event.modifierFlags.intersection([.shift, .control, .option, .command])
+        guard modifiers.isEmpty, event.keyCode == 125 || event.keyCode == 126 else {
+            super.keyDown(with: event)
+            return
+        }
+        onMove?(event.keyCode == 125 ? 1 : -1)
+        // Store selection ends editor focus synchronously. Restore list focus now,
+        // never when asynchronous loading finishes and the user may be editing.
+        if !isDismantled { controller?.focus(in: window) }
+    }
+
+    func invalidate() {
+        isDismantled = true
+        selectionEnabled = false
+        onMove = nil
+        if controller?.keyboardView === self { controller?.keyboardView = nil }
+        controller = nil
+    }
+}
+
+/// An input-only overlay for a row whose selection is drawn from LibraryStore.
+/// Use inside a ScrollView, without a native List/Table selection.
 struct ArticleRowMouseSelection: NSViewRepresentable {
     @Environment(\.isEnabled) private var isEnabled
+    let controller: ArticleListSelectionController
     let onSelect: () -> Void
 
-    init(_ onSelect: @escaping () -> Void) { self.onSelect = onSelect }
+    init(controller: ArticleListSelectionController, _ onSelect: @escaping () -> Void) {
+        self.controller = controller
+        self.onSelect = onSelect
+    }
 
     func makeNSView(context: Context) -> ArticleRowSelectionAnchor {
         let view = ArticleRowSelectionAnchor()
-        view.configure(isEnabled: isEnabled, onSelect: onSelect)
+        view.configure(isEnabled: isEnabled, controller: controller, onSelect: onSelect)
         return view
     }
 
     func updateNSView(_ nsView: ArticleRowSelectionAnchor, context: Context) {
-        nsView.configure(isEnabled: isEnabled, onSelect: onSelect)
+        nsView.configure(isEnabled: isEnabled, controller: controller, onSelect: onSelect)
     }
 
     static func dismantleNSView(_ nsView: ArticleRowSelectionAnchor, coordinator: ()) {
@@ -24,74 +109,25 @@ struct ArticleRowMouseSelection: NSViewRepresentable {
 }
 
 final class ArticleRowSelectionAnchor: NSView {
-    private let recognizer = ArticleRowMouseDownRecognizer(target: nil, action: nil)
+    private weak var controller: ArticleListSelectionController?
     private var onSelect: (() -> Void)?
+    private var selectionEnabled = false
     private var isDismantled = false
 
-    // This is a hierarchy anchor, not an extra mouse or accessibility target.
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override var mouseDownCanMoveWindow: Bool { false }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override func isAccessibilityElement() -> Bool { false }
 
-    func configure(isEnabled: Bool, onSelect: @escaping () -> Void) {
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard !isDismantled, !isHidden else { return nil }
+        return super.hitTest(point)
+    }
+
+    func configure(isEnabled: Bool, controller: ArticleListSelectionController, onSelect: @escaping () -> Void) {
         guard !isDismantled else { return }
+        selectionEnabled = isEnabled
+        self.controller = controller
         self.onSelect = onSelect
-        recognizer.isEnabled = isEnabled
-        recognizer.onMouseDown = { [weak self] in
-            guard let self, !self.isDismantled, self.recognizer.isEnabled else { return }
-            self.onSelect?()
-        }
-        updateAttachment()
-        // SwiftUI can update the anchor before inserting its hosting view into a row.
-        DispatchQueue.main.async { [weak self] in self?.updateAttachment() }
-    }
-
-    override func viewDidMoveToSuperview() {
-        super.viewDidMoveToSuperview()
-        updateAttachment()
-    }
-
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        updateAttachment()
-    }
-
-    override func layout() {
-        super.layout()
-        updateAttachment()
-    }
-
-    func invalidate() {
-        isDismantled = true
-        recognizer.isEnabled = false
-        recognizer.onMouseDown = nil
-        onSelect = nil
-        recognizer.view?.removeGestureRecognizer(recognizer)
-    }
-
-    private func updateAttachment() {
-        guard !isDismantled else { return }
-        var ancestor = superview
-        while let current = ancestor, !(current is NSTableRowView) { ancestor = current.superview }
-        let row = ancestor as? NSTableRowView
-        guard recognizer.view !== row else { return }
-        recognizer.view?.removeGestureRecognizer(recognizer)
-        row?.addGestureRecognizer(recognizer)
-    }
-}
-
-final class ArticleRowMouseDownRecognizer: NSGestureRecognizer, NSGestureRecognizerDelegate {
-    var onMouseDown: (() -> Void)?
-
-    override init(target: Any?, action: Selector?) {
-        super.init(target: target, action: action)
-        delaysPrimaryMouseButtonEvents = true
-        delegate = self
-    }
-
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        delaysPrimaryMouseButtonEvents = true
-        delegate = self
     }
 
     static func accepts(_ event: NSEvent) -> Bool {
@@ -99,18 +135,18 @@ final class ArticleRowMouseDownRecognizer: NSGestureRecognizer, NSGestureRecogni
             event.modifierFlags.intersection([.shift, .control, .option, .command, .function]).isEmpty
     }
 
-    func gestureRecognizer(_ gestureRecognizer: NSGestureRecognizer,
-                           shouldAttemptToRecognizeWith event: NSEvent) -> Bool {
-        isEnabled && Self.accepts(event)
+    override func mouseDown(with event: NSEvent) {
+        guard !isDismantled, selectionEnabled, Self.accepts(event) else { return }
+        // No tracking loop or mouse-up action: the store changes during this down.
+        onSelect?()
+        if !isDismantled { controller?.focus(in: window) }
     }
 
-    override func mouseDown(with event: NSEvent) {
-        super.mouseDown(with: event)
-        guard state == .possible else { return }
-        guard isEnabled, Self.accepts(event) else { state = .failed; return }
-        // Recognize before calling the store so the native row never receives this down.
-        // The store callback is synchronous; target/action dispatch would wait a run-loop turn.
-        state = .recognized
-        if state == .recognized { onMouseDown?() }
+    // Leave scrollWheel(with:) inherited so the surrounding scroll view receives it.
+    func invalidate() {
+        isDismantled = true
+        selectionEnabled = false
+        onSelect = nil
+        controller = nil
     }
 }
