@@ -1,6 +1,6 @@
-:root { color-scheme: light dark; --text: #333333; --muted: #6b6b6b; --line: #e3e3e3; --soft: #f5f5f5; --accent: #595959; --quote-line: #aaaaaa; }
+:root { color-scheme: light dark; --page-background: #fff; --text: #333333; --muted: #6b6b6b; --line: #e3e3e3; --soft: #f5f5f5; --accent: #595959; --quote-line: #aaaaaa; }
 * { box-sizing: border-box; }
-html { background: transparent; }
+html { background: var(--page-background); }
 body { margin: 0; color: var(--text); font: 15px/1.85 -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", sans-serif; overflow-wrap: break-word; }
 article { margin: 0; padding: 16px 16px 24px; }
 article > :first-child { margin-top: 0; }
@@ -35,4 +35,4 @@ pre code { padding: 0; font-size: 1em; background: none; }
 .token.operator,.token.entity,.token.url,.token.variable { color: #88704a; }
 .token.atrule,.token.attr-value,.token.function,.token.class-name { color: #487ca2; }
 .token.keyword { color: #956caa; }
-@media (prefers-color-scheme: dark) { :root { --text: #dcdcdc; --muted: #a3a3a3; --line: #404040; --soft: #2b2b2b; --accent: #bdbdbd; --quote-line: #767676; } .token.string { color: #9acb9d; } .token.keyword { color: #cba6de; } .token.number { color: #e2a196; } }
+@media (prefers-color-scheme: dark) { :root { --page-background: #1e1e1e; --text: #dcdcdc; --muted: #a3a3a3; --line: #404040; --soft: #2b2b2b; --accent: #bdbdbd; --quote-line: #767676; } .token.string { color: #9acb9d; } .token.keyword { color: #cba6de; } .token.number { color: #e2a196; } }
