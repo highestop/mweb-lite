@@ -26,8 +26,8 @@ struct CategoryTreeView: View {
 
     private var collectionRows: [CategoryTreeEntry] {
         [
-            CategoryTreeEntry(id: "all", name: "所有文章", count: allCount),
-            CategoryTreeEntry(id: "uncategorized", name: "未分类", count: uncategorizedCount)
+            CategoryTreeEntry(id: "all", name: "所有文章", count: allCount, reservesDisclosureSpace: false),
+            CategoryTreeEntry(id: "uncategorized", name: "未分类", count: uncategorizedCount, reservesDisclosureSpace: false)
         ]
     }
 
@@ -108,6 +108,7 @@ private struct CategoryTreeEntry: Identifiable {
     var depth = 0
     var parentID: String?
     var hasChildren = false
+    var reservesDisclosureSpace = true
 }
 
 private struct CategoryTreeRow: View {
@@ -125,7 +126,9 @@ private struct CategoryTreeRow: View {
             // includes the indentation and disclosure space as well as the text.
             Button(action: onSelect) {
                 HStack(spacing: 6) {
-                    Color.clear.frame(width: 18, height: 28).accessibilityHidden(true)
+                    if entry.reservesDisclosureSpace {
+                        Color.clear.frame(width: 18, height: 28).accessibilityHidden(true)
+                    }
                     HStack(spacing: 5) {
                         Text(entry.name).font(.system(size: 13)).lineLimit(1)
                         Spacer(minLength: 0)
@@ -134,7 +137,7 @@ private struct CategoryTreeRow: View {
                     }
                 }
                 .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
-                .padding(.leading, CGFloat(entry.depth) * 14 + 4)
+                .padding(.leading, entry.reservesDisclosureSpace ? CGFloat(entry.depth) * 14 + 4 : 8)
                 .padding(.trailing, 8)
                 .contentShape(Rectangle())
             }

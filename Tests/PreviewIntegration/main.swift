@@ -10,7 +10,7 @@ extension Bundle {
     }
 }
 
-let previewCaseIDs = ["PV-001", "PV-002", "PV-003", "PV-004", "PV-005"]
+let previewCaseIDs = ["PV-001", "PV-002", "PV-003", "PV-004", "PV-005", "PV-006"]
 
 struct CaseResult: Encodable {
     let case_id: String
@@ -28,7 +28,8 @@ final class CaseResults {
         "PV-002": "Article URL parsing assertions passed",
         "PV-003": "Bundled Markdown, MWeb extensions and local image assertions passed",
         "PV-004": "Script execution and unsafe HTML attribute assertions passed",
-        "PV-005": "MathJax, Mermaid, ECharts and Prism assertions passed"
+        "PV-005": "MathJax, Mermaid, ECharts and Prism assertions passed",
+        "PV-006": "Document changes reset preview scrolling and same-document updates retain position"
     ]
 
     init(path: String) throws {
@@ -213,14 +214,59 @@ final class Delegate: NSObject, WKNavigationDelegate {
                     results.expect("PV-005", state["chart"] as? Int == 1, "ECharts canvas was missing")
                     results.expect("PV-005", (state["highlight"] as? Int ?? 0) > 0, "Prism syntax highlighting was missing")
                 }
-                results.completeObservedCases()
                 if !runtimeAvailable {
                     results.skip("PV-005", reason: "Optional MWeb runtimes are unavailable")
                 }
-                print("\(results.hasFailures ? "FAIL" : "PASS"): preview integration checks finished; skipped cases are not verified")
-                fflush(stdout)
-                exit(results.hasFailures ? 1 : 0)
+                self.checkScrollReset(webView)
             }
+        }
+    }
+
+    func checkScrollReset(_ webView: WKWebView) {
+        activeRenderCaseID = "PV-006"
+        // A visible window lets WebKit execute animation-frame layout callbacks.
+        // Keep this component test behind the user's foreground app.
+        window.orderBack(nil)
+        let script = #"""
+        const base = 'mweblite://library/docs/';
+        const body = Array.from({length: 100}, (_, i) => `Paragraph ${i} with enough text to scroll.\n\n`).join('');
+        const a = '# Scroll A\n\n[TOC]\n\n' + body + '\n## Bottom A\n\nEnd.';
+        const b = '# Scroll B\n\n' + body;
+        const nextFrame = () => Promise.race([
+          new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Animation frame timeout')), 3000))
+        ]);
+        window.renderMarkdown(a, base, false, true);
+        await nextFrame();
+        window.scrollTo({top: 600, behavior: 'instant'});
+        const oldY = window.scrollY;
+        window.renderMarkdown(a + '\nAn edit.', base, false, false);
+        await nextFrame();
+        const preserved = oldY > 0 && Math.abs(window.scrollY - oldY) < 1;
+        document.querySelector('a[href="#bottom-a"]').click();
+        window.renderMarkdown(b, base, false, true);
+        const immediate = window.scrollY === 0;
+        await nextFrame();
+        const settled = window.scrollY === 0 && document.querySelector('h1').textContent === 'Scroll B';
+        window.scrollTo({top: 700, behavior: 'instant'});
+        window.renderMarkdown(a, base, false, true);
+        window.renderMarkdown(b, base, false, true);
+        await nextFrame();
+        return {preserved, immediate, settled, latest: window.scrollY === 0 &&
+          document.querySelector('h1').textContent === 'Scroll B'};
+        """#
+        webView.callAsyncJavaScript(script, arguments: [:], in: nil, in: .page) { result in
+            guard case .success(let value) = result, let state = value as? [String: Bool] else {
+                abort("Preview scroll check failed: \(result)", caseID: "PV-006")
+            }
+            results.expect("PV-006", state["preserved"] == true, "Same-document rendering reset the reading position")
+            results.expect("PV-006", state["immediate"] == true, "New document did not immediately start at the top")
+            results.expect("PV-006", state["settled"] == true, "Old TOC scroll moved the replacement document after layout")
+            results.expect("PV-006", state["latest"] == true, "Rapid article replacement did not settle at the latest article's top")
+            results.completeObservedCases()
+            print("\(results.hasFailures ? "FAIL" : "PASS"): preview integration checks finished; skipped cases are not verified")
+            fflush(stdout)
+            exit(results.hasFailures ? 1 : 0)
         }
     }
 

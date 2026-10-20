@@ -22,7 +22,7 @@ Integration tests do not inherently require an app bundle. A test that creates a
 
 | Path | Execution environment and entry point | Current use |
 | --- | --- | --- |
-| `CI` | GitHub Actions runs the checked-out revision and scripts on its macOS runner. | The 43 XCTest cases and baseline WebKit cases PV-001 through PV-004. |
+| `CI` | GitHub Actions runs the checked-out revision and scripts on its macOS runner. | The 44 XCTest cases and baseline WebKit cases PV-001 through PV-004 and PV-006. |
 | `Local script` | A developer runs the documented command locally and records its output and environment. | PV-005 needs optional runtimes from an installed MWeb app; all CI commands can also be investigated locally. |
 | `Preview app` | The complete app runs on macOS with a per-run bundle identifier and copied fixture library selected by `--library`. | Repeatable UI, editing, selection, rendering, and save/restart flows. |
 | `Release app` | The normal app runs with its production bundle identifier, preferences, installation location, and normal launch entry point. | Installation, Finder/Dock icon, library chooser, and remembered-library restoration. |
@@ -42,10 +42,11 @@ Run commands from the repository root on macOS 14 or later with Swift 5.9 or lat
 | `Tests/PreviewIntegration/main.swift` | WebKit integration test program: automated rendering and resource isolation checks. |
 | `Tests/Fixtures/Preview/` | Committed Markdown and image inputs for the WebKit integration test program. |
 | `Tests/Fixtures/Library/` | Committed SQL, Markdown, and media for full-app cases. |
+| `Tests/Fixtures/Scroll/` | Long Selection A/B documents overlaid onto an isolated Library run for article-switch scroll checks. |
 | `scripts/prepare-test-library.py` | Materializes a runnable library from the full-app fixture. |
 | `scripts/run-preview-app.sh` | Builds and starts the full Preview app with a copied fixture library for end-to-end tests. |
 
-Run all 43 cataloged XCTest cases, or select a class or method while investigating a change:
+Run all 44 cataloged XCTest cases, or select a class or method while investigating a change:
 
 ```sh
 swift test
@@ -174,6 +175,8 @@ Choose one of those commands for a new run; do not run both with the same name. 
 
 `--reopen` preserves the run and does not rebuild the binary. After changing source, start a new run to test the new build. Closing a window is not the same as quitting the application.
 
+E2E-013 uses the committed [Scroll fixture](../../Tests/Fixtures/Scroll/README.md) as an overlay on a new Library run. Prepare its app with `--prepare-only`, copy the two long Markdown files into that run's `Library/docs/`, and only then launch with `--reopen`. Follow the fixture's exact commands; do not replace the short source files under `Tests/Fixtures/Library/`. The overlay is part of the case's Given state, not a user-data edit or a new fixture baseline.
+
 To prepare only a library for a targeted investigation:
 
 ```sh
@@ -206,7 +209,7 @@ This remains an end-to-end case, with Path `Release app`. A successful Preview a
 
 ## Record manual end-to-end results
 
-[e2e-test-result.md](e2e-test-result.md) contains all 13 end-to-end cases, with `Case ID`, `Status`, `Commit SHA`, and `Outdated` columns. Record `Passed`, `Failed`, or `Skipped` only after an actual attempt. An unexecuted case keeps `—` in the last three columns. The recorded SHA is the full 40-character commit of the application actually tested, not the later commit that saves the result.
+[e2e-test-result.md](e2e-test-result.md) contains all 14 end-to-end cases, with `Case ID`, `Status`, `Commit SHA`, and `Outdated` columns. Record `Passed`, `Failed`, or `Skipped` only after an actual attempt. An unexecuted case keeps `—` in the last three columns. The recorded SHA is the full 40-character commit of the application actually tested, not the later commit that saves the result.
 
 Build from a known committed revision. Before building, commit source, fixture, script, case-definition, or other non-report changes; only edits to the two result Markdown files may remain uncommitted. For a Preview app run, capture `baseCommit` from its `run.json`, not the current checkout after further work. If `workingTreeDirty` is true, confirm that only result files were dirty and verify the recorded source-file hashes/fingerprint against the build inputs. Do not label an app built from other uncommitted changes as the recorded commit. Run metadata identifies the binary's source; it does not prove that a case was executed.
 
@@ -257,7 +260,7 @@ python3 scripts/collect-test-results.py \
   --markdown build/test-results/ci-test-result.md
 ```
 
-`--markdown` is optional and renders a local inspection copy. Do not attach a CI URL to results from a different local execution. Add `--require-xctest` when the XCTest runner succeeded and `--require-preview` when the WebKit runner succeeded: these flags require complete reporting for that successful runner. The workflow sets them from each runner's outcome. Failed or interrupted runners may supply partial observed results without those flags; absent results are never filled in. A complete baseline run currently produces 47 CI records: 43 XCTest cases and four WebKit cases, excluding local-only PV-005.
+`--markdown` is optional and renders a local inspection copy. Do not attach a CI URL to results from a different local execution. Add `--require-xctest` when the XCTest runner succeeded and `--require-preview` when the WebKit runner succeeded: these flags require complete reporting for that successful runner. The workflow sets them from each runner's outcome. Failed or interrupted runners may supply partial observed results without those flags; absent results are never filled in. A complete baseline run currently produces 49 CI records: 44 XCTest cases and five WebKit cases, excluding local-only PV-005.
 
 The runner has its own checkout and temporary data; it does not access a developer's library. CI does not currently drive the Preview app or Release app with mouse and keyboard or perform visual review. PV-005 and all full-app cases are excluded from the CI result summary because their Paths are local. A local run of the same command cannot substitute for CI evidence.
 

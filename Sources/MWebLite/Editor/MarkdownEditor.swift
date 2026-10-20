@@ -112,16 +112,7 @@ struct MarkdownEditor: NSViewRepresentable {
         textView.onPasteImage = onPasteImage
         let documentChanged = context.coordinator.documentID != documentID
         if documentChanged {
-            context.coordinator.highlightWork?.cancel()
-            textView.delegate = nil
-            textView.unmarkText()
-            context.coordinator.documentID = documentID
-            textView.string = text
-            textView.undoManager?.removeAllActions()
-            textView.setSelectedRange(NSRange(location: 0, length: 0))
-            textView.scrollRangeToVisible(NSRange(location: 0, length: 0))
-            textView.highlightMarkdown()
-            textView.delegate = context.coordinator
+            context.coordinator.loadDocument(text, documentID: documentID)
         } else if !textView.hasMarkedText(), textView.string != text {
             let oldSelection = textView.selectedRange()
             textView.string = text
@@ -137,6 +128,7 @@ struct MarkdownEditor: NSViewRepresentable {
 
     static func dismantleNSView(_ scrollView: NSScrollView, coordinator: Coordinator) {
         coordinator.highlightWork?.cancel()
+        coordinator.documentScrollReset = nil
         guard let textView = scrollView.documentView as? NSTextView else { return }
         if textView.hasMarkedText() {
             textView.unmarkText()
@@ -151,10 +143,38 @@ struct MarkdownEditor: NSViewRepresentable {
         weak var textView: MarkdownTextView?
         var highlightWork: DispatchWorkItem?
         var lastFocusRequest: UUID?
+        var documentScrollReset: UUID?
 
         init(_ parent: MarkdownEditor) {
             self.parent = parent
             self.documentID = parent.documentID
+        }
+
+        func loadDocument(_ source: String, documentID nextDocumentID: String) {
+            guard let textView else { return }
+            highlightWork?.cancel()
+            textView.delegate = nil
+            textView.unmarkText()
+            documentID = nextDocumentID
+            textView.string = source
+            textView.undoManager?.removeAllActions()
+            textView.setSelectedRange(NSRange(location: 0, length: 0))
+            textView.highlightMarkdown()
+            textView.delegate = self
+
+            // Scroll a laid-out document to its origin, not just far enough to
+            // reveal the caret. Reapply after SwiftUI updates the hosted view.
+            textView.scrollToDocumentBeginning()
+            let reset = UUID()
+            documentScrollReset = reset
+            DispatchQueue.main.async { [weak self, weak textView] in
+                guard let self, let textView,
+                      self.textView === textView,
+                      self.documentID == nextDocumentID,
+                      self.documentScrollReset == reset else { return }
+                self.documentScrollReset = nil
+                textView.scrollToDocumentBeginning()
+            }
         }
 
         func scheduleFocus(_ request: EditorFocusRequest, documentID expectedDocumentID: String) {
@@ -173,6 +193,7 @@ struct MarkdownEditor: NSViewRepresentable {
         }
 
         func textDidChange(_ notification: Notification) {
+            documentScrollReset = nil
             guard let textView = notification.object as? MarkdownTextView, !textView.hasMarkedText() else { return }
             parent.text = textView.string
             highlightWork?.cancel()
@@ -183,6 +204,10 @@ struct MarkdownEditor: NSViewRepresentable {
             highlightWork = work
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.08, execute: work)
         }
+
+        func textViewDidChangeSelection(_ notification: Notification) {
+            documentScrollReset = nil
+        }
     }
 }
 
@@ -190,6 +215,14 @@ final class MarkdownTextView: NSTextView {
     var onSave: (() -> Void)?
     var onInsertImages: (([URL]) -> [String])?
     var onPasteImage: ((Data) -> String?)?
+
+    func scrollToDocumentBeginning() {
+        guard let scrollView = enclosingScrollView else { return }
+        if let textContainer { layoutManager?.ensureLayout(for: textContainer) }
+        scrollView.layoutSubtreeIfNeeded()
+        scrollView.contentView.scroll(to: .zero)
+        scrollView.reflectScrolledClipView(scrollView.contentView)
+    }
 
     override func resignFirstResponder() -> Bool {
         let wasComposing = hasMarkedText()

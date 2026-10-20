@@ -166,6 +166,7 @@
         await loadRuntime("mathjax/tex-svg-full.js");
         if (!current()) return;
         await window.MathJax.startup.promise;
+        if (!current()) return;
         window.MathJax.typesetClear?.([content]);
         await window.MathJax.typesetPromise([content]);
       }).catch(() => {});
@@ -222,7 +223,14 @@
     rewriteURLs(baseURL);
     // TOC indentation is applied after sanitization, so note-supplied CSS stays disabled.
     content.querySelectorAll(".table-of-contents li").forEach((item, index) => { if (env.headings[index]) item.style.paddingLeft = `${(env.headings[index].level - minimumLevel) * 16}px`; });
-    window.scrollTo(0, oldY);
+    window.scrollTo({ left: 0, top: oldY, behavior: "instant" });
+    if (resetScroll) {
+      // A document switch cancels any old smooth TOC scroll and settles at the
+      // new layout's origin. Never let an older render move a newer article.
+      requestAnimationFrame(() => {
+        if (revision === renderRevision) window.scrollTo({ left: 0, top: 0, behavior: "instant" });
+      });
+    }
     enhance(renderRevision, runtimeAvailable);
   };
 

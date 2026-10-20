@@ -143,7 +143,7 @@ struct LibraryView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 6).padding(.vertical, 12)
+        .padding(6)
         .background(selected ? Color(nsColor: .unemphasizedSelectedContentBackgroundColor) : .clear,
                     in: RoundedRectangle(cornerRadius: 6))
         .overlay(ArticleRowMouseSelection(controller: articleListSelection) { store.selectArticle(article.id) })
