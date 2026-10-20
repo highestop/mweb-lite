@@ -140,7 +140,7 @@ final class OverlayScrollbarsTests: CaseReportingTestCase {
         let wheel = try XCTUnwrap(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1,
                                          wheel1: -120, wheel2: 0, wheel3: 0))
         let event = try XCTUnwrap(NSEvent(cgEvent: wheel))
-        scrollView.scrollWheel(event)
+        scrollView.scrollWheel(with: event)
         await waitFor("The native scroll view responds to a pixel-wheel event") {
             layout()
             return abs(scrollView.contentView.bounds.origin.y - originalOrigin.y) > 0.5
