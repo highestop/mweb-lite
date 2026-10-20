@@ -47,24 +47,24 @@ struct LibraryView: View {
     }
 
     private var workspace: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
-            // macOS keeps a three-column split's middle column visible. Group both
-            // navigation panes into one sidebar so they can collapse together.
-            GeometryReader { geometry in
+        GeometryReader { geometry in
+            NavigationSplitView(columnVisibility: $columnVisibility) {
+                // macOS keeps a three-column split's middle column visible. Group
+                // both navigation panes into one sidebar so they collapse together.
                 HSplitView {
                     sidebar.padding(.top, geometry.safeAreaInsets.top)
                         .frame(minWidth: 180, idealWidth: 215, maxWidth: 320)
                     articleList.frame(minWidth: 220, idealWidth: 270, maxWidth: 400)
                 }
                 .ignoresSafeArea(.container, edges: .top)
+                .navigationSplitViewColumnWidth(min: 401, ideal: 486, max: 721)
+            } detail: {
+                // Reserve the window controls' top edge when navigation is hidden.
+                detail.ignoresSafeArea(.container, edges: columnVisibility == .detailOnly ? [] : .top)
             }
-            .navigationSplitViewColumnWidth(min: 401, ideal: 486, max: 721)
-        } detail: {
-            // The window controls occupy the detail's top edge when both leading columns are hidden.
-            detail.ignoresSafeArea(.container, edges: columnVisibility == .detailOnly ? [] : .top)
+            .navigationSplitViewStyle(.balanced)
+            .toolbar(removing: .sidebarToggle)
         }
-        .navigationSplitViewStyle(.balanced)
-        .toolbar(removing: .sidebarToggle)
     }
 
     private var sidebar: some View {

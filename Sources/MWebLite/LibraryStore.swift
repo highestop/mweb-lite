@@ -60,7 +60,7 @@ final class LibraryStore: ObservableObject {
     @Published var errorMessage: String?
     @Published private(set) var saveBlocked = false
     @Published var lastSaved: Date?
-    @Published private(set) var editorFocusRequest: UUID?
+    @Published private(set) var editorFocusRequest: EditorFocusRequest?
     @Published private var pendingArticleID: String?
 
     private let worker = LibraryWorker()
@@ -129,8 +129,10 @@ final class LibraryStore: ObservableObject {
     }
 
     func setMode(_ mode: EditorMode) {
+        guard mode != self.mode else { return }
         NSApp.keyWindow?.makeFirstResponder(nil)
         self.mode = mode
+        editorFocusRequest = mode == .editor ? EditorFocusRequest(selection: .preserveSelection) : nil
     }
 
     func chooseLibrary() {
@@ -208,7 +210,7 @@ final class LibraryStore: ObservableObject {
                 lastSaved = nil
                 search = ""
                 mode = .editor
-                editorFocusRequest = UUID()
+                editorFocusRequest = EditorFocusRequest(selection: .selectTitle)
                 let index = try await worker.index()
                 articles = index.articles
                 categories = index.categories
@@ -217,7 +219,7 @@ final class LibraryStore: ObservableObject {
     }
 
     func consumeEditorFocus(_ request: UUID) {
-        if editorFocusRequest == request { editorFocusRequest = nil }
+        if editorFocusRequest?.id == request { editorFocusRequest = nil }
     }
 
     func finishPendingWrites() async -> Bool {
