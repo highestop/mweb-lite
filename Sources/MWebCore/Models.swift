@@ -20,6 +20,23 @@ public struct MWebArticle: Identifiable, Hashable, Sendable {
     public let isPinned: Bool
     public let sort: Int64
     public let isAvailable: Bool
+    public let imageReferences: [String]
+
+    public init(id: String, title: String, excerpt: String, modifiedAt: Date?, createdAt: Date?,
+                categoryIDs: [String], isTrashed: Bool, isPinned: Bool, sort: Int64,
+                isAvailable: Bool, imageReferences: [String] = []) {
+        self.id = id
+        self.title = title
+        self.excerpt = excerpt
+        self.modifiedAt = modifiedAt
+        self.createdAt = createdAt
+        self.categoryIDs = categoryIDs
+        self.isTrashed = isTrashed
+        self.isPinned = isPinned
+        self.sort = sort
+        self.isAvailable = isAvailable
+        self.imageReferences = imageReferences
+    }
 
     /// Refreshes the edited row without rereading every document in the library.
     public func updating(document: MWebDocument) -> MWebArticle {
@@ -28,7 +45,8 @@ public struct MWebArticle: Identifiable, Hashable, Sendable {
         return MWebArticle(id: id, title: summary.title, excerpt: summary.excerpt,
                            modifiedAt: document.modifiedAt, createdAt: createdAt,
                            categoryIDs: categoryIDs, isTrashed: isTrashed, isPinned: isPinned,
-                           sort: sort, isAvailable: true)
+                           sort: sort, isAvailable: true,
+                           imageReferences: MarkdownImageReferences.firstImages(in: document.content))
     }
 }
 

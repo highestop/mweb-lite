@@ -67,14 +67,16 @@ public final class MWebLibrary: @unchecked Sendable {
         // Cloud-backed files may take time to materialize; release the database read lock first.
         let articles = articleRows.compactMap { row -> MWebArticle? in
             guard let id = row["uuid"]?.string else { return nil }
-            let prefix = try? readPrefix(articleID: id)
-            let summary = Self.summary(prefix ?? "")
+            let data = try? Data(contentsOf: documentURL(id))
+            let summary = Self.summary(data.map { String(decoding: $0.prefix(4_096), as: UTF8.self) } ?? "")
+            let images = data.map { MarkdownImageReferences.firstImages(in: String(decoding: $0, as: UTF8.self)) } ?? []
             return MWebArticle(id: id, title: summary.title, excerpt: summary.excerpt,
                                modifiedAt: Self.date(row["dateModif"]), createdAt: Self.date(row["dateAdd"]),
                                categoryIDs: (memberships[id] ?? []).sorted(),
                                isTrashed: row["state"]?.integer != 1,
                                isPinned: (row["isTop"]?.integer ?? 0) != 0,
-                               sort: row["sort"]?.integer ?? 0, isAvailable: prefix != nil)
+                               sort: row["sort"]?.integer ?? 0, isAvailable: data != nil,
+                               imageReferences: images)
         }.sorted { left, right in
             if left.isPinned != right.isPinned { return left.isPinned }
             if left.modifiedAt != right.modifiedAt {
@@ -288,13 +290,6 @@ public final class MWebLibrary: @unchecked Sendable {
 
     private func isInsideRoot(_ url: URL) -> Bool {
         url.standardizedFileURL.resolvingSymlinksInPath().path.hasPrefix(rootURL.path + "/")
-    }
-
-    private func readPrefix(articleID: String) throws -> String {
-        let file = try FileHandle(forReadingFrom: documentURL(articleID))
-        defer { try? file.close() }
-        let data = try file.read(upToCount: 4_096) ?? Data()
-        return String(decoding: data, as: UTF8.self)
     }
 
     private func itemExists(_ url: URL) -> Bool {

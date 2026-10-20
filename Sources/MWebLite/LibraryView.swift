@@ -6,7 +6,7 @@ struct LibraryView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var navigationVisible = true
     @State private var categoryWidth: CGFloat = 243
-    @State private var articleWidth: CGFloat = 243
+    @State private var articleWidth: CGFloat = 360
     @State private var categoryEdgeHighlighted = false
     @State private var articleEdgeHighlighted = false
     @State private var expandedCategoryIDs: Set<String> = []
@@ -67,7 +67,7 @@ struct LibraryView: View {
                     .padding(.leading, 16)
                     .background(Color(nsColor: .controlBackgroundColor))
                     .zIndex(0)
-                articleList
+                articleList(width: geometry.articleWidth)
                     .padding(.leading, 16)
                     .background(Color(nsColor: .controlBackgroundColor))
                     .modifier(DrawerPanel(visible: navigationVisible, highlighted: articleEdgeHighlighted))
@@ -114,7 +114,7 @@ struct LibraryView: View {
         .frame(maxHeight: .infinity, alignment: .top)
     }
 
-    private var articleList: some View {
+    private func articleList(width: CGFloat) -> some View {
         VStack(spacing: 0) {
             HStack {
                 HStack(spacing: 6) {
@@ -136,7 +136,7 @@ struct LibraryView: View {
                     ScrollView {
                         LazyVStack(spacing: 2) {
                             ForEach(store.visibleArticles) { article in
-                                articleRow(article).id(article.id)
+                                articleRow(article, width: width - 20).id(article.id)
                             }
                         }.padding(10)
                     }
@@ -156,19 +156,14 @@ struct LibraryView: View {
         .background(Color(nsColor: .controlBackgroundColor))
     }
 
-    private func articleRow(_ article: MWebArticle) -> some View {
+    private func articleRow(_ article: MWebArticle, width: CGFloat) -> some View {
         let selected = store.selectedArticleID == article.id
-        return VStack(alignment: .leading, spacing: 7) {
-            Text(article.id == store.document?.articleID ? store.currentTitle : article.title)
-                .font(.system(size: 13, weight: .semibold)).lineLimit(2)
-            if !article.excerpt.isEmpty {
-                Text(article.excerpt).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(2)
-            }
-            if let date = article.modifiedAt {
-                Text(date, format: .dateTime.year().month().day()).font(.system(size: 10)).foregroundStyle(.tertiary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        return ArticleTimelineContent(
+            article: article,
+            title: article.id == store.document?.articleID ? store.currentTitle : article.title,
+            libraryRoot: store.rootURL,
+            width: width - 20
+        )
         .padding(10)
         .background(selected ? Color(nsColor: .unemphasizedSelectedContentBackgroundColor) : .clear,
                     in: RoundedRectangle(cornerRadius: 14, style: .continuous))

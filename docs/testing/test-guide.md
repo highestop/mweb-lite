@@ -22,7 +22,7 @@ Integration tests do not inherently require an app bundle. A test that creates a
 
 | Path | Execution environment and entry point | Current use |
 | --- | --- | --- |
-| `CI` | GitHub Actions runs the checked-out revision and scripts on its macOS runner. | The 47 XCTest cases and baseline WebKit cases PV-001 through PV-004 and PV-006. |
+| `CI` | GitHub Actions runs the checked-out revision and scripts on its macOS runner. | The 50 XCTest cases and baseline WebKit cases PV-001 through PV-004 and PV-006. |
 | `Local script` | A developer runs the documented command locally and records its output and environment. | PV-005 needs optional runtimes from an installed MWeb app; all CI commands can also be investigated locally. |
 | `Preview app` | The complete app runs on macOS with a per-run bundle identifier and copied fixture library selected by `--library`. | Repeatable UI, editing, selection, rendering, and save/restart flows. |
 | `Release app` | The normal app runs with its production bundle identifier, preferences, installation location, and normal launch entry point. | Installation, Finder/Dock icon, library chooser, and remembered-library restoration. |
@@ -42,11 +42,12 @@ Run commands from the repository root on macOS 14 or later with Swift 5.9 or lat
 | `Tests/PreviewIntegration/main.swift` | WebKit integration test program: automated rendering and resource isolation checks. |
 | `Tests/Fixtures/Preview/` | Committed Markdown and image inputs for the WebKit integration test program. |
 | `Tests/Fixtures/Library/` | Committed SQL, Markdown, and media for full-app cases. |
+| `Tests/Fixtures/Timeline/` | Six synthetic timeline articles covering zero, one, two, three, four, and six image references, added only to an isolated Library run. |
 | `Tests/Fixtures/Scroll/` | Long Selection A/B documents overlaid onto an isolated Library run for article-switch scroll checks. |
 | `scripts/prepare-test-library.py` | Materializes a runnable library from the full-app fixture. |
 | `scripts/run-preview-app.sh` | Builds and starts the full Preview app with a copied fixture library for end-to-end tests. |
 
-Run all 47 cataloged XCTest cases, or select a class or method while investigating a change:
+Run all 50 cataloged XCTest cases, or select a class or method while investigating a change:
 
 ```sh
 swift test
@@ -209,6 +210,8 @@ REL-001 exercises the normal production identity and library bookmark. Perform i
 
 This remains an end-to-end case, with Path `Release app`. A successful Preview app run does not pass it. Record its outcome in the manual E2E summary and keep detailed observations with the ignored local run artifacts; it is not included in the CI summary. No step requires opening a personal library.
 
+E2E-015 uses the [Timeline fixture](../../Tests/Fixtures/Timeline/README.md). Prepare a fresh Preview run, apply its overlay before opening the app, then follow the case to inspect date/text columns and square mosaics at normal and narrow article-list widths. MEDIA-001/002 and THUMB-001 cover extraction, index refresh, decoding, caching, and file boundaries; they do not establish the appearance or selection behavior of the assembled list.
+
 ## Record manual end-to-end results
 
 [e2e-test-result.md](e2e-test-result.md) contains all 15 end-to-end cases, with `Case ID`, `Status`, `Commit SHA`, and `Outdated` columns. Record `Passed`, `Failed`, or `Skipped` only after an actual attempt. An unexecuted case keeps `—` in the last three columns. The recorded SHA is the full 40-character commit of the application actually tested, not the later commit that saves the result.
@@ -262,7 +265,7 @@ python3 scripts/collect-test-results.py \
   --markdown build/test-results/ci-test-result.md
 ```
 
-`--markdown` is optional and renders a local inspection copy. Do not attach a CI URL to results from a different local execution. Add `--require-xctest` when the XCTest runner succeeded and `--require-preview` when the WebKit runner succeeded: these flags require complete reporting for that successful runner. The workflow sets them from each runner's outcome. Failed or interrupted runners may supply partial observed results without those flags; absent results are never filled in. A complete baseline run currently produces 52 CI records: 47 XCTest cases and five WebKit cases, excluding local-only PV-005.
+`--markdown` is optional and renders a local inspection copy. Do not attach a CI URL to results from a different local execution. Add `--require-xctest` when the XCTest runner succeeded and `--require-preview` when the WebKit runner succeeded: these flags require complete reporting for that successful runner. The workflow sets them from each runner's outcome. Failed or interrupted runners may supply partial observed results without those flags; absent results are never filled in. A complete baseline run currently produces 55 CI records: 50 XCTest cases and five WebKit cases, excluding local-only PV-005.
 
 The runner has its own checkout and temporary data; it does not access a developer's library. CI does not currently drive the Preview app or Release app with mouse and keyboard or perform visual review. PV-005 and all full-app cases are excluded from the CI result summary because their Paths are local. A local run of the same command cannot substitute for CI evidence.
 
