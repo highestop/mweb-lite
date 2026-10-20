@@ -147,6 +147,17 @@ final class DrawerResizeView: NSView {
     private var onResize: ((CGFloat) -> Void)?
     private var onHighlight: ((Bool) -> Void)?
 
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        // AppKit may otherwise extend visibleRect beyond this narrow hit region.
+        clipsToBounds = true
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        clipsToBounds = true
+    }
+
     override var mouseDownCanMoveWindow: Bool { false }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override func isAccessibilityElement() -> Bool { false }
@@ -171,7 +182,7 @@ final class DrawerResizeView: NSView {
     override func resetCursorRects() {
         super.resetCursorRects()
         if resizeEnabled, !isHiddenOrHasHiddenAncestor {
-            addCursorRect(visibleRect, cursor: .resizeLeftRight)
+            addCursorRect(bounds.intersection(visibleRect), cursor: .resizeLeftRight)
         }
     }
 
@@ -221,7 +232,7 @@ final class DrawerResizeView: NSView {
     override func mouseUp(with event: NSEvent) {
         guard initialDrag != nil else { return }
         initialDrag = nil
-        hovering = resizeEnabled && visibleRect.contains(convert(event.locationInWindow, from: nil))
+        hovering = resizeEnabled && bounds.intersection(visibleRect).contains(convert(event.locationInWindow, from: nil))
         onHighlight?(hovering)
         window?.invalidateCursorRects(for: self)
     }
