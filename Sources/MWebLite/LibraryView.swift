@@ -57,6 +57,7 @@ struct LibraryView: View {
                 articleList.frame(minWidth: 220, idealWidth: 270, maxWidth: 400)
                     .ignoresSafeArea(.container, edges: .top)
             }
+            .frame(maxHeight: .infinity, alignment: .top)
             .navigationSplitViewColumnWidth(min: 401, ideal: 486, max: 721)
         } detail: {
             // Keep the toolbar on the same top row in both navigation states.
@@ -84,7 +85,7 @@ struct LibraryView: View {
             )
             .id(store.rootURL)
             .disabled(store.isBusy)
-        }
+        }.frame(maxHeight: .infinity, alignment: .top)
     }
 
     private var articleList: some View {
@@ -103,6 +104,7 @@ struct LibraryView: View {
             Divider()
             if store.visibleArticles.isEmpty {
                 ContentUnavailableView("没有文章", systemImage: "doc.text.magnifyingglass", description: Text(store.search.isEmpty ? "这个分类中还没有文章。" : "试试其他关键词。"))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollViewReader { proxy in
                     ScrollView {
@@ -123,7 +125,9 @@ struct LibraryView: View {
                     .background(ArticleListKeyboardSelection(controller: articleListSelection, onMove: selectRelativeArticle))
                 }.disabled(store.isBusy)
             }
-        }.background(Color(nsColor: .controlBackgroundColor))
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(Color(nsColor: .controlBackgroundColor))
     }
 
     private func articleRow(_ article: MWebArticle) -> some View {
