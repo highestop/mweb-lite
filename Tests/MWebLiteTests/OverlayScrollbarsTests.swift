@@ -38,9 +38,22 @@ final class OverlayScrollbarsTests: CaseReportingTestCase {
         for (revision, sample) in [(18, CGFloat(360)), (1, 360), (18, 420), (1, 420), (18, 360)].enumerated() {
             window.setContentSize(NSSize(width: sample.1, height: 400))
             host.rootView = ScrollbarTimelineFixture(count: sample.0, revision: revision + 1, probe: probe)
-            await waitFor("Timeline revision \(revision + 1) updates its existing native hierarchy") {
+            // A representable update and overlay style can precede AppKit's next
+            // sizing pass. Wait for the native hierarchy's actual geometry, not
+            // just the property changes that request it.
+            await waitFor("Timeline revision \(revision + 1) completes native size negotiation") {
                 host.layoutSubtreeIfNeeded()
-                return probe.revision == revision + 1 && scrollView.scrollerStyle == .overlay
+                guard let row = probe.firstRow, let document = scrollView.documentView else { return false }
+                let width = host.bounds.width
+                let contentHeightMatches = sample.0 == 1
+                    || document.frame.height > scrollView.contentView.bounds.height
+                return probe.revision == revision + 1
+                    && scrollView.scrollerStyle == .overlay
+                    && abs(width - sample.1) <= 0.5
+                    && abs(scrollView.frame.width - width) <= 0.5
+                    && abs(scrollView.contentView.frame.width - width) <= 0.5
+                    && abs(row.bounds.width - (width - 20)) <= 0.5
+                    && contentHeightMatches
             }
             await withCheckedContinuation { continuation in
                 DispatchQueue.main.async { continuation.resume() }
@@ -56,6 +69,7 @@ final class OverlayScrollbarsTests: CaseReportingTestCase {
 
             XCTAssertTrue(row === firstRow, "Filtering keeps the first row mounted")
             XCTAssertTrue(row.enclosingScrollView === scrollView, "Filtering keeps the scroll container mounted")
+            XCTAssertEqual(scrollView.frame.width, host.bounds.width, accuracy: 0.5, diagnostic)
             XCTAssertEqual(scrollView.contentView.frame.width, host.bounds.width, accuracy: 0.5, diagnostic)
             XCTAssertEqual(row.bounds.width, expectedWidth, accuracy: 0.5, diagnostic)
             XCTAssertEqual(scrollView.scrollerStyle, .overlay, diagnostic)
