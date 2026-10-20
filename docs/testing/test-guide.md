@@ -239,7 +239,7 @@ The **Update E2E result freshness** workflow maintains these flags after main ch
 
 ## GitHub Actions coverage
 
-A GitHub Actions **workflow** is the YAML-defined event, jobs, and steps under `.github/workflows/`. An **action** is a reusable step used by a workflow, such as `actions/checkout`; a step can also run a script directly. The CI publisher and E2E freshness updater are workflows that invoke this repository's Python scripts, rather than new reusable actions.
+A GitHub Actions **workflow** is the YAML-defined event, jobs, and steps under `.github/workflows/`. An **action** is a reusable step used by a workflow, such as `actions/checkout`; a step can also run a script directly. [Publish CI test results](../../.github/workflows/publish-ci-test-results.yml) and [Update E2E result freshness](../../.github/workflows/update-e2e-results.yml) are workflows that invoke this repository's Python scripts, rather than new reusable actions.
 
 [The macOS workflow](../../.github/workflows/test.yml) validates case definitions and fixture references, runs XCTest and the WebKit integration program, and builds the Release application. The test methods carry explicit case IDs, and WebKit emits one structured record per reported case.
 

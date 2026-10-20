@@ -7,7 +7,7 @@ from ci_publish import Publisher, PublishError
 from ci_results import catalog
 from e2e_results import REPORT_PATH, effective_commit, read_rows, refresh, render
 
-CI_PUBLISH_WORKFLOW = ".github/workflows/publish-test-results.yml"
+CI_PUBLISH_WORKFLOW = ".github/workflows/publish-ci-test-results.yml"
 CI_PUBLISH_NAME = "Publish CI test results"
 
 
