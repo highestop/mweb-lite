@@ -65,9 +65,13 @@ struct DrawerWorkspaceLayout: Layout {
             CGRect(x: geometry.categoryDividerX - 4, y: 16, width: 8, height: max(0, bounds.height - 32)),
             CGRect(x: geometry.articleDividerX - 4, y: 16, width: 8, height: max(0, bounds.height - 32))
         ]
-        for (view, frame) in zip(subviews, frames) {
-            view.place(at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY),
-                       anchor: .topLeading, proposal: ProposedViewSize(frame.size))
+        for (index, frame) in frames.enumerated() {
+            // A native child can resolve a different width than the proposal.
+            // Anchor the actual detail size to the fixed right edge.
+            let x = index == 0 ? bounds.maxX : bounds.minX + frame.minX
+            subviews[index].place(at: CGPoint(x: x, y: bounds.minY + frame.minY),
+                                  anchor: index == 0 ? .topTrailing : .topLeading,
+                                  proposal: ProposedViewSize(frame.size))
         }
     }
 }
