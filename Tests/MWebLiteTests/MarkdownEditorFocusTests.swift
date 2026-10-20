@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 import XCTest
 import CaseReporting
+@testable import MWebCore
 @testable import MWebLite
 
 final class MarkdownEditorFocusTests: CaseReportingTestCase {
@@ -163,83 +164,107 @@ final class MarkdownEditorFocusTests: CaseReportingTestCase {
     }
 
     @MainActor
-    func test_FOCUS_004_DocumentChangeStartsAtTop() async {
+    func test_FOCUS_004_DocumentChangeStartsAtTop() async throws {
         _ = NSApplication.shared
-        func article(_ title: String) -> String {
-            "# \(title)\n\n" + (1...150).map { "Paragraph \($0): 中文 and Markdown text.\n" }.joined()
+        let root = try makeScrollingLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = LibraryStore()
+        store.mode = .editor
+        store.open(root, remember: false)
+        await waitFor("The fixture opens Article A") {
+            !store.isBusy && store.document?.articleID == "10001"
         }
-        var source = article("Article A")
-        let editor = MarkdownEditor(
-            text: Binding(get: { source }, set: { source = $0 }),
-            documentID: "article-a", onSave: {}
-        )
-        let coordinator = editor.makeCoordinator()
-        let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 400, height: 220))
-        scrollView.hasVerticalScroller = true
-        scrollView.automaticallyAdjustsContentInsets = false
-        let textView = MarkdownTextView(frame: scrollView.bounds)
-        textView.minSize = .zero
-        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-        textView.isVerticallyResizable = true
-        textView.isHorizontallyResizable = false
-        textView.autoresizingMask = [.width]
-        textView.textContainer?.widthTracksTextView = true
-        textView.textContainer?.containerSize = NSSize(width: 400, height: CGFloat.greatestFiniteMagnitude)
-        textView.textContainerInset = NSSize(width: 16, height: 16)
-        textView.isRichText = false
-        textView.font = .monospacedSystemFont(ofSize: 14, weight: .regular)
-        textView.string = source
-        textView.delegate = coordinator
-        coordinator.textView = textView
-        scrollView.documentView = textView
+        XCTAssertNil(store.errorMessage)
+        let host = NSHostingView(rootView: LibraryView(store: store))
         let window = NSWindow(
-            contentRect: scrollView.frame, styleMask: [.titled], backing: .buffered, defer: false
+            contentRect: NSRect(x: 0, y: 0, width: 1100, height: 700),
+            styleMask: [.titled, .resizable], backing: .buffered, defer: false
         )
-        window.contentView = scrollView
-        textView.highlightMarkdown()
-        scrollView.layoutSubtreeIfNeeded()
-        defer {
-            coordinator.highlightWork?.cancel()
-            coordinator.documentScrollReset = nil
-            textView.delegate = nil
-            window.contentView = nil
+        window.contentView = host
+        defer { window.contentView = nil }
+        await waitFor("The production view mounts Article A's native editor") {
+            host.layoutSubtreeIfNeeded()
+            return self.editor(in: host)?.string.hasPrefix("# Article A") == true
         }
-        textView.setSelectedRange(NSRange(location: (source as NSString).length, length: 0))
-        textView.scrollRangeToVisible(textView.selectedRange())
-        XCTAssertGreaterThan(scrollView.contentView.bounds.minY, 0, "Article A starts scrolled down")
+        let articleA = try XCTUnwrap(editor(in: host))
+        let scrollA = try XCTUnwrap(articleA.enclosingScrollView)
+        articleA.setSelectedRange(NSRange(location: (articleA.string as NSString).length, length: 0))
+        articleA.scrollRangeToVisible(articleA.selectedRange())
+        XCTAssertGreaterThan(scrollA.contentView.bounds.minY, 0, "Article A starts scrolled down")
 
-        source = article("Article B")
-        coordinator.loadDocument(source, documentID: "article-b")
+        store.selectArticle("10002")
 
-        XCTAssertEqual(textView.selectedRange(), NSRange(location: 0, length: 0))
-        XCTAssertEqual(scrollView.contentView.bounds.minY, 0, accuracy: 0.5)
+        await waitFor("The production view mounts Article B's native editor") {
+            host.layoutSubtreeIfNeeded()
+            return !store.isBusy && store.document?.articleID == "10002"
+                && self.editor(in: host)?.string.hasPrefix("# Article B") == true
+        }
+        XCTAssertNil(store.errorMessage)
+        let articleB = try XCTUnwrap(editor(in: host))
+        let scrollB = try XCTUnwrap(articleB.enclosingScrollView)
+        XCTAssertFalse(articleA === articleB, "Each file owns its native editor and pending scroll work")
+        XCTAssertEqual(articleB.selectedRange(), NSRange(location: 0, length: 0))
+        XCTAssertEqual(scrollB.contentView.bounds.minY, 0, accuracy: 0.5)
         await withCheckedContinuation { continuation in
             DispatchQueue.main.async { continuation.resume() }
         }
-        XCTAssertEqual(scrollView.contentView.bounds.minY, 0, accuracy: 0.5)
-        XCTAssertTrue(textView.string.hasPrefix("# Article B"))
+        host.layoutSubtreeIfNeeded()
+        XCTAssertEqual(scrollB.contentView.bounds.minY, 0, accuracy: 0.5)
 
-        // Rapid switches leave multiple queued layout passes. They must not
-        // override an explicit selection and edit in the latest document.
-        source = article("Article C")
-        coordinator.loadDocument(source, documentID: "article-c")
-        source = article("Article D")
-        coordinator.loadDocument(source, documentID: "article-d")
-        XCTAssertTrue(window.makeFirstResponder(textView))
-        let end = NSRange(location: (source as NSString).length, length: 0)
-        textView.setSelectedRange(end)
-        textView.insertText("Latest edit", replacementRange: end)
-        textView.scrollRangeToVisible(textView.selectedRange())
-        let editedSelection = textView.selectedRange()
-        XCTAssertGreaterThan(scrollView.contentView.bounds.minY, 0)
-
-        await withCheckedContinuation { continuation in
-            DispatchQueue.main.async { continuation.resume() }
+        // Switching only the view mode must keep this document's editor alive.
+        let selection = (articleB.string as NSString).range(of: "Paragraph 145")
+        XCTAssertNotEqual(selection.location, NSNotFound)
+        articleB.setSelectedRange(selection)
+        articleB.scrollRangeToVisible(selection)
+        XCTAssertGreaterThan(scrollB.contentView.bounds.minY, 0)
+        store.setMode(.preview)
+        await waitFor("Preview disables the mounted editor") {
+            host.layoutSubtreeIfNeeded()
+            return !articleB.isEditable
         }
+        XCTAssertTrue(editor(in: host) === articleB)
+        store.setMode(.editor)
+        await waitFor("Editing restores focus to the same mounted editor") {
+            host.layoutSubtreeIfNeeded()
+            return articleB.isEditable && store.editorFocusRequest == nil
+        }
+        XCTAssertTrue(editor(in: host) === articleB)
+        XCTAssertEqual(articleB.selectedRange(), selection)
+        XCTAssertGreaterThan(scrollB.contentView.bounds.minY, 0)
+    }
 
-        XCTAssertTrue(textView.string.hasPrefix("# Article D"))
-        XCTAssertTrue(source.hasSuffix("Latest edit"))
-        XCTAssertEqual(textView.selectedRange(), editedSelection)
-        XCTAssertGreaterThan(scrollView.contentView.bounds.minY, 0, "A stale reset must not scroll away from a new edit")
+    @MainActor
+    private func editor(in view: NSView) -> MarkdownTextView? {
+        if let editor = view as? MarkdownTextView { return editor }
+        for child in view.subviews {
+            if let editor = editor(in: child) { return editor }
+        }
+        return nil
+    }
+
+    @MainActor
+    private func waitFor(_ description: String, condition: () -> Bool,
+                         file: StaticString = #filePath, line: UInt = #line) async {
+        let deadline = Date().addingTimeInterval(5)
+        while !condition(), Date() < deadline {
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTAssertTrue(condition(), description, file: file, line: line)
+    }
+
+    private func makeScrollingLibrary() throws -> URL {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("MWebLite-EditorScroll-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("docs"), withIntermediateDirectories: true)
+        let database = try SQLiteDatabase(url: root.appendingPathComponent("mainlib.db"), writable: true, create: true)
+        try database.execute("CREATE TABLE article (id INTEGER PRIMARY KEY, uuid INTEGER UNIQUE, state INTEGER, dateAdd INTEGER, dateModif INTEGER)")
+        try database.execute("CREATE TABLE cat (uuid INTEGER PRIMARY KEY, name TEXT, pid INTEGER)")
+        try database.execute("CREATE TABLE cat_article (rid INTEGER, aid INTEGER)")
+        try database.execute("INSERT INTO article VALUES (1, 10001, 1, 1700000100, 1700000100)")
+        try database.execute("INSERT INTO article VALUES (2, 10002, 1, 1700000000, 1700000000)")
+        for (id, title) in [("10001", "Article A"), ("10002", "Article B")] {
+            let source = "# \(title)\n\n" + (1...150).map { "Paragraph \($0): 中文 and Markdown text.\n\n" }.joined()
+            try Data(source.utf8).write(to: root.appendingPathComponent("docs/\(id).md"))
+        }
+        return root
     }
 }
