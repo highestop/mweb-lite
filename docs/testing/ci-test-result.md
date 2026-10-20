@@ -1,7 +1,7 @@
 # CI test result
 
-CI run: [39375329315 (attempt 1)](https://github.com/highestop/mweb-lite/actions/runs/39375329315/attempts/1)
-Tested commit: [fa49b0b5389c35c654e7cb8dfa138ab28ccf02d9](https://github.com/highestop/mweb-lite/commit/fa49b0b5389c35c654e7cb8dfa138ab28ccf02d9)
+CI run: [39380323343 (attempt 1)](https://github.com/highestop/mweb-lite/actions/runs/39380323343/attempts/1)
+Tested commit: [56269568f2a6e0716dd6d8ed31bf398143c1ced5](https://github.com/highestop/mweb-lite/commit/56269568f2a6e0716dd6d8ed31bf398143c1ced5)
 
 | Case ID | Status |
 | --- | --- |
@@ -25,6 +25,7 @@ Tested commit: [fa49b0b5389c35c654e7cb8dfa138ab28ccf02d9](https://github.com/hig
 | [FOCUS-001](cases/FOCUS-001.md) | Passed |
 | [FOCUS-002](cases/FOCUS-002.md) | Passed |
 | [FOCUS-003](cases/FOCUS-003.md) | Passed |
+| [FOCUS-004](cases/FOCUS-004.md) | Passed |
 | [LIB-001](cases/LIB-001.md) | Passed |
 | [LIB-002](cases/LIB-002.md) | Passed |
 | [LIB-003](cases/LIB-003.md) | Passed |
@@ -43,6 +44,7 @@ Tested commit: [fa49b0b5389c35c654e7cb8dfa138ab28ccf02d9](https://github.com/hig
 | [PV-002](cases/PV-002.md) | Passed |
 | [PV-003](cases/PV-003.md) | Passed |
 | [PV-004](cases/PV-004.md) | Passed |
+| [PV-006](cases/PV-006.md) | Passed |
 | [ROW-001](cases/ROW-001.md) | Passed |
 | [ROW-002](cases/ROW-002.md) | Passed |
 | [ROW-003](cases/ROW-003.md) | Passed |
