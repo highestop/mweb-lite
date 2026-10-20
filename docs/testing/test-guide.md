@@ -1,6 +1,6 @@
 # Testing guide
 
-Use [test-cases.md](test-cases.md) for the shared case format and index. Each case has its own file under [cases/](cases/) describing what must work, how it is verified, and its latest recorded execution result. Use committed synthetic fixtures to reproduce full-app cases. A successful build alone does not verify any user interaction.
+Use [test-cases.md](test-cases.md) for the shared case format and index. Each case has its own definition under [cases/](cases/) describing what must work and how it is verified. [test-results.md](test-results.md) separately contains the latest published CI results. Use committed synthetic fixtures to reproduce full-app cases. A successful build alone does not verify any user interaction.
 
 **Preview app** means `MWeb Lite Preview.app`: the complete application built for end-to-end testing with an isolated fixture library. **Release app** means the normal `MWeb Lite.app` with its production identity and normal launch flow. **WebKit integration test program** means `PreviewTests.app`: the temporary program that checks only the Markdown rendering component. Their existing filenames remain unchanged.
 
@@ -50,27 +50,33 @@ Run all 43 cataloged XCTest cases, or select a class or method while investigati
 ```sh
 swift test
 swift test --filter MarkdownEditingTests
-swift test --filter LibraryStoreSelectionTests/testSelectionChangesBeforeSavingAndLoadingTheNextDocument
+swift test --filter LibraryStoreSelectionTests/test_SELECT_001_SelectionChangesBeforeSavingAndLoadingTheNextDocument
 ```
 
-To retain a log without losing the command's failure status:
+To retain structured XCTest results and a console log without losing the command's failure status:
 
 ```sh
 mkdir -p build/test-results
+export MWEB_XCTEST_RESULTS_PATH="$PWD/build/test-results/xctest.jsonl"
+: > "$MWEB_XCTEST_RESULTS_PATH"
 set -o pipefail
 swift test 2>&1 | tee build/test-results/swift-test.log
 ```
 
-Use a fresh log name when keeping multiple runs. On a restricted execution host, a failure to start WebKit or use `NSFileCoordinator` may be an environment problem. Record the diagnostic and mark that execution `Blocked`; rerun in a normal macOS session before claiming a pass. A local diagnostic does not change the recorded result of a separate CI execution.
+Tests inherit from the test-only `CaseReportingTestCase` in [Tests/CaseReporting](../../Tests/CaseReporting). When `MWEB_XCTEST_RESULTS_PATH` is set, its XCTest observer appends one JSONL record per completed case with exactly `case_id`, `status`, and `evidence`. Evidence starts with the exact selector and may include failure diagnostics. Use a new file or truncate it before every run; the reporter appends. Without that environment variable, ordinary `swift test` still runs without writing JSONL. This pipeline does not use `--xunit-output`: on the tested macOS toolchain it produced an empty Swift Testing XML report rather than XCTest results.
+
+Use a fresh log name when keeping multiple runs. On a restricted execution host, a failure to start WebKit or use `NSFileCoordinator` may be an environment problem. Keep the diagnostic and rerun in a normal macOS session before claiming a pass. A local diagnostic does not change the recorded result of a separate CI execution.
 
 ## Write automated tests
 
-Start with a case file in **Given / When / Then (GWT)** form. Given identifies the exact starting state, When describes one action or sequence, and Then states observable results. Name the XCTest method after the behavior and link that method in the case's Verification field. Keep failure diagnostics specific enough to identify which assertion failed.
+Start with a case file in **Given / When / Then (GWT)** form. Given identifies the exact starting state, When describes one action or sequence, and Then states observable results. Include the stable case ID in the XCTest method name, for example `test_LIB_001_<Behavior>`, and put the exact `ClassName/test_LIB_001_<Behavior>` selector in Verification. The result collector maps this explicit ID; it does not infer identity from execution order. Keep failure diagnostics specific enough to identify which assertion failed.
+
+Import `CaseReporting` and derive new XCTest classes from `CaseReportingTestCase` so CI receives their per-case results. Assertions and setup/teardown continue to use XCTest normally.
 
 A unit test can directly mirror GWT. This example uses the existing Markdown editing API:
 
 ```swift
-func testBoldPreservesUnicodeSelection() {
+func test_EDIT_003_BoldPreservesUnicodeSelection() {
     // Given: Chinese characters and an emoji are selected using UTF-16 offsets.
     let source = "中文 😀"
     let selection = NSRange(location: 0, length: (source as NSString).length)
@@ -110,9 +116,17 @@ For a regression, make the test fail for the original behavior, then verify the 
 
 This script compiles `MarkdownPreview.swift` and `Tests/PreviewIntegration/main.swift` into the temporary WebKit integration test program, `PreviewTests.app`, packages the production renderer resources, and loads a copy of `Tests/Fixtures/Preview/`. It deliberately has no SwiftPM resource fallback. It checks rendered DOM content and media loading in a real `WKWebView`, and checks that unsafe content and files outside the library are not exposed.
 
-The temporary app and mutable fixture copy are removed when the script exits. The script preserves its result log as `build/test-results/preview-<UTC timestamp>.log`; use the printed path as evidence. It reports `PASS PV-001` through `PASS PV-004`, then either `PASS PV-005` or `SKIP PV-005`. A nonzero exit is a failure, not a partial pass.
+The temporary app and mutable fixture copy are removed when the script exits. The script preserves a human-readable `.log` and machine-readable `.jsonl` under `build/test-results/preview-<UTC timestamp>`. Each JSONL line contains exactly `case_id`, `status`, and `evidence`, with status `Passed`, `Failed`, or `Skipped`. The matching `PASS`, `FAIL`, and `SKIP` console messages come from the same result records. A setup failure can terminate the process before a case reports; it must not fabricate results for unexecuted cases.
 
-The baseline rendering runs with optional runtimes disabled even when MWeb is installed. MathJax, Mermaid, ECharts, and Prism assertions depend on the optional runtime assets that the production preview reads from a local MWeb installation. PV-005 therefore uses the `Local script` path. Record whether these assets were available. If they are absent, record `Skipped` for that execution; the baseline cases must still pass. A CI skip does not establish PV-005's local result.
+Set `MWEB_CASE_RESULTS_PATH` to choose a JSONL destination, for example:
+
+```sh
+MWEB_CASE_RESULTS_PATH="$PWD/build/test-results/preview.jsonl" ./scripts/test-preview.sh
+```
+
+Each invocation starts a fresh result file. A nonzero process exit still matters even if some preceding cases passed.
+
+The baseline rendering runs with optional runtimes disabled even when MWeb is installed. MathJax, Mermaid, ECharts, and Prism assertions depend on optional runtime assets from a local MWeb installation. PV-005 therefore has Path `Local script`: its JSONL result remains available locally but is excluded from the CI artifact. If the assets are absent, the program explicitly emits `Skipped`; the baseline cases must still pass.
 
 This program does not test the article list, menus, editor, application lifecycle, or the complete save workflow. Use the Preview app below for those end-to-end cases.
 
@@ -177,7 +191,7 @@ Execute each full-app case from its documented Given state. Use a fresh run afte
 5. **Save and reopen:** save with `⌘S` when the case calls for explicit save, or wait for the observable saved-file result for an autosave case. Switch articles, quit, and reopen the same run. Confirm both content and category membership survived. Inspect only this run's database and document files if the Then clause requires storage assertions.
 6. **Inspect appearance and input:** check hover/pressed feedback, compact margins, dark/light appearance, and the app icon where specified. For Chinese input, use the actual macOS input method and record its name; `setMarkedText` in an XCTest does not substitute for this interaction.
 
-For every case, follow its file's exact GWT values rather than treating this sequence as a blanket pass. Keep reports, logs, and screenshots in ignored `build/Test Runs/` or `build/test-results/`; do not commit run reports. Record the latest result and a dated evidence reference in that case file. Quit the Preview app before removing its run directory. Keep a failed run until its diagnosis is complete.
+For every case, follow its file's exact GWT values rather than treating this sequence as a blanket pass. Keep local observations, reports, logs, and screenshots in ignored `build/Test Runs/` or `build/test-results/`; do not put results in case definitions. This change does not add a manual-result entry system or automated full-app execution. Quit the Preview app before removing its run directory. Keep a failed run until its diagnosis is complete.
 
 ## Verify the Release app
 
@@ -188,13 +202,29 @@ REL-001 exercises the normal production identity and library bookmark. Perform i
 3. Inspect the Finder and running Dock icon. Use File → Open / `⌘O` to select the copied fixture. Verify the expected categories and articles, then quit with `⌘Q`.
 4. Launch the installed app normally again. Verify that it restores the selected fixture through the saved library bookmark and still displays the expected content and icon. Record the installed bundle location, revision, account isolation, and observed results.
 
-This remains an end-to-end case, with Path `Release app`. A successful Preview app run does not pass it. If there is no recorded execution, use `—`; if a required test environment prevents an attempted execution, record `Blocked` and its cause. No step requires opening a personal library.
+This remains an end-to-end case, with Path `Release app`. A successful Preview app run does not pass it. Keep any observations with the ignored local run artifacts; this path is not included in the CI result summary. No step requires opening a personal library.
 
 ## GitHub Actions coverage
 
-[The macOS workflow](../../.github/workflows/test.yml) runs on pushes and pull requests. It validates the case catalog and fixture references, runs `swift test`, runs the WebKit integration test program, and builds the Release application.
+[The macOS workflow](../../.github/workflows/test.yml) validates case definitions and fixture references, runs XCTest and the WebKit integration program, and builds the Release application. The test methods carry explicit case IDs, and WebKit emits one structured record per reported case.
 
-The runner has its own checkout and temporary data; it does not access a developer's library. Optional installed-MWeb rendering may be skipped there. CI does not currently drive the Preview app or Release app with mouse and keyboard, perform visual review, or automatically update case results. Its passing result is evidence for the assertions that actually ran, not for the full-app end-to-end cases. Running the same commands locally is useful evidence for `Local script`, but cannot be recorded as `CI passed`.
+The collector combines the actual test reports into the `ci-case-results` artifact containing `case-results.json`, following [the result contract](test-cases.md#ci-result-contract). It includes only Path `CI` cases with an explicit result from that run. A build failure is not a failure for every case; a case that never started has no entry. The overall job can fail while individual completed cases have valid passing results.
+
+To reproduce collection from files belonging to an actual CI execution, supply its run URL, tested SHA, and attempt number:
+
+```sh
+python3 scripts/collect-test-results.py \
+  --xctest build/test-results/xctest.jsonl \
+  --preview build/test-results/preview.jsonl \
+  --run-url '<actual GitHub Actions run URL>' \
+  --source-sha '<tested commit SHA>' --attempt 1 \
+  --output build/test-results/case-results.json \
+  --markdown build/test-results/test-results.md
+```
+
+`--markdown` is optional and renders a local inspection copy. Do not attach a CI URL to results from a different local execution. Add `--require-xctest` when the XCTest runner succeeded and `--require-preview` when the WebKit runner succeeded: these flags require complete reporting for that successful runner. The workflow sets them from each runner's outcome. Failed or interrupted runners may supply partial observed results without those flags; absent results are never filled in. A complete baseline run currently produces 47 CI records: 43 XCTest cases and four WebKit cases, excluding local-only PV-005.
+
+The runner has its own checkout and temporary data; it does not access a developer's library. CI does not currently drive the Preview app or Release app with mouse and keyboard or perform visual review. PV-005 and all full-app cases are excluded from the CI result summary because their Paths are local. A local run of the same command cannot substitute for CI evidence.
 
 Before submitting a case or fixture change, run:
 
@@ -209,33 +239,34 @@ Also run the affected end-to-end cases when their behavior changes. Building via
 
 ## Maintain the case files
 
-Keep the shared specification and links in [test-cases.md](test-cases.md). Store each case in `docs/testing/cases/<ID>.md` using the [copyable case file template](test-cases.md#case-file-template): one `Field` / `Content` table containing the ten fields vertically, with no title, headings, or content outside it. Follow that specification for field order, filename matching, line breaks, and pipe escaping. The index links to cases and does not duplicate their results.
+Keep the shared specification and links in [test-cases.md](test-cases.md). Store each case in `docs/testing/cases/<ID>.md` using the [copyable case file template](test-cases.md#case-file-template): one `Field` / `Content` table containing eight definition fields, with no title, headings, or content outside it. Follow that specification for field order, filename matching, line breaks, and pipe escaping. Definitions contain no Status or Evidence fields.
 
-Keep IDs stable. Data links to fixture inputs where applicable; Verification contains the exact test selector or full-app instructions. Create separate cases when scope or required execution path differs. **Status records the latest recorded execution result for that case's Path.** If none exists, put `—` in Status and Evidence; this is an empty marker, not a test result.
+Keep IDs stable. Data links to fixture inputs where applicable; Verification contains the exact test selector or full-app instructions. Create separate cases when scope or required execution path differs. Update the GWT, fixture, and assertion together when behavior changes; do not edit an earlier execution result to imply the changed code passed.
 
-`check-test-cases.py` checks case-file structure, unique IDs, index coverage, complete XCTest mappings, preview case IDs, result values, fixture links, and evidence reference formats. Local ignored reports need not exist in a CI checkout. The checker does not execute cases or prove their results; review the actual logs and observations before recording them.
+`check-test-cases.py` validates case-file structure, stable IDs, index coverage, exact XCTest mappings, preview IDs, and fixture references. Result validation separately rejects malformed or unknown case records and cases whose Path is not CI. These checks cannot replace executing the actual assertions.
 
-| Status | Meaning |
-| --- | --- |
-| `CI passed` | The case's assertions actually ran and passed in the linked CI job for the recorded source and fixture revision. |
-| `Local script passed` | The documented script actually ran locally and every assertion passed for the recorded revision and environment. It does not prove a CI run passed. |
-| `Preview app passed` | The complete Preview app was exercised through the documented actions and every Then assertion was observed. |
-| `Release app passed` | The normal Release app was exercised through its documented installation and launch flow, and every Then assertion was observed. |
-| `Failed` | The case ran and at least one expected result was not met. Include actual versus expected behavior. |
-| `Blocked` | The case could not be completed because a required environment, runtime, or setup was unavailable. Include the cause. |
-| `Skipped` | A documented optional check was deliberately omitted, for example because MWeb rendering runtimes are not installed. This is not a pass. |
+## CI result publication
 
-A passing result must match the case's Path. A local rerun does not replace a CI result, and a Preview app observation cannot become `Release app passed`. Do not invent `Blocked` or `Skipped` for a case that has no execution record.
+[test-results.md](test-results.md) is the generated latest CI summary. Its only result columns are `Case ID`, `Status`, and `Evidence`, with IDs linked to their definitions. `Passed`, `Failed`, and `Skipped` describe individual reported cases. Missing entries mean no result was published for those cases from that run; they are not implied passes or failures. Evidence identifies the execution and tested source, so a summary does not automatically verify later edits.
 
-Keep run reports, logs, screenshots, and recordings outside Git, under ignored `build/test-results/` or `build/Test Runs/`. Each case's Evidence field retains the run date and source revision, plus a GitHub Actions URL or a reference labeled `local-only` to an ignored report. Local reports are not expected to be available to CI or other checkouts. Include these details in the report or CI evidence:
+The publication flow is:
 
-- Case IDs, Level, executed Path, and result; date with timezone; tester or CI run URL.
-- Source revision and fixture revision. If testing uncommitted work, say so and retain the relevant diff or source snapshot; do not label it as an unchanged commit.
-- macOS version, relevant Swift/Xcode version, and optional MWeb runtime availability. Include input method and appearance when they affect the case.
-- Exact command or full-app run name, actions actually performed, and observations. Link logs, screenshots, video, or saved-data checks when they prove the result.
+1. CI collects per-case results and uploads the `ci-case-results` artifact. Raw JSON and logs remain artifacts, not repository files.
+2. After a default-branch CI run completes, a trusted `workflow_run` publisher downloads and validates that run's artifact. It does not execute privileged publication code from a pull-request checkout.
+3. The publisher accepts only a current eligible run and updates `docs/testing/test-results.md` through a dedicated results PR. Independent validation checks the generated change before rebase merging it.
+4. Stale runs are prevented from replacing newer results, and result-only updates are guarded against triggering an endless publication loop.
 
-A screenshot proves a visible state, not how it was reached or whether a save survived restart. Record the action sequence and persisted-data check for those cases. Mouse-down timing may need a held-button screenshot or video. A green build, a related test, a past assistant statement, or a skipped assertion is never evidence of a case pass.
+Automatic publication becomes active only after its workflows are merged into the default branch. PR CI can validate collection while the publisher is still inactive. This change has not yet demonstrated the complete hosted collection → publication PR → validation → merge cycle; verify the first eligible default-branch run before claiming that full flow works.
 
-Code, fixture, or case changes do not clear the last result. Keep its execution date and tested revision so an earlier pass is not mistaken for verification of the changed version. Replace Status and Evidence only when a newer execution on that case's Path is recorded. A component pass never proves a full-app flow; future automated end-to-end cases can use `CI passed` when CI actually performs and verifies their complete flow.
+Repository **Settings → Actions → General → Workflow permissions** must allow **Allow GitHub Actions to create and approve pull requests** for the publisher to create its results PR. The publisher does not submit approval reviews; it keeps the repository's default token permission at read and grants write permissions only to the publication job. This combined repository switch is not yet enabled; authorization to change it is pending. Until enabled, publication cannot create its PR.
 
-For each behavior change, update its GWT case, assertions, and fixture inputs as needed, then run the affected checks and record their actual results. Preserve existing results if no newer run exists; use `—` for cases with no execution record.
+For a read-only check of an eligible completed default-branch push run, use an authenticated GitHub token and the repository name in the environment:
+
+```sh
+GITHUB_REPOSITORY=highestop/mweb-lite \
+  python3 scripts/publish-test-results.py --run-id '<run-id>' --dry-run
+```
+
+The run must belong to the current default-branch head and contain the validated artifact. A PR run is not eligible, even with `--dry-run`. Dry-run validates and renders without writing locally or remotely. Live publication is restricted to the trusted `workflow_run` context; it is not a command for publishing a local or PR-branch report.
+
+Only the latest Markdown CI summary is committed. Keep raw JSON, full run reports, screenshots, recordings, generated libraries, and app bundles in workflow artifacts or ignored `build/test-results/` and `build/Test Runs/`. Local Preview app investigation remains useful, but this pipeline adds neither manual-result submission nor automated full-app end-to-end execution.

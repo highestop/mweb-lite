@@ -1,11 +1,12 @@
 import AppKit
 import XCTest
+import CaseReporting
 @testable import MWebCore
 @testable import MWebLite
 
-final class LibraryStoreSelectionTests: XCTestCase {
+final class LibraryStoreSelectionTests: CaseReportingTestCase {
     @MainActor
-    func testSelectionChangesBeforeSavingAndLoadingTheNextDocument() async throws {
+    func test_SELECT_001_SelectionChangesBeforeSavingAndLoadingTheNextDocument() async throws {
         let root = try makeLibrary()
         defer { try? FileManager.default.removeItem(at: root) }
         let store = try await open(root)
@@ -29,7 +30,7 @@ final class LibraryStoreSelectionTests: XCTestCase {
     }
 
     @MainActor
-    func testSaveConflictRestoresSelectionAndPreservesTheDraft() async throws {
+    func test_SELECT_002_SaveConflictRestoresSelectionAndPreservesTheDraft() async throws {
         let root = try makeLibrary()
         defer { try? FileManager.default.removeItem(at: root) }
         let store = try await open(root)
@@ -50,7 +51,7 @@ final class LibraryStoreSelectionTests: XCTestCase {
     }
 
     @MainActor
-    func testLoadFailureRestoresSelectionWithoutReplacingTheDocument() async throws {
+    func test_SELECT_003_LoadFailureRestoresSelectionWithoutReplacingTheDocument() async throws {
         let root = try makeLibrary()
         defer { try? FileManager.default.removeItem(at: root) }
         let store = try await open(root)
@@ -67,7 +68,7 @@ final class LibraryStoreSelectionTests: XCTestCase {
     }
 
     @MainActor
-    func testSelectionWhileBusyDoesNotReplaceThePendingTarget() async throws {
+    func test_SELECT_004_SelectionWhileBusyDoesNotReplaceThePendingTarget() async throws {
         let root = try makeLibrary()
         defer { try? FileManager.default.removeItem(at: root) }
         let store = try await open(root)

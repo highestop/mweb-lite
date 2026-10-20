@@ -1,16 +1,16 @@
 # Test cases
 
-This document defines the shared case format and indexes the individual case files. Each file records behavior, test level, verification path, data source, and the latest recorded execution result. It contains 61 cases: 43 Swift tests, 5 preview-component integration cases, 12 full-app preview cases, and 1 release-app case. Follow the [test guide](test-guide.md) for setup, implementation, and evidence recording. A passing test verifies only its **Then** statement at the recorded revision; it does not certify the whole feature or subsequent changes. In particular, AppKit component tests and `PreviewTests.app` are integration tests, not full-application end-to-end tests.
+This document defines the shared case format and indexes the individual case files. Each file records behavior, test level, verification path, data source, and execution instructions. It contains 61 cases: 43 Swift tests, 5 preview-component integration cases, 12 full-app preview cases, and 1 release-app case. Execution results are separate in [the latest CI results](test-results.md). Follow the [test guide](test-guide.md) for setup and implementation. A passing test verifies only its **Then** statement at the recorded revision; it does not certify the whole feature or subsequent changes. In particular, AppKit component tests and `PreviewTests.app` are integration tests, not full-application end-to-end tests.
 
 ## Format and result rules
 
-Store each case in `cases/<ID>.md` as exactly one two-column Markdown table. Use `| Field | Content |` as the header and `| --- | --- |` as its separator. Follow them with exactly ten rows in this order: `ID`, `Given`, `When`, `Then`, `Level`, `Path`, `Data`, `Status`, `Verification`, and `Evidence`. The ID value must equal the filename without `.md`. Do not add a title, section headings, or content outside the table. Keep the case file as the single source of its assertions and recorded result.
+Store each case in `cases/<ID>.md` as exactly one two-column Markdown table. Use `| Field | Content |` as the header and `| --- | --- |` as its separator. Follow them with exactly eight rows in this order: `ID`, `Given`, `When`, `Then`, `Level`, `Path`, `Data`, and `Verification`. The ID value must equal the filename without `.md`. Do not add a title, section headings, or content outside the table. Keep execution results out of case definitions.
 
 Keep each row on one source line. Field content may use inline Markdown; use `<br>` for displayed line breaks. Escape every literal pipe as `\|`, including pipes inside code spans, so it cannot be mistaken for a column delimiter.
 
 ### Case file template
 
-Copy the complete table below into a new case file and replace the placeholders. Replace a source-link placeholder with a real relative link when Data is Fixture or Mixed. Keep Status and Evidence as `—` until an execution is recorded.
+Copy the complete table below into a new case file and replace the placeholders. Replace a source-link placeholder with a real relative link when Data is Fixture or Mixed.
 
 ```markdown
 | Field | Content |
@@ -22,14 +22,12 @@ Copy the complete table below into a new case file and replace the placeholders.
 | Level | <Unit, Integration, or End-to-end> |
 | Path | <CI, Local script, Preview app, or Release app> |
 | Data | <Inline, Fixture: source link, or Mixed: source link + generated setup> |
-| Status | — |
 | Verification | <Exact automated selector or full-app execution steps> |
-| Evidence | — |
 ```
 
-Use relative links from the case file's directory: fixture links start with `../../../Tests/Fixtures/`, and local report links start with `../../../build/test-results/`. Commands and runtime paths remain relative to the repository root. Follow the [test guide](test-guide.md) for execution setup and shared fixture expectations.
+Use relative links from the case file's directory: fixture links start with `../../../Tests/Fixtures/`. Commands and runtime paths remain relative to the repository root. Follow the [test guide](test-guide.md) for execution setup and shared fixture expectations.
 
-Each case has a permanent ID and explicit **Given / When / Then (GWT)** statements. Keep IDs when renaming tests. Add a separate case file when a scenario needs a different setup, test level, verification path, or result. Update the implementation, fixture, and case together when behavior changes; replace its recorded result and evidence only after another execution.
+Each case has a permanent ID and explicit **Given / When / Then (GWT)** statements. Keep IDs when renaming tests. Add a separate case file when a scenario needs a different setup, test level, or verification path. Update the implementation, fixture, and case together when behavior changes.
 
 | Field | Meaning |
 | --- | --- |
@@ -40,21 +38,35 @@ Each case has a permanent ID and explicit **Given / When / Then (GWT)** statemen
 | Level | `Unit`, `Integration`, or `End-to-end`. The level describes the test's scope independently of where or how it runs. |
 | Path | `CI`, `Local script`, `Preview app`, or `Release app`. The path identifies the execution environment and application variant used to verify this case. |
 | Data | Initial input source and any additional generated setup: `Inline` for literals/setup in test code, `Fixture: <source link>` for committed fixture inputs, or `Mixed: <source link> + <generated setup>` when both are required. Links identify source files/directories, not a mutable run copy. |
-| Status | Latest recorded execution: `CI passed`, `Local script passed`, `Preview app passed`, `Release app passed`, `Failed`, `Blocked`, or `Skipped`. Use `—` when no execution has been recorded. |
 | Verification | Exact automated selector, or full-app steps and fixture reference. |
-| Evidence | Direct CI-run link or local-only report link identifying the execution date, tested source/fixture revision, environment, and result. Use `—` when no execution has been recorded. Reports and generated artifacts stay outside Git. |
 
-A passing status must match the recorded Path and its evidence. `CI passed` requires the case's assertions to run successfully in CI; the same command passing locally is evidence for `Local script passed`, not a CI result. `Preview app passed` and `Release app passed` require completing the stated flow in the corresponding packaged app and checking every expected result. Keep independently maintained paths in separate cases when their setup or assertions differ. A lower-level or different-path result can be linked as supporting evidence, but cannot substitute for the case's required verification.
+XCTest methods include their stable case ID, replacing its hyphen with an underscore: `test_LIB_001_<Behavior>`. Verification must name the exact `ClassName/test_LIB_001_<Behavior>` selector implemented in code. Test classes inherit from `CaseReportingTestCase`, which appends structured results to `MWEB_XCTEST_RESULTS_PATH` when configured. The WebKit integration program emits explicit PV case IDs to `MWEB_CASE_RESULTS_PATH`. Result collection uses these IDs, not test order or a guessed match from a description; see the [guide](test-guide.md) for fresh-output setup and collection commands.
 
-Starting an app, passing a build, or running a related lower-level test is insufficient. `Skipped` means an optional path was intentionally not exercised; `Blocked` means a required prerequisite prevented execution. Status and Evidence record the latest execution for that case's Path; use `—` in both fields if none exists. Preserve recorded results when code, fixtures, or expectations change. Their date and tested revision identify historical evidence, which does not automatically validate the new code. Replace the result and evidence when the case is executed again.
+Data describes the case's initial inputs. Runtime database materialization and copying a fixture into an isolated run do not turn a Fixture case into Inline or Mixed. Action inputs such as text typed in the app belong in When; they do not change a fixture-based case's Data label. Mixed is used when the setup adds separate generated inputs, such as PV-001's outside-file and symlink escape probes. Keep mutable runtime copies separate from committed source links.
 
-Data describes the case's initial inputs. Runtime database materialization and copying a fixture into an isolated run do not turn a Fixture case into Inline or Mixed. Action inputs such as text typed in the app belong in When; they do not change a fixture-based case's Data label. Mixed is used when the setup adds separate generated inputs, such as PV-001's outside-file and symlink escape probes. Record the resulting run directory in evidence, keeping it separate from the committed source link.
+## CI result contract
 
-Do not commit test-run reports, generated databases, app bundles, screenshots, or logs. Link CI results directly to the GitHub Actions run. Keep local reports under ignored `build/test-results/` and other generated artifacts in the ignored run directory. Label local report links local-only: they may not exist in another checkout, and they are not downloadable CI evidence. Each case file retains its result and evidence reference; it does not embed the report. This index does not repeat statuses, data classifications, or evidence.
+The `ci-case-results` workflow artifact contains `case-results.json`: a JSON array whose items have exactly three fields, `case_id`, `status`, and `evidence`. Each ID must refer to a case whose Path is `CI`. Status is `Passed`, `Failed`, or `Skipped`, and evidence identifies the actual execution. Only explicitly reported results from that run are included.
+
+```json
+[
+  {
+    "case_id": "LIB-001",
+    "status": "Passed",
+    "evidence": "<execution evidence and source/run reference>"
+  }
+]
+```
+
+A test that did not run has no result entry. A compile error, failed application build, or failed overall job does not make every case `Failed`. An explicit skip is `Skipped`; it is never a pass. Local script, Preview app, and Release app results are not inserted into this CI artifact. Running the same command locally is not a CI execution, and starting an app or passing a build does not verify a user flow.
+
+[test-results.md](test-results.md) contains the latest published CI results as a three-column table: `Case ID`, `Status`, and `Evidence`. Each Case ID links to `cases/<ID>.md`. It is generated from validated CI data and is the only committed execution-result summary; case definitions and this index do not duplicate results. Evidence applies to the linked execution and tested revision, not automatically to later code.
+
+Keep raw JSON, detailed run reports, generated databases, app bundles, screenshots, and logs outside Git, in workflow artifacts or ignored `build/test-results/` and `build/Test Runs/`. The latest Markdown CI summary is the explicit exception. Publication and its activation requirements are described in [the test guide](test-guide.md#ci-result-publication).
 
 ## Case index
 
-Open a case to read or update its GWT statements, execution details, data source, and latest result. The short labels below are navigation aids only.
+Open a case to read or update its GWT statements, execution details, and data source. The short labels below are navigation aids only; see [test-results.md](test-results.md) for CI results.
 
 ### Shared fixture compatibility
 

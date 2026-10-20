@@ -7,6 +7,4 @@
 | Level | Integration |
 | Path | CI |
 | Data | Fixture: [Library](../../../Tests/Fixtures/Library) |
-| Status | CI passed |
-| Verification | `SharedFixtureTests/testEndToEndFixtureLoadsWithExpectedDocumentsAndCategories`; fixture `Tests/Fixtures/Library` |
-| Evidence | [2026-10-20 · 78de482](https://github.com/highestop/mweb-lite/actions/runs/39355435845) |
+| Verification | `SharedFixtureTests/test_FIXTURE_001_EndToEndFixtureLoadsWithExpectedDocumentsAndCategories`; fixture `Tests/Fixtures/Library` |

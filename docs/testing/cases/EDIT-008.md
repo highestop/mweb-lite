@@ -7,6 +7,4 @@
 | Level | Unit |
 | Path | CI |
 | Data | Inline |
-| Status | CI passed |
-| Verification | `MarkdownEditingTests/testLinePrefixCanBeToggledWithoutIncludingNextLine` |
-| Evidence | [2026-10-20 · 78de482](https://github.com/highestop/mweb-lite/actions/runs/39355435845) |
+| Verification | `MarkdownEditingTests/test_EDIT_008_LinePrefixCanBeToggledWithoutIncludingNextLine` |

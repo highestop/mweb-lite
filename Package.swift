@@ -9,7 +9,8 @@ let package = Package(
         .systemLibrary(name: "CSQLite"),
         .target(name: "MWebCore", dependencies: ["CSQLite"]),
         .executableTarget(name: "MWebLite", dependencies: ["MWebCore"], resources: [.process("Resources")]),
-        .testTarget(name: "MWebCoreTests", dependencies: ["MWebCore", "CSQLite"]),
-        .testTarget(name: "MWebLiteTests", dependencies: ["MWebLite"])
+        .target(name: "CaseReporting", path: "Tests/CaseReporting"),
+        .testTarget(name: "MWebCoreTests", dependencies: ["MWebCore", "CSQLite", "CaseReporting"]),
+        .testTarget(name: "MWebLiteTests", dependencies: ["MWebLite", "CaseReporting"])
     ]
 )

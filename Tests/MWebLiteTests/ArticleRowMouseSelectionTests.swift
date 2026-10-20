@@ -1,9 +1,10 @@
 import AppKit
 import XCTest
+import CaseReporting
 @testable import MWebLite
 
-final class ArticleRowMouseSelectionTests: XCTestCase {
-    func testAnchorAttachesToWholeRowAndUpdatesReusedAction() async throws {
+final class ArticleRowMouseSelectionTests: CaseReportingTestCase {
+    func test_ROW_001_AnchorAttachesToWholeRowAndUpdatesReusedAction() async throws {
         try await MainActor.run {
             _ = NSApplication.shared
             let firstRow = NSTableRowView(frame: NSRect(x: 0, y: 0, width: 300, height: 80))
@@ -35,7 +36,7 @@ final class ArticleRowMouseSelectionTests: XCTestCase {
         }
     }
 
-    func testDisabledAndDismantledAnchorCannotSelect() async throws {
+    func test_ROW_002_DisabledAndDismantledAnchorCannotSelect() async throws {
         try await MainActor.run {
             let row = NSTableRowView()
             let anchor = ArticleRowSelectionAnchor()
@@ -58,7 +59,7 @@ final class ArticleRowMouseSelectionTests: XCTestCase {
         }
     }
 
-    func testOnlyUnmodifiedPrimaryMouseDownIsAccepted() async throws {
+    func test_ROW_003_OnlyUnmodifiedPrimaryMouseDownIsAccepted() async throws {
         try await MainActor.run {
             func event(_ type: NSEvent.EventType, _ modifiers: NSEvent.ModifierFlags = []) throws -> NSEvent {
                 try XCTUnwrap(NSEvent.mouseEvent(with: type, location: .zero, modifierFlags: modifiers,

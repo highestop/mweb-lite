@@ -1,10 +1,11 @@
 import AppKit
 import SwiftUI
 import XCTest
+import CaseReporting
 @testable import MWebLite
 
-final class MarkdownEditorFocusTests: XCTestCase {
-    func testResigningFocusCommitsCompositionToBinding() async {
+final class MarkdownEditorFocusTests: CaseReportingTestCase {
+    func test_FOCUS_001_ResigningFocusCommitsCompositionToBinding() async {
         await MainActor.run {
             _ = NSApplication.shared
             var source = "Before "
@@ -49,7 +50,7 @@ final class MarkdownEditorFocusTests: XCTestCase {
         }
     }
 
-    func testFocusRoundTripPreservesSelectionAndUndo() async throws {
+    func test_FOCUS_002_FocusRoundTripPreservesSelectionAndUndo() async throws {
         try await MainActor.run {
             _ = NSApplication.shared
             var source = "原文"
@@ -92,7 +93,7 @@ final class MarkdownEditorFocusTests: XCTestCase {
         }
     }
 
-    func testNewDocumentFocusSelectsUnicodeTitleOnly() async {
+    func test_FOCUS_003_NewDocumentFocusSelectsUnicodeTitleOnly() async {
         await MainActor.run {
             _ = NSApplication.shared
             let textView = MarkdownTextView()

@@ -1,11 +1,12 @@
 import AppKit
 import XCTest
+import CaseReporting
 @testable import MWebCore
 @testable import MWebLite
 
-final class LibraryStoreCreationTests: XCTestCase {
+final class LibraryStoreCreationTests: CaseReportingTestCase {
     @MainActor
-    func testPendingCreationWaitsForPriorSaveAndInheritsCategory() async throws {
+    func test_STORE_001_PendingCreationWaitsForPriorSaveAndInheritsCategory() async throws {
         let root = try makeLibrary()
         defer { try? FileManager.default.removeItem(at: root) }
         let store = try await open(root)
@@ -30,7 +31,7 @@ final class LibraryStoreCreationTests: XCTestCase {
     }
 
     @MainActor
-    func testConflictingDraftPreventsCreationAndPreservesDraft() async throws {
+    func test_STORE_002_ConflictingDraftPreventsCreationAndPreservesDraft() async throws {
         let root = try makeLibrary()
         defer { try? FileManager.default.removeItem(at: root) }
         let store = try await open(root)

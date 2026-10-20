@@ -1,8 +1,9 @@
 import Foundation
 import XCTest
+import CaseReporting
 @testable import MWebCore
 
-final class MWebLibraryTests: XCTestCase {
+final class MWebLibraryTests: CaseReportingTestCase {
     private var root: URL!
     private var database: SQLiteDatabase!
 
@@ -30,7 +31,7 @@ final class MWebLibraryTests: XCTestCase {
         if let root { try FileManager.default.removeItem(at: root) }
     }
 
-    func testIndexUsesUUIDRelationshipsAndContentTitles() throws {
+    func test_LIB_001_IndexUsesUUIDRelationshipsAndContentTitles() throws {
         let index = try MWebLibrary(rootURL: root).loadIndex()
         XCTAssertEqual(index.categories.map(\.id), ["200", "100"])
         XCTAssertEqual(index.categories.first?.parentID, "100")
@@ -45,7 +46,7 @@ final class MWebLibraryTests: XCTestCase {
         XCTAssertEqual(index.articles.filter { !$0.isTrashed }.map(\.id), ["10002", "10001"])
     }
 
-    func testSavePreservesUnknownMetadataAndBacksUpOriginal() throws {
+    func test_LIB_002_SavePreservesUnknownMetadataAndBacksUpOriginal() throws {
         let library = try MWebLibrary(rootURL: root)
         let article = try XCTUnwrap(library.loadIndex().articles.first { $0.id == "10001" })
         let original = try library.loadDocument(articleID: "10001")
@@ -75,7 +76,7 @@ final class MWebLibraryTests: XCTestCase {
         XCTAssertEqual(try backupDB.query("SELECT * FROM article WHERE uuid = 10001").first, before)
     }
 
-    func testNoOpSaveDoesNotTouchFileOrCreateBackup() throws {
+    func test_LIB_003_NoOpSaveDoesNotTouchFileOrCreateBackup() throws {
         let library = try MWebLibrary(rootURL: root)
         let document = try library.loadDocument(articleID: "10001")
         let before = try row("10001")
@@ -85,7 +86,7 @@ final class MWebLibraryTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent(".mweb-lite").path))
     }
 
-    func testExternalFileChangeRefusesSaveWithoutOverwriting() throws {
+    func test_LIB_004_ExternalFileChangeRefusesSaveWithoutOverwriting() throws {
         let library = try MWebLibrary(rootURL: root)
         let original = try library.loadDocument(articleID: "10001")
         try write("# External edit\n", articleID: "10001")
@@ -96,7 +97,7 @@ final class MWebLibraryTests: XCTestCase {
         XCTAssertEqual(try row("10001")["dateModif"], .integer(1700000000))
     }
 
-    func testExternalMetadataChangeRefusesSave() throws {
+    func test_LIB_005_ExternalMetadataChangeRefusesSave() throws {
         let library = try MWebLibrary(rootURL: root)
         let original = try library.loadDocument(articleID: "10001")
         try database.execute("UPDATE article SET unknownColumn = X'AAAA' WHERE uuid = 10001")
@@ -105,7 +106,7 @@ final class MWebLibraryTests: XCTestCase {
         XCTAssertEqual(try row("10001")["unknownColumn"], .blob(Data([0xAA, 0xAA])))
     }
 
-    func testFailedCommitRestoresMarkdownAndRollsBackMetadata() throws {
+    func test_LIB_006_FailedCommitRestoresMarkdownAndRollsBackMetadata() throws {
         // The deferred constraint fails at COMMIT, after the Markdown replacement.
         try database.execute("CREATE TABLE referenced (id INTEGER PRIMARY KEY)")
         try database.execute("CREATE TABLE save_audit (article_id INTEGER REFERENCES referenced(id) DEFERRABLE INITIALLY DEFERRED)")
@@ -124,7 +125,7 @@ final class MWebLibraryTests: XCTestCase {
         XCTAssertTrue(try database.query("SELECT * FROM save_audit").isEmpty)
     }
 
-    func testBackupsKeepOneDatabaseAndBoundedMarkdownHistory() throws {
+    func test_LIB_007_BackupsKeepOneDatabaseAndBoundedMarkdownHistory() throws {
         let library = try MWebLibrary(rootURL: root)
         var document = try library.loadDocument(articleID: "10001")
         let originalData = document.originalData
@@ -142,7 +143,7 @@ final class MWebLibraryTests: XCTestCase {
         XCTAssertEqual(sessions.count, 1)
     }
 
-    func testOnlineBackupIncludesCommittedWALChanges() throws {
+    func test_LIB_008_OnlineBackupIncludesCommittedWALChanges() throws {
         try database.execute("PRAGMA journal_mode = WAL")
         try database.execute("UPDATE article SET docName = 'committed-in-wal' WHERE uuid = 10001")
         XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("mainlib.db-wal").path))
@@ -157,7 +158,7 @@ final class MWebLibraryTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: saved.fileURL, encoding: .utf8), "# WAL save\n")
     }
 
-    func testBackupsRemainPrivateAndOriginalPermissionsArePreserved() throws {
+    func test_LIB_009_BackupsRemainPrivateAndOriginalPermissionsArePreserved() throws {
         let file = root.appendingPathComponent("docs/10001.md")
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)
         let library = try MWebLibrary(rootURL: root)
@@ -173,7 +174,7 @@ final class MWebLibraryTests: XCTestCase {
         XCTAssertEqual(try permissions(XCTUnwrap(snapshots.first)), 0o600)
     }
 
-    func testRefusesTrashedMissingAndInvalidUTF8Documents() throws {
+    func test_LIB_010_RefusesTrashedMissingAndInvalidUTF8Documents() throws {
         let library = try MWebLibrary(rootURL: root)
         XCTAssertThrowsError(try library.loadDocument(articleID: "10003"))
         XCTAssertThrowsError(try library.loadDocument(articleID: "99999"))
@@ -182,7 +183,7 @@ final class MWebLibraryTests: XCTestCase {
         XCTAssertThrowsError(try library.loadDocument(articleID: "10001"))
     }
 
-    func testMissingFileDoesNotHideOtherArticles() throws {
+    func test_LIB_011_MissingFileDoesNotHideOtherArticles() throws {
         try FileManager.default.removeItem(at: root.appendingPathComponent("docs/10002.md"))
         let index = try MWebLibrary(rootURL: root).loadIndex()
         XCTAssertEqual(index.articles.count, 3)
@@ -190,7 +191,7 @@ final class MWebLibraryTests: XCTestCase {
         XCTAssertTrue(try XCTUnwrap(index.articles.first { $0.id == "10001" }).isAvailable)
     }
 
-    func testRejectsUnsupportedSchemaWithoutCreatingFiles() throws {
+    func test_LIB_012_RejectsUnsupportedSchemaWithoutCreatingFiles() throws {
         let empty = root.appendingPathComponent("empty")
         try FileManager.default.createDirectory(at: empty, withIntermediateDirectories: true)
         XCTAssertThrowsError(try MWebLibrary(rootURL: empty))
@@ -199,7 +200,7 @@ final class MWebLibraryTests: XCTestCase {
         XCTAssertThrowsError(try MWebLibrary(rootURL: root))
     }
 
-    func testSymlinkCannotWriteOutsideSelectedLibrary() throws {
+    func test_LIB_013_SymlinkCannotWriteOutsideSelectedLibrary() throws {
         let outside = root.appendingPathComponent("../mweb-lite-outside-\(UUID().uuidString).md").standardizedFileURL
         defer { try? FileManager.default.removeItem(at: outside) }
         try Data("# Outside".utf8).write(to: outside)
@@ -210,7 +211,7 @@ final class MWebLibraryTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: outside, encoding: .utf8), "# Outside")
     }
 
-    func testUTF8BOMAndCRLFRemainIntact() throws {
+    func test_LIB_014_UTF8BOMAndCRLFRemainIntact() throws {
         let data = Data([0xEF, 0xBB, 0xBF]) + Data("# Title\r\n\r\nBody\r\n".utf8)
         try data.write(to: root.appendingPathComponent("docs/10001.md"))
         let library = try MWebLibrary(rootURL: root)

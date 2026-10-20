@@ -1,10 +1,11 @@
 import CSQLite
 import Foundation
 import XCTest
+import CaseReporting
 @testable import MWebCore
 
-final class SharedFixtureTests: XCTestCase {
-    func testEndToEndFixtureLoadsWithExpectedDocumentsAndCategories() throws {
+final class SharedFixtureTests: CaseReportingTestCase {
+    func test_FIXTURE_001_EndToEndFixtureLoadsWithExpectedDocumentsAndCategories() throws {
         // Given: the committed fixture, copied to a disposable library.
         let source = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .deletingLastPathComponent().appendingPathComponent("Fixtures/Library")

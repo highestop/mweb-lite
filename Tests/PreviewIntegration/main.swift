@@ -10,46 +10,131 @@ extension Bundle {
     }
 }
 
-func expect(_ condition: @autoclosure () -> Bool, _ message: String) {
-    guard condition() else { print("FAIL: \(message)"); fflush(stdout); exit(1) }
+let previewCaseIDs = ["PV-001", "PV-002", "PV-003", "PV-004", "PV-005"]
+
+struct CaseResult: Encodable {
+    let case_id: String
+    let status: String
+    let evidence: String
 }
 
-func environmentDirectory(_ name: String) -> URL {
-    guard let path = ProcessInfo.processInfo.environment[name], !path.isEmpty else {
+final class CaseResults {
+    private let output: FileHandle
+    private var failures: [String: [String]] = [:]
+    private var completed: Set<String> = []
+    private(set) var hasFailures = false
+    private let summaries = [
+        "PV-001": "Local media confinement assertions passed",
+        "PV-002": "Article URL parsing assertions passed",
+        "PV-003": "Bundled Markdown, MWeb extensions and local image assertions passed",
+        "PV-004": "Script execution and unsafe HTML attribute assertions passed",
+        "PV-005": "MathJax, Mermaid, ECharts and Prism assertions passed"
+    ]
+
+    init(path: String) throws {
+        output = try FileHandle(forWritingTo: URL(fileURLWithPath: path))
+    }
+
+    func expect(_ caseID: String, _ condition: @autoclosure () -> Bool, _ message: String) {
+        precondition(previewCaseIDs.contains(caseID) && !completed.contains(caseID))
+        if failures[caseID] == nil { failures[caseID] = [] }
+        if !condition() {
+            failures[caseID, default: []].append(message)
+            hasFailures = true
+        }
+    }
+
+    func complete(_ caseID: String) {
+        guard let errors = failures[caseID], !completed.contains(caseID) else { return }
+        let evidence = errors.isEmpty ? summaries[caseID]! : Array(Set(errors)).sorted().joined(separator: "; ")
+        emit(caseID, status: errors.isEmpty ? "Passed" : "Failed", evidence: evidence)
+    }
+
+    func skip(_ caseID: String, reason: String) {
+        precondition(failures[caseID] == nil && !completed.contains(caseID))
+        emit(caseID, status: "Skipped", evidence: reason)
+    }
+
+    func completeObservedCases() {
+        // A setup failure must not invent outcomes for assertions that never ran.
+        for caseID in previewCaseIDs { complete(caseID) }
+    }
+
+    private func emit(_ caseID: String, status: String, evidence: String) {
+        do {
+            var data = try JSONEncoder().encode(CaseResult(case_id: caseID, status: status, evidence: evidence))
+            data.append(0x0A)
+            try output.write(contentsOf: data)
+        } catch {
+            print("FAIL: Could not write case results: \(error)")
+            fflush(stdout)
+            exit(1)
+        }
+        completed.insert(caseID)
+        let label = status == "Passed" ? "PASS" : status == "Failed" ? "FAIL" : "SKIP"
+        print("\(label) \(caseID): \(evidence)")
+        fflush(stdout)
+    }
+}
+
+func environmentValue(_ name: String) -> String {
+    guard let value = ProcessInfo.processInfo.environment[name], !value.isEmpty else {
         print("FAIL: Missing \(name); run scripts/test-preview.sh")
+        fflush(stdout)
         exit(1)
     }
-    return URL(fileURLWithPath: path, isDirectory: true)
+    return value
 }
 
-let fixtures = environmentDirectory("MWEB_PREVIEW_FIXTURES")
-let runtime = environmentDirectory("MWEB_PREVIEW_RUNTIME_ROOT")
+let results: CaseResults
+do {
+    results = try CaseResults(path: environmentValue("MWEB_CASE_RESULTS_PATH"))
+} catch {
+    print("FAIL: Could not open case results: \(error)")
+    fflush(stdout)
+    exit(1)
+}
+
+func abort(_ message: String, caseID: String? = nil) -> Never {
+    if let caseID { results.expect(caseID, false, message) }
+    results.completeObservedCases()
+    print("FAIL: \(message)")
+    fflush(stdout)
+    exit(1)
+}
+
+let fixtures = URL(fileURLWithPath: environmentValue("MWEB_PREVIEW_FIXTURES"), isDirectory: true)
+let runtime = URL(fileURLWithPath: environmentValue("MWEB_PREVIEW_RUNTIME_ROOT"), isDirectory: true)
 let library = runtime.appendingPathComponent("library")
 let docs = library.appendingPathComponent("docs")
 let document = docs.appendingPathComponent("preview.md")
 let media = docs.appendingPathComponent("media")
 let files = FileManager.default
-try files.createDirectory(at: docs, withIntermediateDirectories: true)
-try files.copyItem(at: fixtures.appendingPathComponent("rendering.md"), to: document)
-try files.copyItem(at: fixtures.appendingPathComponent("media"), to: media)
-// The escape target and symlink belong only to this run, never to the checked-in fixtures.
-let outsideImage = runtime.appendingPathComponent("outside.png")
-try files.copyItem(at: media.appendingPathComponent("test.png"), to: outsideImage)
-try files.createSymbolicLink(at: media.appendingPathComponent("outside.png"), withDestinationURL: outsideImage)
+let sample: String
+do {
+    try files.createDirectory(at: docs, withIntermediateDirectories: true)
+    try files.copyItem(at: fixtures.appendingPathComponent("rendering.md"), to: document)
+    try files.copyItem(at: fixtures.appendingPathComponent("media"), to: media)
+    // The escape target and symlink belong only to this run, never to the checked-in fixtures.
+    let outsideImage = runtime.appendingPathComponent("outside.png")
+    try files.copyItem(at: media.appendingPathComponent("test.png"), to: outsideImage)
+    try files.createSymbolicLink(at: media.appendingPathComponent("outside.png"), withDestinationURL: outsideImage)
+    sample = try String(contentsOf: document, encoding: .utf8)
+} catch {
+    abort("Preview fixture setup failed: \(error)")
+}
 
 let resourceHandler = PreviewResourceHandler()
 resourceHandler.libraryRoot = library
-expect(resourceHandler.localMediaURL(for: URL(string: "mweblite://library/docs/media/test.png")!) != nil, "library image should be readable")
-expect(resourceHandler.localMediaURL(for: URL(string: "mweblite://library/docs/media/outside.png")!) == nil, "symlinks must not escape the library")
-expect(resourceHandler.localMediaURL(for: URL(string: "mweblite://library/mainlib.db")!) == nil, "the database must not be served to WebKit")
-expect(PreviewResourceHandler.confinedURL(path: "../outside.png", root: library) == nil, "parent traversal must be rejected")
-print("PASS PV-001: local media confinement")
-expect(MarkdownPreview.Coordinator.articleID(from: URL(string: "mweblib://123456789")!) == "123456789", "MWeb article links")
-expect(MarkdownPreview.Coordinator.articleID(from: URL(string: "mweblite://library/docs/123456789.md")!) == "123456789", "relative article links")
-expect(MarkdownPreview.Coordinator.articleID(from: URL(string: "mweblib://invalid")!) == nil, "invalid article IDs must be rejected")
-print("PASS PV-002: article URL parsing")
-
-let sample = try String(contentsOf: document, encoding: .utf8)
+results.expect("PV-001", resourceHandler.localMediaURL(for: URL(string: "mweblite://library/docs/media/test.png")!) != nil, "Library image was not readable")
+results.expect("PV-001", resourceHandler.localMediaURL(for: URL(string: "mweblite://library/docs/media/outside.png")!) == nil, "Symlink escaped the library")
+results.expect("PV-001", resourceHandler.localMediaURL(for: URL(string: "mweblite://library/mainlib.db")!) == nil, "Database was exposed to WebKit")
+results.expect("PV-001", PreviewResourceHandler.confinedURL(path: "../outside.png", root: library) == nil, "Parent traversal was accepted")
+results.complete("PV-001")
+results.expect("PV-002", MarkdownPreview.Coordinator.articleID(from: URL(string: "mweblib://123456789")!) == "123456789", "MWeb article link was not parsed")
+results.expect("PV-002", MarkdownPreview.Coordinator.articleID(from: URL(string: "mweblite://library/docs/123456789.md")!) == "123456789", "Relative article link was not parsed")
+results.expect("PV-002", MarkdownPreview.Coordinator.articleID(from: URL(string: "mweblib://invalid")!) == nil, "Invalid article ID was accepted")
+results.complete("PV-002")
 
 let snapshotScript = #"""
 JSON.stringify({title:document.querySelector('h1')?.textContent,
@@ -74,14 +159,20 @@ let window = NSWindow(contentRect: view.frame, styleMask: [.titled], backing: .b
 window.contentView = view
 
 final class Delegate: NSObject, WKNavigationDelegate {
+    private var activeRenderCaseID: String?
+
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         render(webView, runtimeAvailable: false)
     }
 
     func render(_ webView: WKWebView, runtimeAvailable: Bool) {
+        let caseID = runtimeAvailable ? "PV-005" : "PV-003"
+        activeRenderCaseID = caseID
         webView.callAsyncJavaScript("window.renderMarkdown(markdown, 'mweblite://library/docs/', runtimeAvailable, true)",
                                    arguments: ["markdown": sample, "runtimeAvailable": runtimeAvailable], in: nil, in: .page) { result in
-            if case .failure(let error) = result { print("FAIL: \(error)"); exit(1) }
+            if case .failure(let error) = result {
+                abort("Markdown rendering failed: \(error.localizedDescription)", caseID: caseID)
+            }
             self.check(webView, runtimeAvailable: runtimeAvailable, attempts: 40)
         }
     }
@@ -91,46 +182,66 @@ final class Delegate: NSObject, WKNavigationDelegate {
             webView.evaluateJavaScript(snapshotScript) { value, error in
                 guard let json = value as? String, let data = json.data(using: .utf8),
                       let state = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
-                    print("FAIL: JavaScript state unavailable: \(String(describing: error))"); exit(1)
+                    abort("Rendered DOM was unavailable: \(error?.localizedDescription ?? "Invalid snapshot")", caseID: self.activeRenderCaseID)
                 }
                 let labels = state["mermaidLabels"] as? [String] ?? []
-                let ready = (state["imageLoaded"] as? Int ?? 0) > 0 && (!runtimeAvailable || (
-                    state["math"] as? Int == 3 && state["chart"] as? Int == 1 &&
-                    (state["highlight"] as? Int ?? 0) > 0 && labels.contains("Start") && labels.contains("Done")))
-                if !ready && attempts > 0 { self.check(webView, runtimeAvailable: runtimeAvailable, attempts: attempts - 1); return }
-                expect(ready, "rendering timed out: \(json)")
-                expect(state["title"] as? String == "Preview verification", "CommonMark headings")
-                expect(state["table"] as? Int == 1 && state["task"] as? Int == 1, "GFM table and task list")
-                expect(state["footnote"] as? Int == 1 && state["toc"] as? Int == 2, "footnotes and TOC")
-                expect(state["imageWidth"] as? String == "140", "MWeb image width")
-                expect(state["article"] as? String == "mweblib://123456789", "article link retention")
-                expect(state["noteExecuted"] as? Bool == false, "note scripts must never execute")
-                expect(state["fileURLs"] as? Int == 0 && state["javascriptURLs"] as? Int == 0 && state["inlineHandlers"] as? Int == 0, "unsafe attributes must be stripped")
-                if !runtimeAvailable {
-                    print("PASS PV-003: bundled CommonMark/GFM/MWeb rendering and local image loading")
-                    print("PASS PV-004: unsafe HTML isolation")
-                    if resourceHandler.runtimeRoot != nil {
-                        self.render(webView, runtimeAvailable: true)
-                        return
-                    }
-                    print("SKIP PV-005: optional MWeb runtimes are unavailable; install MWeb Pro and rerun")
-                } else {
-                    expect((state["highlight"] as? Int ?? 0) > 0, "Prism syntax highlighting")
-                    print("PASS PV-005: MathJax, Mermaid, ECharts and Prism rendering")
+                let imageLoaded = (state["imageLoaded"] as? Int ?? 0) > 0
+                let optionalReady = state["math"] as? Int == 3 && state["chart"] as? Int == 1 &&
+                    (state["highlight"] as? Int ?? 0) > 0 && labels.contains("Start") && labels.contains("Done")
+                let ready = imageLoaded && (!runtimeAvailable || optionalReady)
+                if !ready && attempts > 0 {
+                    self.check(webView, runtimeAvailable: runtimeAvailable, attempts: attempts - 1)
+                    return
                 }
-                print("PASS: preview integration checks finished; skipped cases are not verified")
+                // Rendering and security have independent assertions. A missing image or
+                // heading must not falsely turn the HTML isolation case into a failure.
+                results.expect("PV-003", imageLoaded, "Local image did not load before the render timeout")
+                results.expect("PV-003", state["title"] as? String == "Preview verification", "CommonMark heading did not match")
+                results.expect("PV-003", state["table"] as? Int == 1 && state["task"] as? Int == 1, "GFM table or task list was missing")
+                results.expect("PV-003", state["footnote"] as? Int == 1 && state["toc"] as? Int == 2, "Footnote or TOC did not match")
+                results.expect("PV-003", state["imageWidth"] as? String == "140", "MWeb image width did not match")
+                results.expect("PV-003", state["article"] as? String == "mweblib://123456789", "Article link was not retained")
+                results.expect("PV-004", state["noteExecuted"] as? Bool == false, "Note script executed")
+                results.expect("PV-004", state["fileURLs"] as? Int == 0 && state["javascriptURLs"] as? Int == 0 && state["inlineHandlers"] as? Int == 0, "Unsafe HTML attributes remained")
+                if !runtimeAvailable, resourceHandler.runtimeRoot != nil {
+                    self.render(webView, runtimeAvailable: true)
+                    return
+                }
+                if runtimeAvailable {
+                    results.expect("PV-005", state["math"] as? Int == 3, "MathJax did not render three expressions")
+                    results.expect("PV-005", labels.contains("Start") && labels.contains("Done"), "Mermaid graph labels were missing")
+                    results.expect("PV-005", state["chart"] as? Int == 1, "ECharts canvas was missing")
+                    results.expect("PV-005", (state["highlight"] as? Int ?? 0) > 0, "Prism syntax highlighting was missing")
+                }
+                results.completeObservedCases()
+                if !runtimeAvailable {
+                    results.skip("PV-005", reason: "Optional MWeb runtimes are unavailable")
+                }
+                print("\(results.hasFailures ? "FAIL" : "PASS"): preview integration checks finished; skipped cases are not verified")
                 fflush(stdout)
-                exit(0)
+                exit(results.hasFailures ? 1 : 0)
             }
         }
     }
 
+    func timedOut() {
+        abort("WebKit timed out", caseID: activeRenderCaseID)
+    }
+
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        print("FAIL: \(error)"); fflush(stdout); exit(1)
+        abort("Preview navigation failed: \(error.localizedDescription)", caseID: activeRenderCaseID)
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        abort("Preview navigation setup failed: \(error.localizedDescription)")
+    }
+
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        abort("WebKit content process terminated", caseID: activeRenderCaseID)
     }
 }
 let delegate = Delegate()
 view.navigationDelegate = delegate
 view.load(URLRequest(url: URL(string: "mweblite://app/Preview.html")!))
-DispatchQueue.main.asyncAfter(deadline: .now() + 30) { print("FAIL: WebKit timed out"); fflush(stdout); exit(1) }
+DispatchQueue.main.asyncAfter(deadline: .now() + 30) { delegate.timedOut() }
 app.run()
