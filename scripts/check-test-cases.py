@@ -7,7 +7,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 INDEX = ROOT / "docs/testing/test-cases.md"
 CASE_DIR = INDEX.parent / "cases"
-FIELDS = ["Given", "When", "Then", "Level", "Path", "Data", "Status", "Verification", "Evidence"]
+FIELDS = ["ID", "Given", "When", "Then", "Level", "Path", "Data", "Status", "Verification", "Evidence"]
 LEVELS = {"Unit", "Integration", "End-to-end"}
 PASSED_BY_PATH = {"CI": "CI passed", "Local script": "Local script passed",
                   "Preview app": "Preview app passed", "Release app": "Release app passed"}
@@ -32,13 +32,22 @@ def read_case(source):
     if not re.fullmatch(r"[A-Z][A-Z0-9]*-\d{3}", identifier):
         raise ValueError(f"Invalid case filename: {source.name}")
     text = source.read_text()
-    headings = list(re.finditer(r"^## (.+)$", text, re.MULTILINE))
-    if [heading[1] for heading in headings] != FIELDS:
+    lines = text.strip().splitlines()
+    if lines[:2] != ["| Field | Content |", "| --- | --- |"]:
+        raise ValueError(f"{identifier}: expected a Field/Content table without headings or other content")
+    rows = []
+    for line in lines[2:]:
+        if not line.startswith("| ") or not line.endswith(" |"):
+            raise ValueError(f"{identifier}: each field must occupy one table row; use <br> for line breaks")
+        cells = [cell.strip() for cell in re.split(r"(?<!\\)\|", line[1:-1])]
+        if len(cells) != 2:
+            raise ValueError(f"{identifier}: expected two columns; escape literal pipes as \\|")
+        rows.append((cells[0], cells[1].replace(r"\|", "|")))
+    if [field for field, _ in rows] != FIELDS:
         raise ValueError(f"{identifier}: expected exactly these ordered fields: {', '.join(FIELDS)}")
-    if text[:headings[0].start()].strip() != f"# {identifier}":
-        raise ValueError(f"{identifier}: title must match the case filename")
-    values = {heading[1]: text[heading.end():headings[i + 1].start() if i + 1 < len(headings) else len(text)].strip()
-              for i, heading in enumerate(headings)}
+    values = dict(rows)
+    if values["ID"] != identifier:
+        raise ValueError(f"{identifier}: ID must match the case filename")
     if not all(values.values()):
         raise ValueError(f"{identifier}: all fields need content; use — only for an unrecorded result")
     return identifier, values, text

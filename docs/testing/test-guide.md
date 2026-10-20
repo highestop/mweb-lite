@@ -209,7 +209,7 @@ Also run the affected end-to-end cases when their behavior changes. Building via
 
 ## Maintain the case files
 
-Keep the shared specification and links in [test-cases.md](test-cases.md). Store each case in `docs/testing/cases/<ID>.md`, with `# <ID>` followed by nine `##` headings in this order: `Given`, `When`, `Then`, `Level`, `Path`, `Data`, `Status`, `Verification`, and `Evidence`. Put each field's content below its heading in a single vertical flow. This preserves the same ten items of information without a wide table. The index links to cases and does not duplicate their results.
+Keep the shared specification and links in [test-cases.md](test-cases.md). Store each case in `docs/testing/cases/<ID>.md` using the [copyable case file template](test-cases.md#case-file-template): one `Field` / `Content` table containing the ten fields vertically, with no title, headings, or content outside it. Follow that specification for field order, filename matching, line breaks, and pipe escaping. The index links to cases and does not duplicate their results.
 
 Keep IDs stable. Data links to fixture inputs where applicable; Verification contains the exact test selector or full-app instructions. Create separate cases when scope or required execution path differs. **Status records the latest recorded execution result for that case's Path.** If none exists, put `—` in Status and Evidence; this is an empty marker, not a test result.
 
