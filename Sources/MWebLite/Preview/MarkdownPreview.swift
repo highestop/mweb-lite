@@ -180,7 +180,7 @@ final class PreviewResourceHandler: NSObject, WKURLSchemeHandler {
         return Self.confinedURL(path: url.path, root: libraryRoot)
     }
 
-    static func confinedURL(path: String, root: URL) -> URL? {
+    nonisolated static func confinedURL(path: String, root: URL) -> URL? {
         let resolvedRoot = root.standardizedFileURL.resolvingSymlinksInPath()
         let result = resolvedRoot.appendingPathComponent(path.trimmingCharacters(in: CharacterSet(charactersIn: "/")))
             .standardizedFileURL.resolvingSymlinksInPath()
