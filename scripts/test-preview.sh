@@ -8,10 +8,15 @@ trap 'rm -rf "$runtime_dir"' EXIT
 results_dir="$project_dir/build/test-results"
 mkdir -p "$results_dir"
 log_file="$results_dir/preview-$(date -u '+%Y%m%dT%H%M%SZ').log"
+case_results_path="${MWEB_CASE_RESULTS_PATH:-${log_file%.log}.jsonl}"
+mkdir -p "$(dirname "$case_results_path")"
+# Start this run with no outcomes; a build/setup failure must not reuse old results.
+: > "$case_results_path"
 exec > >(tee "$log_file") 2>&1
 printf 'Preview integration run: %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 printf 'Fixtures: Tests/Fixtures/Preview (copied into a temporary directory)\n'
 printf 'Log: %s\n' "$log_file"
+printf 'Case results: %s\n' "$case_results_path"
 test_app="$runtime_dir/PreviewTests.app"
 resource_bundle="$test_app/Contents/Resources/MWebLite_MWebLite.bundle"
 mkdir -p "$resource_bundle/Contents/Resources" "$test_app/Contents/MacOS"
@@ -29,5 +34,6 @@ swiftc -module-cache-path "$runtime_dir/ModuleCache" \
   "$project_dir/Tests/PreviewIntegration/main.swift" \
   -o "$test_app/Contents/MacOS/PreviewTests"
 # There is deliberately no SwiftPM fallback bundle: the installed-app lookup must work.
-MWEB_PREVIEW_FIXTURES="$fixtures_dir" MWEB_PREVIEW_RUNTIME_ROOT="$runtime_dir" \
+MWEB_CASE_RESULTS_PATH="$case_results_path" \
+  MWEB_PREVIEW_FIXTURES="$fixtures_dir" MWEB_PREVIEW_RUNTIME_ROOT="$runtime_dir" \
   "$test_app/Contents/MacOS/PreviewTests"

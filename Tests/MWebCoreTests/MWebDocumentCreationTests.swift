@@ -1,8 +1,9 @@
 import Foundation
 import XCTest
+import CaseReporting
 @testable import MWebCore
 
-final class MWebDocumentCreationTests: XCTestCase {
+final class MWebDocumentCreationTests: CaseReportingTestCase {
     private var root: URL!
     private var database: SQLiteDatabase!
     private let now = Date(timeIntervalSince1970: 1_792_400_123.4567)
@@ -26,7 +27,7 @@ final class MWebDocumentCreationTests: XCTestCase {
         if let root { try FileManager.default.removeItem(at: root) }
     }
 
-    func testCreateUsesSelectedCategoryUUIDAndReopensAsEditableDocument() throws {
+    func test_CREATE_001_CreateUsesSelectedCategoryUUIDAndReopensAsEditableDocument() throws {
         let originalRows = try database.query("SELECT * FROM article")
         let library = try MWebLibrary(rootURL: root)
         let created = try library.createDocument(categoryID: "200", now: now)
@@ -65,14 +66,14 @@ final class MWebDocumentCreationTests: XCTestCase {
         XCTAssertEqual(try reopened.loadDocument(articleID: created.articleID).content, saved.content)
     }
 
-    func testCreateWithoutCategoryIsUncategorized() throws {
+    func test_CREATE_002_CreateWithoutCategoryIsUncategorized() throws {
         let library = try MWebLibrary(rootURL: root)
         let created = try library.createDocument(categoryID: nil, now: now)
         XCTAssertTrue(try database.query("SELECT * FROM cat_article").isEmpty)
         XCTAssertEqual(try XCTUnwrap(library.loadIndex().articles.first { $0.id == created.articleID }).categoryIDs, [])
     }
 
-    func testMissingCategoryRefusesCreationBeforeBackupOrFileChanges() throws {
+    func test_CREATE_003_MissingCategoryRefusesCreationBeforeBackupOrFileChanges() throws {
         let before = try database.query("SELECT * FROM article")
         let library = try MWebLibrary(rootURL: root)
         for categoryID in ["999", "200 OR 1=1", "../outside"] {
@@ -85,7 +86,7 @@ final class MWebDocumentCreationTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent(".mweb-lite").path))
     }
 
-    func testIdentifierCollisionPreservesExistingArticleAndFile() throws {
+    func test_CREATE_004_IdentifierCollisionPreservesExistingArticleAndFile() throws {
         let library = try MWebLibrary(rootURL: root)
         let created = try library.createDocument(categoryID: "200", now: now)
         let rows = try database.query("SELECT * FROM article")
@@ -97,7 +98,7 @@ final class MWebDocumentCreationTests: XCTestCase {
         XCTAssertEqual(try database.query("SELECT rid FROM cat_article").map { $0["rid"] }, [.integer(200)])
     }
 
-    func testUnindexedFileAndMediaCollisionsAreNotOverwritten() throws {
+    func test_CREATE_005_UnindexedFileAndMediaCollisionsAreNotOverwritten() throws {
         let library = try MWebLibrary(rootURL: root)
         let file = root.appendingPathComponent("docs/17924001234567.md")
         try Data("# Unindexed content\n".utf8).write(to: file)
@@ -111,7 +112,7 @@ final class MWebDocumentCreationTests: XCTestCase {
         XCTAssertEqual(try database.query("SELECT * FROM article").count, 1)
     }
 
-    func testFailedRelationshipInsertRollsBackArticleWithoutCreatingFile() throws {
+    func test_CREATE_006_FailedRelationshipInsertRollsBackArticleWithoutCreatingFile() throws {
         try database.execute("CREATE TRIGGER reject_link BEFORE INSERT ON cat_article BEGIN SELECT RAISE(ABORT, 'reject relationship'); END")
         let before = try database.query("SELECT * FROM article")
         XCTAssertThrowsError(try MWebLibrary(rootURL: root).createDocument(categoryID: "200", now: now))
@@ -120,7 +121,7 @@ final class MWebDocumentCreationTests: XCTestCase {
         XCTAssertEqual(try documentNames(), ["111.md"])
     }
 
-    func testFailedCommitRemovesCreatedMarkdownAndRollsBackAllRows() throws {
+    func test_CREATE_007_FailedCommitRemovesCreatedMarkdownAndRollsBackAllRows() throws {
         // This constraint fails only at COMMIT, after the new Markdown file exists.
         try database.execute("CREATE TABLE referenced (id INTEGER PRIMARY KEY)")
         try database.execute("CREATE TABLE creation_audit (article_id INTEGER REFERENCES referenced(id) DEFERRABLE INITIALLY DEFERRED)")
@@ -136,7 +137,7 @@ final class MWebDocumentCreationTests: XCTestCase {
         XCTAssertEqual(try documentNames(), ["111.md"])
     }
 
-    func testSymlinkDestinationCannotCreateFileOutsideLibrary() throws {
+    func test_CREATE_008_SymlinkDestinationCannotCreateFileOutsideLibrary() throws {
         let outside = FileManager.default.temporaryDirectory.appendingPathComponent("mweb-create-outside-\(UUID().uuidString).md")
         defer { try? FileManager.default.removeItem(at: outside) }
         try FileManager.default.createSymbolicLink(at: root.appendingPathComponent("docs/17924001234567.md"), withDestinationURL: outside)

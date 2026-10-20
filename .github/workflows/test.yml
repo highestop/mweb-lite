@@ -1,7 +1,11 @@
 name: macOS
 on:
   push:
+    paths-ignore:
+      - docs/testing/test-results.md
   pull_request:
+    paths-ignore:
+      - docs/testing/test-results.md
 permissions:
   contents: read
 jobs:
@@ -11,10 +15,47 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Check test catalog and fixture references
+        id: catalog
         run: python3 scripts/check-test-cases.py
+      - name: Test result collection and publication tools
+        run: python3 -m unittest discover -s scripts/tests
       - name: Unit and library integration tests
-        run: swift test
+        id: xctest
+        env:
+          MWEB_XCTEST_RESULTS_PATH: ${{ github.workspace }}/build/test-results/xctest.jsonl
+        run: |
+          mkdir -p build/test-results
+          : > "$MWEB_XCTEST_RESULTS_PATH"
+          swift test
       - name: Packaged WebKit preview integration tests
+        id: preview
+        if: ${{ !cancelled() && steps.catalog.outcome == 'success' }}
+        env:
+          MWEB_CASE_RESULTS_PATH: ${{ github.workspace }}/build/test-results/preview.jsonl
         run: ./scripts/test-preview.sh
+      - name: Collect observed CI case results
+        id: results
+        if: ${{ !cancelled() && steps.catalog.outcome == 'success' }}
+        env:
+          XCTEST_OUTCOME: ${{ steps.xctest.outcome }}
+          PREVIEW_OUTCOME: ${{ steps.preview.outcome }}
+        run: |
+          requirements=()
+          if [[ "$XCTEST_OUTCOME" == success ]]; then requirements+=(--require-xctest); fi
+          if [[ "$PREVIEW_OUTCOME" == success ]]; then requirements+=(--require-preview); fi
+          python3 scripts/collect-test-results.py \
+            --xctest build/test-results/xctest.jsonl \
+            --preview build/test-results/preview.jsonl \
+            --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --source-sha "$GITHUB_SHA" --attempt "$GITHUB_RUN_ATTEMPT" \
+            --output build/test-results/case-results.json "${requirements[@]}"
+      - name: Upload CI case results
+        if: ${{ !cancelled() && steps.results.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-case-results
+          path: build/test-results/case-results.json
+          if-no-files-found: error
+          retention-days: 30
       - name: Build application
         run: ./scripts/build-app.sh release

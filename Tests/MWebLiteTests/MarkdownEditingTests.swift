@@ -1,9 +1,10 @@
 import Foundation
 import XCTest
+import CaseReporting
 @testable import MWebLite
 
-final class MarkdownEditingTests: XCTestCase {
-    func testListContinuationAndEmptyItemExit() throws {
+final class MarkdownEditingTests: CaseReportingTestCase {
+    func test_EDIT_001_ListContinuationAndEmptyItemExit() throws {
         try assertNewline("- 中文", becomes: "- 中文\n- ")
         try assertNewline("  9. 中文", becomes: "  9. 中文\n  10. ")
         try assertNewline("- [x] 完成", becomes: "- [x] 完成\n- [ ] ")
@@ -13,7 +14,7 @@ final class MarkdownEditingTests: XCTestCase {
         try assertNewline("> ", becomes: "")
     }
 
-    func testFencedCodeDoesNotContinueMarkdownLists() throws {
+    func test_EDIT_002_FencedCodeDoesNotContinueMarkdownLists() throws {
         try assertNewline("```swift\n- 中文", becomes: "```swift\n- 中文\n")
         try assertNewline("```\n    code", becomes: "```\n    code\n    ")
         try assertNewline("~~~~\n```\n- code", becomes: "~~~~\n```\n- code\n")
@@ -21,7 +22,7 @@ final class MarkdownEditingTests: XCTestCase {
         try assertNewline("```\ncode\n```\n- done", becomes: "```\ncode\n```\n- done\n- ")
     }
 
-    func testFormattingPreservesUTF16Selections() {
+    func test_EDIT_003_FormattingPreservesUTF16Selections() {
         let text = "中文 😀"
         let selection = NSRange(location: 0, length: (text as NSString).length)
         let wrapped = MarkdownEditing.wrap(text, selection: selection, before: "**", after: "**")
@@ -32,7 +33,7 @@ final class MarkdownEditingTests: XCTestCase {
         XCTAssertEqual(unwrapped.selection, selection)
     }
 
-    func testItalicCanBeAppliedInsideBoldAndToggledOff() {
+    func test_EDIT_004_ItalicCanBeAppliedInsideBoldAndToggledOff() {
         let bold = "**中文 😀**"
         let italic = MarkdownEditing.wrap(bold, selection: NSRange(location: 2, length: 5), before: "*", after: "*")
         XCTAssertEqual(apply(bold, italic), "***中文 😀***")
@@ -42,7 +43,7 @@ final class MarkdownEditingTests: XCTestCase {
         XCTAssertEqual(apply(bold, fullSelection), "***中文 😀***")
     }
 
-    func testIndentExcludesNextLineAtSelectionBoundary() {
+    func test_EDIT_005_IndentExcludesNextLineAtSelectionBoundary() {
         let source = "first\nsecond\nthird"
         let selection = NSRange(location: 0, length: 13)
         let indented = MarkdownEditing.indent(source, selection: selection, outdent: false)
@@ -52,19 +53,19 @@ final class MarkdownEditingTests: XCTestCase {
         XCTAssertEqual(outdented.selection, selection)
     }
 
-    func testOutdentClampsCursorInsideRemovedIndentation() {
+    func test_EDIT_006_OutdentClampsCursorInsideRemovedIndentation() {
         let edit = MarkdownEditing.indent("  中文", selection: NSRange(location: 1, length: 0), outdent: true)
         XCTAssertEqual(edit.selection, NSRange(location: 0, length: 0))
         XCTAssertEqual(apply("  中文", edit), "中文")
     }
 
-    func testLinkSelectsDestinationForImmediateReplacement() {
+    func test_EDIT_007_LinkSelectsDestinationForImmediateReplacement() {
         let edit = MarkdownEditing.link("测试", selection: NSRange(location: 0, length: 2))
         XCTAssertEqual(apply("测试", edit), "[测试](https://)")
         XCTAssertEqual((edit.replacement as NSString).substring(with: edit.selection), "https://")
     }
 
-    func testLinePrefixCanBeToggledWithoutIncludingNextLine() {
+    func test_EDIT_008_LinePrefixCanBeToggledWithoutIncludingNextLine() {
         let source = "中文\nemoji 😀\nother"
         let selection = NSRange(location: 0, length: 12)
         let quote = MarkdownEditing.prefixLines(source, selection: selection, prefix: "> ")

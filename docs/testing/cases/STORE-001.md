@@ -7,6 +7,4 @@
 | Level | Integration |
 | Path | CI |
 | Data | Inline |
-| Status | CI passed |
-| Verification | `LibraryStoreCreationTests/testPendingCreationWaitsForPriorSaveAndInheritsCategory` |
-| Evidence | [2026-10-20 · 78de482](https://github.com/highestop/mweb-lite/actions/runs/39355435845) |
+| Verification | `LibraryStoreCreationTests/test_STORE_001_PendingCreationWaitsForPriorSaveAndInheritsCategory` |
