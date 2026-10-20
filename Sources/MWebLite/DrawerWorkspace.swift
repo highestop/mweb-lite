@@ -1,6 +1,9 @@
 import AppKit
 import SwiftUI
 
+/// Marks the native keyboard responders owned by the two navigation panels.
+protocol NavigationKeyboardResponder: AnyObject {}
+
 /// Panel backgrounds overlap at the rounded edges; their content does not.
 struct DrawerGeometry {
     let categoryWidth: CGFloat
@@ -71,12 +74,14 @@ struct DrawerWorkspaceLayout: Layout {
 
 struct DrawerPanel: ViewModifier {
     let visible: Bool
+    var highlighted = false
 
     func body(content: Content) -> some View {
         content
             .clipShape(UnevenRoundedRectangle(bottomTrailingRadius: 16, topTrailingRadius: 16,
                                              style: .continuous))
-            .shadow(color: .black.opacity(visible ? 0.10 : 0), radius: 4, x: 2, y: 0)
+            .shadow(color: .black.opacity(visible ? (highlighted ? 0.12 : 0.06) : 0),
+                    radius: highlighted ? 5 : 2, x: highlighted ? 2 : 1, y: 0)
             .disabled(!visible)
             .allowsHitTesting(visible)
             .accessibilityHidden(!visible)
@@ -87,27 +92,32 @@ struct DrawerResizeHandle: View {
     let title: String
     let width: CGFloat
     let onResize: (CGFloat) -> Void
+    let onHighlight: (Bool) -> Void
     @State private var initialWidth: CGFloat?
     @State private var isHovered = false
+    @Environment(\.isEnabled) private var isEnabled
 
     var body: some View {
         Color.clear
-            .overlay {
-                Rectangle().fill(Color.primary.opacity(isHovered || initialWidth != nil ? 0.18 : 0))
-                    .frame(width: 1)
-            }
             .contentShape(Rectangle())
             .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .named("drawer-workspace"))
                 .onChanged { value in
                     if initialWidth == nil { initialWidth = width }
+                    onHighlight(true)
                     onResize((initialWidth ?? width) + value.translation.width)
                 }
-                .onEnded { _ in initialWidth = nil })
+                .onEnded { _ in initialWidth = nil; onHighlight(isHovered) })
             .onHover { hovering in
-                isHovered = hovering
-                if hovering { NSCursor.resizeLeftRight.push() }
-                else { NSCursor.pop() }
+                updateCursor(hovering && isEnabled)
             }
+            .onChange(of: isEnabled) { _, enabled in
+                if !enabled {
+                    initialWidth = nil
+                    updateCursor(false)
+                    onHighlight(false)
+                }
+            }
+            .onDisappear { initialWidth = nil; updateCursor(false); onHighlight(false) }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(title)
             .accessibilityValue("\(Int(width))")
@@ -119,5 +129,13 @@ struct DrawerResizeHandle: View {
                 }
             }
             .help(title)
+    }
+
+    private func updateCursor(_ hovering: Bool) {
+        guard hovering != isHovered else { return }
+        isHovered = hovering
+        onHighlight(hovering || initialWidth != nil)
+        if hovering { NSCursor.resizeLeftRight.push() }
+        else { NSCursor.pop() }
     }
 }

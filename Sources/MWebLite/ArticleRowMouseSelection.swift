@@ -37,7 +37,7 @@ struct ArticleListKeyboardSelection: NSViewRepresentable {
     }
 }
 
-final class ArticleListKeyboardAnchor: NSView {
+final class ArticleListKeyboardAnchor: NSView, NavigationKeyboardResponder {
     private weak var controller: ArticleListSelectionController?
     private var onMove: ((Int) -> Void)?
     private var selectionEnabled = false

@@ -2,7 +2,8 @@
 * { box-sizing: border-box; }
 html { background: var(--page-background); }
 body { margin: 0; color: var(--text); font: 15px/1.85 -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", sans-serif; overflow-wrap: break-word; }
-article { margin: 0; padding: 16px 16px 24px; }
+/* The 932-point border box leaves 900 points for text after the side insets. */
+article { max-width: 932px; margin: 0 auto; padding: 16px 16px 24px; }
 article > :first-child { margin-top: 0; }
 h1,h2,h3,h4,h5,h6 { color: var(--text); font-weight: 620; line-height: 1.4; margin: 1.7em 0 .65em; scroll-margin-top: 24px; }
 h1 { font-size: 2em; padding-bottom: .35em; border-bottom: 1px solid var(--line); }
