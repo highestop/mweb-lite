@@ -1,7 +1,7 @@
 # CI test result
 
-CI run: [39398469162 (attempt 1)](https://github.com/highestop/mweb-lite/actions/runs/39398469162/attempts/1)
-Tested commit: [315d7f79067b12b51de25c7480133269cea27837](https://github.com/highestop/mweb-lite/commit/315d7f79067b12b51de25c7480133269cea27837)
+CI run: [39403986242 (attempt 1)](https://github.com/highestop/mweb-lite/actions/runs/39403986242/attempts/1)
+Tested commit: [481e1d5ebe457c211343d47cc0c0d9a25d4bd243](https://github.com/highestop/mweb-lite/commit/481e1d5ebe457c211343d47cc0c0d9a25d4bd243)
 
 | Case ID | Status |
 | --- | --- |
@@ -15,6 +15,7 @@ Tested commit: [315d7f79067b12b51de25c7480133269cea27837](https://github.com/hig
 | [CREATE-008](cases/CREATE-008.md) | Passed |
 | [DRAWER-001](cases/DRAWER-001.md) | Passed |
 | [DRAWER-002](cases/DRAWER-002.md) | Passed |
+| [DRAWER-003](cases/DRAWER-003.md) | Passed |
 | [EDIT-001](cases/EDIT-001.md) | Passed |
 | [EDIT-002](cases/EDIT-002.md) | Passed |
 | [EDIT-003](cases/EDIT-003.md) | Passed |
