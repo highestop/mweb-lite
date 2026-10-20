@@ -143,6 +143,8 @@ struct MarkdownEditor: NSViewRepresentable {
             textView.unmarkText()
             coordinator.parent.text = textView.string
         }
+        // The window's undo manager outlives this file's native editor.
+        textView.undoManager?.removeAllActions()
         textView.delegate = nil
     }
 
