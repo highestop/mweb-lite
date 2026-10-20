@@ -2,7 +2,7 @@
 
 This independent synthetic overlay supplies [E2E-016](../../../docs/testing/cases/E2E-016.md). It adds the root category Date Groups (107) and 18 text-only articles to a fresh Preview run. The original [Library](../Library/README.md) and [Timeline](../Timeline/README.md) source inputs remain unchanged. The prepared DateGroups run has All 25 and Date Groups 18; apply this scenario instead of Timeline, not on top of it. The six original anchor articles retain their IDs, contents, and dates; twelve additional articles make the later month and year boundaries reachable by scrolling.
 
-The expected order and dates use modification timestamps in Asia/Shanghai. All creation dates are January 2, 2025. The list has two independent year headings, 2026 and 2025, and three month-only headings, October, September, and October. Each year heading occupies a visibly separate line before its first month heading. Month names may follow the system locale. The three month groups contain 4, 5, and 9 articles respectively.
+The expected order and dates use modification timestamps in Asia/Shanghai. All creation dates are January 2, 2025. The list has two independent year headings, 2026 and 2025, and three month-only headings, October, September, and October. Each year heading occupies a visibly separate line before its first month heading. Both heading levels use text only, without horizontal rules. Month names may follow the system locale. The three month groups contain 4, 5, and 9 articles respectively.
 
 | Order / ID | Title | Local modification time | Headings before row | Row date |
 | --- | --- | --- | --- | --- |

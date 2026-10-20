@@ -99,46 +99,38 @@ struct ArticleTimelineList<Row: View>: View {
                 .contentShape(Rectangle())
                 .onTapGesture {}
                 .position(x: bounds.midX, y: (top + bottom) / 2)
+                .accessibilityElement(children: .ignore)
+                .accessibilityHidden(true)
         }
     }
 
     private func yearHeader(_ date: Date) -> some View {
-        HStack(spacing: 12) {
-            Text(date, format: .dateTime.year())
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                .fixedSize()
-                .accessibilityAddTraits(.isHeader)
-            Rectangle()
-                .fill(.primary.opacity(0.14))
-                .frame(height: 1)
-                .accessibilityHidden(true)
-        }
-        .padding(.horizontal, 10)
-        .padding(.top, 12)
-        .padding(.bottom, 2)
-        .frame(height: yearHeight)
-        .background(Color(nsColor: .controlBackgroundColor))
+        Text(date, format: .dateTime.year())
+            .font(.system(size: 18, weight: .semibold, design: .rounded))
+            .fixedSize()
+            .accessibilityAddTraits(.isHeader)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 10)
+            .padding(.top, 12)
+            .padding(.bottom, 2)
+            .frame(height: yearHeight)
+            .background(Color(nsColor: .controlBackgroundColor))
     }
 
     private func monthHeader(_ heading: ArticleTimelineGrouping.Heading) -> some View {
-        HStack(spacing: 10) {
-            Group {
-                switch heading {
-                case .month(let date):
-                    Text(date, format: .dateTime.month(.wide))
-                case .undated:
-                    Text("无日期")
-                }
+        Group {
+            switch heading {
+            case .month(let date):
+                Text(date, format: .dateTime.month(.wide))
+            case .undated:
+                Text("无日期")
             }
-            .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: true, vertical: false)
-            .accessibilityAddTraits(.isHeader)
-            Rectangle()
-                .fill(.primary.opacity(0.08))
-                .frame(height: 1)
-                .accessibilityHidden(true)
         }
+        .font(.system(size: 11, weight: .medium))
+        .foregroundStyle(.secondary)
+        .fixedSize(horizontal: true, vertical: false)
+        .accessibilityAddTraits(.isHeader)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 10)
         .padding(.top, 12)
         .padding(.bottom, 6)
