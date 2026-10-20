@@ -161,4 +161,85 @@ final class MarkdownEditorFocusTests: CaseReportingTestCase {
             XCTAssertEqual(textView.selectedRange(), NSRange(location: 0, length: 0))
         }
     }
+
+    @MainActor
+    func test_FOCUS_004_DocumentChangeStartsAtTop() async {
+        _ = NSApplication.shared
+        func article(_ title: String) -> String {
+            "# \(title)\n\n" + (1...150).map { "Paragraph \($0): 中文 and Markdown text.\n" }.joined()
+        }
+        var source = article("Article A")
+        let editor = MarkdownEditor(
+            text: Binding(get: { source }, set: { source = $0 }),
+            documentID: "article-a", onSave: {}
+        )
+        let coordinator = editor.makeCoordinator()
+        let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 400, height: 220))
+        scrollView.hasVerticalScroller = true
+        scrollView.automaticallyAdjustsContentInsets = false
+        let textView = MarkdownTextView(frame: scrollView.bounds)
+        textView.minSize = .zero
+        textView.maxSize = NSSize(width: .greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.autoresizingMask = [.width]
+        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.containerSize = NSSize(width: 400, height: .greatestFiniteMagnitude)
+        textView.textContainerInset = NSSize(width: 16, height: 16)
+        textView.isRichText = false
+        textView.font = .monospacedSystemFont(ofSize: 14, weight: .regular)
+        textView.string = source
+        textView.delegate = coordinator
+        coordinator.textView = textView
+        scrollView.documentView = textView
+        let window = NSWindow(
+            contentRect: scrollView.frame, styleMask: [.titled], backing: .buffered, defer: false
+        )
+        window.contentView = scrollView
+        textView.highlightMarkdown()
+        scrollView.layoutSubtreeIfNeeded()
+        defer {
+            coordinator.highlightWork?.cancel()
+            coordinator.documentScrollReset = nil
+            textView.delegate = nil
+            window.contentView = nil
+        }
+        textView.setSelectedRange(NSRange(location: (source as NSString).length, length: 0))
+        textView.scrollRangeToVisible(textView.selectedRange())
+        XCTAssertGreaterThan(scrollView.contentView.bounds.minY, 0, "Article A starts scrolled down")
+
+        source = article("Article B")
+        coordinator.loadDocument(source, documentID: "article-b")
+
+        XCTAssertEqual(textView.selectedRange(), NSRange(location: 0, length: 0))
+        XCTAssertEqual(scrollView.contentView.bounds.minY, 0, accuracy: 0.5)
+        await withCheckedContinuation { continuation in
+            DispatchQueue.main.async { continuation.resume() }
+        }
+        XCTAssertEqual(scrollView.contentView.bounds.minY, 0, accuracy: 0.5)
+        XCTAssertTrue(textView.string.hasPrefix("# Article B"))
+
+        // Rapid switches leave multiple queued layout passes. They must not
+        // override an explicit selection and edit in the latest document.
+        source = article("Article C")
+        coordinator.loadDocument(source, documentID: "article-c")
+        source = article("Article D")
+        coordinator.loadDocument(source, documentID: "article-d")
+        XCTAssertTrue(window.makeFirstResponder(textView))
+        let end = NSRange(location: (source as NSString).length, length: 0)
+        textView.setSelectedRange(end)
+        textView.insertText("Latest edit", replacementRange: end)
+        textView.scrollRangeToVisible(textView.selectedRange())
+        let editedSelection = textView.selectedRange()
+        XCTAssertGreaterThan(scrollView.contentView.bounds.minY, 0)
+
+        await withCheckedContinuation { continuation in
+            DispatchQueue.main.async { continuation.resume() }
+        }
+
+        XCTAssertTrue(textView.string.hasPrefix("# Article D"))
+        XCTAssertTrue(source.hasSuffix("Latest edit"))
+        XCTAssertEqual(textView.selectedRange(), editedSelection)
+        XCTAssertGreaterThan(scrollView.contentView.bounds.minY, 0, "A stale reset must not scroll away from a new edit")
+    }
 }

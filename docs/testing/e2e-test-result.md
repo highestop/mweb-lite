@@ -14,4 +14,5 @@
 | [E2E-010](cases/E2E-010.md) | Skipped | `6bac37a277a943c4ee3195e2ab73605eabaccd71` | Yes |
 | [E2E-011](cases/E2E-011.md) | — | — | — |
 | [E2E-012](cases/E2E-012.md) | — | — | — |
+| [E2E-013](cases/E2E-013.md) | — | — | — |
 | [REL-001](cases/REL-001.md) | — | — | — |
