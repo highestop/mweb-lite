@@ -95,8 +95,12 @@ final class DrawerResizeViewTests: CaseReportingTestCase {
 
         // Then: disabling mid-drag removes native input/cursor ownership.
         handle.mouseDown(with: try event(.leftMouseDown, x: 240))
+        let disabledHighlightCount = highlights.count
+        let disabledResizeCount = widths.count
         configure(280, enabled: false)
-        XCTAssertEqual(highlights.last, false)
+        XCTAssertEqual(highlights.count, disabledHighlightCount,
+                       "Representable updates must not call back into SwiftUI state")
+        XCTAssertEqual(widths.count, disabledResizeCount)
         XCTAssertTrue(handle.trackingAreas.isEmpty)
         XCTAssertTrue(root.hitTest(NSPoint(x: 240, y: 100)) === textView)
         NSCursor.pointingHand.set()
@@ -107,7 +111,7 @@ final class DrawerResizeViewTests: CaseReportingTestCase {
         handle.mouseUp(with: try event(.leftMouseUp, x: 300))
         XCTAssertEqual(NSCursor.current, .pointingHand)
         XCTAssertEqual(widths, [270, 225])
-        XCTAssertEqual(highlights.last, false)
+        XCTAssertEqual(highlights.count, disabledHighlightCount)
 
         // Re-enabling starts a new drag; invalidation releases it and callbacks.
         configure(500)
@@ -116,11 +120,14 @@ final class DrawerResizeViewTests: CaseReportingTestCase {
         handle.mouseDown(with: try event(.leftMouseDown, x: 240))
         handle.mouseDragged(with: try event(.leftMouseDragged, x: 245))
         XCTAssertEqual(widths, [270, 225, 505])
+        let highlightCount = highlights.count
+        let resizeCount = widths.count
         handle.invalidate()
-        XCTAssertEqual(highlights.last, false)
+        XCTAssertEqual(highlights.count, highlightCount,
+                       "Dismantling must not call into a SwiftUI graph that is being invalidated")
+        XCTAssertEqual(widths.count, resizeCount)
         XCTAssertTrue(handle.trackingAreas.isEmpty)
         XCTAssertTrue(root.hitTest(NSPoint(x: 240, y: 100)) === textView)
-        let highlightCount = highlights.count
         NSCursor.iBeam.set()
         handle.cursorUpdate(with: try event(.cursorUpdate, x: 240))
         handle.mouseEntered(with: try event(.mouseEntered, x: 240))

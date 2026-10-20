@@ -249,6 +249,7 @@ final class DrawerResizeView: NSView {
     private func endInteraction() {
         initialDrag = nil
         hovering = false
-        onHighlight?(false)
+        // configure/dismantle can run while SwiftUI updates or destroys its
+        // graph. Only native pointer events may publish state back to it.
     }
 }
