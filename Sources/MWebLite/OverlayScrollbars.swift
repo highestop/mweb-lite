@@ -30,6 +30,7 @@ private final class OverlayScrollbarView: NSView {
     private var isConfigurationScheduled = false
     private weak var configuredScrollView: NSScrollView?
     private var visibilityObservation: NSKeyValueObservation?
+    private var styleObservation: NSKeyValueObservation?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -77,16 +78,24 @@ private final class OverlayScrollbarView: NSView {
         guard let scrollView = enclosingScrollView else {
             visibilityObservation?.invalidate()
             visibilityObservation = nil
+            styleObservation?.invalidate()
+            styleObservation = nil
             configuredScrollView = nil
             return
         }
         if configuredScrollView !== scrollView {
             visibilityObservation?.invalidate()
+            styleObservation?.invalidate()
             configuredScrollView = scrollView
             // SwiftUI can reapply its hidden-indicator policy without updating
             // this unchanged background. Restore only this native scroll view.
             visibilityObservation = scrollView.observe(\.hasVerticalScroller, options: [.new]) { [weak self] _, change in
                 if change.newValue == false {
+                    DispatchQueue.main.async { [weak self] in self?.scheduleConfiguration() }
+                }
+            }
+            styleObservation = scrollView.observe(\.scrollerStyle, options: [.new]) { [weak self] _, change in
+                if change.newValue != .overlay {
                     DispatchQueue.main.async { [weak self] in self?.scheduleConfiguration() }
                 }
             }
@@ -113,6 +122,8 @@ private final class OverlayScrollbarView: NSView {
         isDismantled = true
         visibilityObservation?.invalidate()
         visibilityObservation = nil
+        styleObservation?.invalidate()
+        styleObservation = nil
         configuredScrollView = nil
         NotificationCenter.default.removeObserver(self)
     }

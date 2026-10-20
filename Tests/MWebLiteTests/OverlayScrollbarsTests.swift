@@ -51,7 +51,6 @@ final class OverlayScrollbarsTests: CaseReportingTestCase {
         let initialScroll = scrollView.convert(scrollView.bounds, to: host)
         let baseline = "Initial system-preference layout: preferred=\(NSScroller.preferredScrollerStyle.rawValue), "
             + "host=\(host.bounds), scroll=\(initialScroll), clip=\(scrollView.contentView.frame), row=\(initialRow)"
-        print("SCROLL_BASELINE \(baseline)")
         XCTAssertEqual(scrollView.frame.width, host.bounds.width, accuracy: 0.5, baseline)
         XCTAssertEqual(scrollView.contentView.frame.width, host.bounds.width, accuracy: 0.5, baseline)
         XCTAssertEqual(firstRow.bounds.width, host.bounds.width - 20, accuracy: 0.5, baseline)
