@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="1080" viewBox="0 0 720 1080" role="img" aria-labelledby="title desc">
+<title id="title">03 — Forest path</title>
+<desc id="desc">Original synthetic fixture artwork. No external images or resources.</desc>
+<rect width="720" height="1080" fill="#e6ebdc"/>
+<circle cx="520" cy="220" r="100" fill="#f4dca3"/>
+<path d="M0 650Q300 380 720 600V1080H0Z" fill="#b3c7b0"/>
+<path d="M260 1080Q440 850 360 690Q300 550 470 460Q400 570 435 690Q530 870 480 1080Z" fill="#f7edd3"/>
+<g fill="#608a75"><path d="M70 100 0 620h180Z"/><path d="m190 180-90 520h190Z"/><path d="m590 110-110 590h230Z"/></g>
+<g fill="#345f54"><path d="M30 340-120 960h290Z"/><path d="m650 340-130 620h280Z"/></g>
+<path d="M70 400v520m520-510v420" stroke="#486953" stroke-width="14"/>
+<text x="40" y="65" font-family="sans-serif" font-size="22" fill="#335450">FIELD NOTES / 03</text>
+<text x="40" y="1030" font-family="sans-serif" font-size="18" fill="#fff7df">FOREST PATH · 720 × 1080</text>
+</svg>

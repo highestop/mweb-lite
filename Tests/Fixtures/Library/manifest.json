@@ -1,8 +1,19 @@
 {
-  "version": 1,
-  "activeArticleIDs": ["10001", "10002", "10003", "10004"],
+  "version": 2,
+  "activeArticleIDs": ["10001", "10002", "10003", "10004", "10006", "10007", "10008"],
   "trashedArticleIDs": ["10005"],
-  "categoryArticleIDs": {"101": ["10001", "10002", "10003"], "102": ["10001", "10002"], "103": ["10003"], "104": []},
+  "categoryIDs": ["101", "102", "103", "104", "105"],
+  "categoryParents": {"101": "0", "102": "101", "103": "101", "104": "0", "105": "0"},
+  "categoryArticleIDs": {"101": ["10001", "10002", "10003"], "102": ["10001", "10002"], "103": ["10003"], "104": [], "105": ["10006", "10007", "10008"]},
+  "imageDemoArticleIDs": ["10006", "10007", "10008"],
   "uncategorizedArticleIDs": ["10004"],
-  "media": ["docs/media/10003/checker.svg"]
+  "media": [
+    "docs/media/10003/checker.svg",
+    "docs/media/10006/mountain.svg",
+    "docs/media/10006/panorama.svg",
+    "docs/media/10006/portrait.svg",
+    "docs/media/10006/square.png",
+    "docs/media/10006/detail.jpg",
+    "docs/media/10006/transparent.png"
+  ]
 }
