@@ -27,7 +27,7 @@ The demo generator refuses to overwrite existing directories. `--library` does n
 ## Included
 
 - Native category tree, article list, title/summary search, and editor/preview modes. Switch modes from the View menu or with `⌘R`; the article uses the full window height.
-- Article cards are separated by year and month using the modification date (or creation date when absent). Consecutive notes on the same local day show the day number only on the first row, with the date column retained for alignment. Each card has an optional square mosaic of the first four images in document order, and the bold title plus excerpt. Text-only articles use the remaining space. The article column can be resized.
+- Articles appear in descending creation-time order and are separated by creation year and month. Editing does not move an article or change its date group. Missing creation dates remain undated. Consecutive notes on the same local creation day show the day number only on the first row, with the date column retained for alignment. Each card has an optional square mosaic of the first four images in document order, and the bold title plus excerpt. Text-only articles use the remaining space. The article column can be resized.
 - Create an article from the toolbar’s plus button or `⌘N`. It belongs to the selected category and opens in the editor with its title selected. Creating from All or Uncategorized leaves it uncategorized.
 - UTF-8 Markdown editing with native undo, find, Chinese input support, syntax colors, list continuation, indentation, and image paste/drop.
 - Tables, task lists, strikethrough, footnotes, `[TOC]`, local images, MWeb image widths such as `![caption -w320](media/...)`, and `mweblib://{articleID}` links.
@@ -57,7 +57,7 @@ Implementation was checked against the local MWeb app, its bundled help, and non
 - Pasted images use unique names in `docs/media/{uuid}/`. Removing their Markdown reference does not delete the files.
 - An unsupported schema, missing file, invalid UTF-8, or a path outside the chosen library fails explicitly. Opening and browsing do not create a backup or rewrite files.
 
-The current version uses pinned-first, most-recently-modified article ordering. MWeb's saved `sortType` is preserved but its undocumented numeric mappings are not interpreted. Selecting a category includes its descendants, with articles deduplicated. There is no category creation, deletion, publishing, sync, import/export, or other MWeb administration UI.
+Article order uses `dateAdd` descending, then ID descending for equal creation timestamps; missing creation dates appear last without falling back to modification time. There is no configurable article ordering. MWeb's pin, custom sort, and `sortType` metadata are preserved but do not determine article display order. Selecting a category includes its descendants, with articles deduplicated. There is no category creation, deletion, publishing, sync, import/export, or other MWeb administration UI.
 
 ## Save recovery
 

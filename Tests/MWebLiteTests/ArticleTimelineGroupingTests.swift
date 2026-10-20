@@ -9,21 +9,22 @@ final class ArticleTimelineGroupingTests: CaseReportingTestCase {
         var shanghai = Calendar(identifier: .gregorian)
         shanghai.timeZone = try XCTUnwrap(TimeZone(identifier: "Asia/Shanghai"))
         let articles = [
-            article("pinned-december", modified: "2025-12-31T15:59:00Z", pinned: true),
-            article("january-first", modified: "2025-12-31T16:01:00Z"),
-            article("same-local-day", modified: "2026-01-01T14:00:00Z"),
-            article("next-local-day", modified: "2026-01-01T16:00:00Z"),
-            article("repeated-day", modified: "2025-12-31T16:30:00Z"),
-            article("repeated-month", modified: "2025-12-30T16:00:00Z"),
-            article("undated-first"),
+            article("pinned-december", modified: "2026-02-01T08:00:00Z",
+                    created: "2025-12-31T15:59:00Z", pinned: true, sort: 99),
+            article("january-first", created: "2025-12-31T16:01:00Z"),
+            article("same-local-day", created: "2026-01-01T14:00:00Z"),
+            article("next-local-day", created: "2026-01-01T16:00:00Z"),
+            article("repeated-day", created: "2025-12-31T16:30:00Z"),
+            article("repeated-month", created: "2025-12-30T16:00:00Z"),
+            article("modified-only-undated", modified: "2026-03-01T08:00:00Z"),
             article("undated-second"),
-            article("created-fallback", created: "2026-01-01T08:00:00Z"),
-            article("modified-wins", modified: "2026-01-01T09:00:00Z", created: "2026-02-01T08:00:00Z")
+            article("created-without-modified", created: "2026-01-01T08:00:00Z"),
+            article("created-wins", modified: "2026-02-01T08:00:00Z", created: "2026-01-01T09:00:00Z")
         ]
 
         let entries = ArticleTimelineGrouping.entries(articles: articles, calendar: shanghai)
 
-        XCTAssertEqual(entries.map(\.id), articles.map(\.id), "Pinned and nonchronological order must remain intact")
+        XCTAssertEqual(entries.map(\.id), articles.map(\.id), "Grouping annotates the supplied order without applying pin or sort metadata")
         XCTAssertEqual(entries.map(\.article), articles)
         XCTAssertEqual(entries.map(\.showsDate), [true, true, false, true, true, true, false, false, true, false])
         XCTAssertEqual(entries.map(\.yearHeading), [
@@ -45,6 +46,20 @@ final class ArticleTimelineGroupingTests: CaseReportingTestCase {
         XCTAssertEqual(undated.map(\.yearHeading), [nil, nil])
         XCTAssertEqual(undated.map(\.heading), [.undated, nil])
         XCTAssertEqual(undated.map(\.showsDate), [false, false])
+        XCTAssertNil(undated[0].article.createdAt)
+        XCTAssertNotNil(undated[0].article.modifiedAt, "A modification date must not supply a missing creation date")
+
+        let editedArticles = articles.map {
+            article($0.id, modified: "2030-07-01T08:00:00Z",
+                    created: $0.createdAt.map { ISO8601DateFormatter().string(from: $0) },
+                    pinned: $0.isPinned, sort: $0.sort)
+        }
+        let afterEdit = ArticleTimelineGrouping.entries(articles: editedArticles, calendar: shanghai)
+        XCTAssertEqual(afterEdit.map(\.id), entries.map(\.id))
+        XCTAssertEqual(afterEdit.map(\.yearHeading), entries.map(\.yearHeading))
+        XCTAssertEqual(afterEdit.map(\.heading), entries.map(\.heading))
+        XCTAssertEqual(afterEdit.map(\.showsDate), entries.map(\.showsDate),
+                       "Changing modification dates must not change creation-date labels or undated rows")
 
         let filtered = ArticleTimelineGrouping.entries(articles: [articles[2], articles[3]], calendar: shanghai)
         XCTAssertEqual(filtered.map(\.yearHeading), [date("2026-01-01T14:00:00Z"), nil],
@@ -60,7 +75,7 @@ final class ArticleTimelineGroupingTests: CaseReportingTestCase {
             .month(date("2025-12-31T16:01:00Z")), .undated, .month(date("2026-01-01T14:00:00Z"))
         ])
         let anotherYear = ArticleTimelineGrouping.entries(articles: [
-            articles[0], article("december-next-year", modified: "2026-12-31T15:59:00Z")
+            articles[0], article("december-next-year", created: "2026-12-31T15:59:00Z")
         ], calendar: shanghai)
         XCTAssertEqual(anotherYear.map(\.yearHeading), [
             date("2025-12-31T15:59:00Z"), date("2026-12-31T15:59:00Z")
@@ -69,7 +84,7 @@ final class ArticleTimelineGroupingTests: CaseReportingTestCase {
             .month(date("2025-12-31T15:59:00Z")), .month(date("2026-12-31T15:59:00Z"))
         ], "The same numeric month in a different year starts a new heading")
         let sameYear = ArticleTimelineGrouping.entries(articles: [
-            articles[1], article("february", modified: "2026-02-01T08:00:00Z")
+            articles[1], article("february", created: "2026-02-01T08:00:00Z")
         ], calendar: shanghai)
         XCTAssertEqual(sameYear.map(\.yearHeading), [date("2025-12-31T16:01:00Z"), nil],
                        "A month change within the same local year must not repeat the year heading")
@@ -90,7 +105,7 @@ final class ArticleTimelineGroupingTests: CaseReportingTestCase {
             ["2026-11-01T05:30:00Z", "2026-11-01T06:30:00Z", "2026-11-02T04:30:00Z", "2026-11-02T05:00:00Z"]
         ]
         for timestamps in daylightSavingRuns {
-            let run = timestamps.enumerated().map { article("dst-\($0.offset)", modified: $0.element) }
+            let run = timestamps.enumerated().map { article("dst-\($0.offset)", created: $0.element) }
             let local = ArticleTimelineGrouping.entries(articles: run, calendar: newYork)
             XCTAssertEqual(local.map(\.showsDate), [true, false, false, true],
                            "Spring-forward and repeated fall-back hours remain in their local day")
@@ -102,10 +117,10 @@ final class ArticleTimelineGroupingTests: CaseReportingTestCase {
     }
 
     private func article(_ id: String, modified: String? = nil, created: String? = nil,
-                         pinned: Bool = false) -> MWebArticle {
+                         pinned: Bool = false, sort: Int64 = 0) -> MWebArticle {
         MWebArticle(id: id, title: id, excerpt: "Body", modifiedAt: modified.map(date),
                     createdAt: created.map(date), categoryIDs: [], isTrashed: false,
-                    isPinned: pinned, sort: 0, isAvailable: true)
+                    isPinned: pinned, sort: sort, isAvailable: true)
     }
 
     private func date(_ value: String) -> Date {

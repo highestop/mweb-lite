@@ -20,7 +20,7 @@ enum ArticleTimelineGrouping {
         var entries: [Entry] = []
         var previousDate: Date?
         for article in articles {
-            let date = article.modifiedAt ?? article.createdAt
+            let date = article.createdAt
             let yearHeading: Date?
             let heading: Heading?
             let showsDate: Bool

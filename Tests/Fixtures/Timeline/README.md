@@ -2,9 +2,9 @@
 
 This synthetic overlay supplies [E2E-015](../../../docs/testing/cases/E2E-015.md). It adds the root category Timeline (106) and six articles to a fresh, ignored Preview run. The committed [Library fixture](../Library/README.md), its seven active articles, existing category counts, and all media files remain unchanged. The overlaid run has All 13 and Timeline 6; it is not the starting state for the other Library cases.
 
-The article list uses the fixed modification dates below, newest first. All six creation dates are January 2, 2026, so displaying creation dates instead would be visible. Dates are specified for Asia/Shanghai: each SQL timestamp is at 04:00 UTC, or noon locally. Month labels may follow the system locale; their calendar months must match. One independent 2026 year heading precedes six month-only headings, October through May. The year and first month occupy separate lines, and the row date column shows only the large day number at both normal and narrow widths.
+The article list uses the fixed creation dates below, newest first. All six modification dates are October 20, 2026, so using modification time would visibly collapse the six month groups. Dates are specified for Asia/Shanghai: each creation timestamp is at 04:00 UTC, or noon locally. Month labels may follow the system locale; their calendar months must match. One independent 2026 year heading precedes six month-only headings, October through May. The year and first month occupy separate lines, and the row date column shows only the large day number at both normal and narrow widths.
 
-| Order / ID | Title | Modified date / day and month heading | Images in document | Expected collage |
+| Order / ID | Title | Creation date / day and month heading | Images in document | Expected collage |
 | --- | --- | --- | --- | --- |
 | 1 / 11000 | Timeline 0 · Quiet notes | October 19, 2026 / 19 and October | 0 | No collage or empty image placeholder |
 | 2 / 11001 | Timeline 1 · Mountain morning | September 18, 2026 / 18 and September | 1 | Mountain fills the square |
