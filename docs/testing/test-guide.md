@@ -258,7 +258,7 @@ The publication flow is:
 
 Automatic publication becomes active only after its workflows are merged into the default branch. PR CI can validate collection while the publisher is still inactive. This change has not yet demonstrated the complete hosted collection → publication PR → validation → merge cycle; verify the first eligible default-branch run before claiming that full flow works.
 
-Repository **Settings → Actions → General → Workflow permissions** must allow **Allow GitHub Actions to create and approve pull requests** for the publisher to create its results PR. The publisher does not submit approval reviews; it keeps the repository's default token permission at read and grants write permissions only to the publication job. This combined repository switch is not yet enabled; authorization to change it is pending. Until enabled, publication cannot create its PR.
+Repository **Settings → Actions → General → Workflow permissions** must allow **Allow GitHub Actions to create and approve pull requests** for the publisher to create its results PR. The publisher does not submit approval reviews; it keeps the repository's default token permission at read and grants write permissions only to the publication job. This combined repository switch is enabled for this repository. If it is disabled later, publication cannot create its PR.
 
 For a read-only check of an eligible completed default-branch push run, use an authenticated GitHub token and the repository name in the environment:
 
