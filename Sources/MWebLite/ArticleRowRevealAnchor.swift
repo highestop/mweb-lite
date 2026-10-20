@@ -121,7 +121,7 @@ final class ArticleRowRevealView: NSView {
         // lay out this view, and later manual scrolling must never retrigger it.
         guard coordinator.complete(request, for: articleID) else { return }
         scheduledRequest = nil
-        _ = document.scrollRectToVisible(target)
+        _ = document.scrollToVisible(target)
     }
 
     func invalidate() {

@@ -35,7 +35,7 @@ final class ArticleRowRevealTests: CaseReportingTestCase {
         viewport.origin.y = document.isFlipped
             ? rowRect.minY - 90
             : rowRect.maxY + 90 - viewport.height
-        _ = document.scrollRectToVisible(viewport)
+        _ = document.scrollToVisible(viewport)
         _ = try await settledRow("9", probe: probe, host: host)
         XCTAssertEqual(topClearance(of: previousYear, in: scrollView), 90, accuracy: 0.5)
 
@@ -64,7 +64,7 @@ final class ArticleRowRevealTests: CaseReportingTestCase {
         // Later manual scrolling and unrelated updates must not replay a reveal.
         var movedViewport = scrollView.documentVisibleRect
         movedViewport.origin.y += document.isFlipped ? 20 : -20
-        _ = document.scrollRectToVisible(movedViewport)
+        _ = document.scrollToVisible(movedViewport)
         let afterManualScroll = scrollView.contentView.bounds.origin
         state.revision += 1
         _ = try await settledRow("8", probe: probe, host: host)
@@ -80,7 +80,7 @@ final class ArticleRowRevealTests: CaseReportingTestCase {
         remountViewport.origin.y = document.isFlipped
             ? visibleRowRect.minY - 24
             : visibleRowRect.maxY + 24 - remountViewport.height
-        _ = document.scrollRectToVisible(remountViewport)
+        _ = document.scrollToVisible(remountViewport)
         let beforeRemount = scrollView.contentView.bounds.origin
         let remounted = ArticleRowRevealView(frame: visibleRow.bounds)
         visibleRow.addSubview(remounted)
