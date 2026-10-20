@@ -2,10 +2,12 @@ import AppKit
 import SwiftUI
 
 extension View {
-    /// Apply to a ScrollView's content so its native scrollers float over the
-    /// existing viewport without reserving space beside the rows.
-    func overlayScrollbars() -> some View {
-        background(OverlayScrollbarConfiguration().allowsHitTesting(false))
+    /// Keep SwiftUI's content at the actual viewport width as well as configuring
+    /// AppKit's overlay scrollers. SwiftUI may otherwise subtract a legacy gutter
+    /// from its proposal even after the native scroll view uses overlay scrollers.
+    func overlayScrollbars(viewportWidth: CGFloat) -> some View {
+        frame(width: viewportWidth, alignment: .leading)
+            .background(OverlayScrollbarConfiguration().allowsHitTesting(false))
     }
 }
 
