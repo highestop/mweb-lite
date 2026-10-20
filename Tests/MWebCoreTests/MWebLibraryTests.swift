@@ -44,6 +44,21 @@ final class MWebLibraryTests: CaseReportingTestCase {
         XCTAssertTrue(first.isAvailable)
         XCTAssertTrue(try XCTUnwrap(index.articles.first { $0.id == "10003" }).isTrashed)
         XCTAssertEqual(index.articles.filter { !$0.isTrashed }.map(\.id), ["10002", "10001"])
+
+        // Modification, pinning, and manual sort metadata cannot reorder the timeline.
+        try database.execute("UPDATE article SET dateModif = 1800000000, isTop = 1, sort = -99 WHERE uuid = 10001")
+        try database.execute("""
+            INSERT INTO article (uuid, state, dateAdd, dateModif, isTop, sort) VALUES
+            (10004, 1, 1600000001, 1900000000, 0, 99),
+            (10005, 1, 1600000001, 1500000000, 0, 0),
+            (10006, 1, NULL, 2000000000, 1, -100),
+            (10007, 1, NULL, 1400000000, 0, 0)
+            """)
+        let reloaded = try MWebLibrary(rootURL: root).loadIndex()
+        XCTAssertEqual(reloaded.articles.filter { !$0.isTrashed }.map(\.id),
+                       ["10005", "10004", "10002", "10001", "10007", "10006"])
+        XCTAssertTrue(try XCTUnwrap(reloaded.articles.first { $0.id == "10001" }).isPinned)
+        XCTAssertEqual(try row("10001")["sort"], .integer(-99))
     }
 
     func test_LIB_002_SavePreservesUnknownMetadataAndBacksUpOriginal() throws {
@@ -62,6 +77,8 @@ final class MWebLibraryTests: CaseReportingTestCase {
         XCTAssertEqual(updated.createdAt, article.createdAt)
         XCTAssertEqual(updated.isPinned, article.isPinned)
         XCTAssertEqual(updated.sort, article.sort)
+        XCTAssertEqual(try library.loadIndex().articles.filter { !$0.isTrashed }.map(\.id),
+                       ["10002", "10001"], "Saving an older article must not move it ahead of a newer one.")
         var after = try row("10001")
         XCTAssertGreaterThan(try XCTUnwrap(after["dateModif"]?.integer), 1700000000)
         XCTAssertLessThan(try XCTUnwrap(after["dateModif"]?.integer), 100000000000)

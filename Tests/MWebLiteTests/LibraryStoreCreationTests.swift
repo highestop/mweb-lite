@@ -24,6 +24,7 @@ final class LibraryStoreCreationTests: CaseReportingTestCase {
         XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("docs/10001.md")), "# Saved before creation\n")
         let createdID = try XCTUnwrap(store.document?.articleID)
         XCTAssertNotEqual(createdID, "10001")
+        XCTAssertEqual(store.visibleArticles.first?.id, createdID)
         XCTAssertEqual(store.articles.first(where: { $0.id == createdID })?.categoryIDs, ["100"])
         XCTAssertTrue(store.visibleArticles.contains(where: { $0.id == createdID }))
         XCTAssertTrue(store.search.isEmpty)

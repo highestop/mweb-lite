@@ -276,11 +276,8 @@ final class LibraryStore: ObservableObject {
                     document = saved
                     lastSaved = Date()
                 }
-                articles = articles.map { $0.updating(document: saved) }.sorted {
-                    if $0.isPinned != $1.isPinned { return $0.isPinned }
-                    if $0.modifiedAt != $1.modifiedAt { return ($0.modifiedAt ?? .distantPast) > ($1.modifiedAt ?? .distantPast) }
-                    return $0.id.localizedStandardCompare($1.id) == .orderedDescending
-                }
+                // Saving does not change creation dates or timeline positions.
+                articles = articles.map { $0.updating(document: saved) }
                 return true
             } catch {
                 saveBlocked = true

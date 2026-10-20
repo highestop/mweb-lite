@@ -29,6 +29,27 @@ final class LibraryStoreSelectionTests: CaseReportingTestCase {
         XCTAssertEqual(store.draft, "# Article B\n")
         XCTAssertFalse(store.isSwitchingArticle)
         XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("docs/10001.md")), "# Updated A\n")
+
+        // Saving the older article refreshes its card without moving it or its date.
+        let originalOrder = store.visibleArticles.map(\.id)
+        let originalDates = store.visibleArticles.map(\.createdAt)
+        XCTAssertEqual(originalOrder, ["10001", "10002"])
+        store.edit("# Updated B\n\nEdited older article.\n")
+        let saved = await store.flush()
+        XCTAssertTrue(saved)
+        XCTAssertEqual(store.selectedArticleID, "10002")
+        XCTAssertEqual(store.visibleArticles.map(\.id), originalOrder)
+        XCTAssertEqual(store.visibleArticles.map(\.createdAt), originalDates)
+        XCTAssertEqual(store.visibleArticles.last?.title, "Updated B")
+        XCTAssertGreaterThan(try XCTUnwrap(store.visibleArticles.last?.modifiedAt),
+                             try XCTUnwrap(store.visibleArticles.last?.createdAt))
+
+        store.refresh()
+        await waitUntilIdle(store)
+        XCTAssertNil(store.errorMessage)
+        XCTAssertEqual(store.selectedArticleID, "10002")
+        XCTAssertEqual(store.visibleArticles.map(\.id), originalOrder)
+        XCTAssertEqual(store.visibleArticles.map(\.createdAt), originalDates)
     }
 
     @MainActor

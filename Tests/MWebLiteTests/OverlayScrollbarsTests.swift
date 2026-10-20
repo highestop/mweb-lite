@@ -238,7 +238,8 @@ private struct ScrollbarTimelineFixture: View {
         let articles = (0..<count).map {
             MWebArticle(id: "\($0)", title: "Article \($0)", excerpt: "Synthetic timeline row",
                         modifiedAt: Date(timeIntervalSince1970: 1_700_000_000),
-                        createdAt: nil, categoryIDs: [], isTrashed: false,
+                        createdAt: Date(timeIntervalSince1970: 1_700_000_000),
+                        categoryIDs: [], isTrashed: false,
                         isPinned: false, sort: 0, isAvailable: true)
         }
         ArticleTimelineList(entries: ArticleTimelineGrouping.entries(articles: articles)) { entry in

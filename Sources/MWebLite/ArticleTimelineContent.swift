@@ -49,7 +49,7 @@ struct ArticleTimelineContent: View {
 
     @ViewBuilder
     private var date: some View {
-        if showsDate, let date = article.modifiedAt ?? article.createdAt {
+        if showsDate, let date = article.createdAt {
             day(date)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(date.formatted(date: .abbreviated, time: .omitted))

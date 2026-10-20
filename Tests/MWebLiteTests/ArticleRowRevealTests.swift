@@ -295,7 +295,7 @@ private struct RowRevealFixture: View {
             let month = index < 4 || index >= 9 ? 10 : 9
             let date = calendar.date(from: DateComponents(year: year, month: month, day: 20))!
             return MWebArticle(id: "\(index)", title: "Article \(index)", excerpt: "",
-                               modifiedAt: date, createdAt: nil, categoryIDs: [],
+                               modifiedAt: date, createdAt: date, categoryIDs: [],
                                isTrashed: false, isPinned: false, sort: 0, isAvailable: true)
         }
         return ArticleTimelineGrouping.entries(articles: articles, calendar: calendar)

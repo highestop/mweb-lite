@@ -78,9 +78,8 @@ public final class MWebLibrary: @unchecked Sendable {
                                sort: row["sort"]?.integer ?? 0, isAvailable: data != nil,
                                imageReferences: images)
         }.sorted { left, right in
-            if left.isPinned != right.isPinned { return left.isPinned }
-            if left.modifiedAt != right.modifiedAt {
-                return (left.modifiedAt ?? .distantPast) > (right.modifiedAt ?? .distantPast)
+            if left.createdAt != right.createdAt {
+                return (left.createdAt ?? .distantPast) > (right.createdAt ?? .distantPast)
             }
             return left.id.localizedStandardCompare(right.id) == .orderedDescending
         }

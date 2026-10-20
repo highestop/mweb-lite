@@ -37,7 +37,7 @@ final class SharedFixtureTests: CaseReportingTestCase {
         let active = index.articles.filter { !$0.isTrashed }
 
         // Then: the fixture's manifest, content, and relationships remain usable.
-        XCTAssertEqual(manifest.version, 2)
+        XCTAssertEqual(manifest.version, 3)
         XCTAssertEqual(active.count, 7)
         XCTAssertEqual(active.map(\.id).sorted(), manifest.activeArticleIDs)
         XCTAssertEqual(index.articles.filter(\.isTrashed).map(\.id).sorted(), manifest.trashedArticleIDs)
