@@ -8,9 +8,10 @@ struct ArticleTimelineContent: View {
     let title: String
     let libraryRoot: URL?
     let width: CGFloat
+    var showsDate = true
 
     private var compact: Bool { width < 250 }
-    private var dateWidth: CGFloat { compact ? 36 : 50 }
+    private let dateWidth: CGFloat = 36
     private var gap: CGFloat { compact ? 6 : 8 }
     private var imageSide: CGFloat { min(88, max(48, (width - dateWidth - gap * 2) * 0.34)) }
 
@@ -48,22 +49,10 @@ struct ArticleTimelineContent: View {
 
     @ViewBuilder
     private var date: some View {
-        if let date = article.modifiedAt ?? article.createdAt {
-            Group {
-                if compact {
-                    VStack(alignment: .leading, spacing: 1) {
-                        day(date)
-                        month(date)
-                    }
-                } else {
-                    HStack(alignment: .firstTextBaseline, spacing: 1) {
-                        day(date)
-                        month(date)
-                    }
-                }
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(date.formatted(date: .abbreviated, time: .omitted))
+        if showsDate, let date = article.modifiedAt ?? article.createdAt {
+            day(date)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(date.formatted(date: .abbreviated, time: .omitted))
         } else {
             Color.clear.frame(height: 1).accessibilityHidden(true)
         }
@@ -74,14 +63,6 @@ struct ArticleTimelineContent: View {
             .font(.system(size: 23, weight: .regular, design: .rounded))
             .monospacedDigit()
             .fixedSize()
-    }
-
-    private func month(_ date: Date) -> some View {
-        Text(date, format: .dateTime.month(.abbreviated))
-            .font(.system(size: 10))
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
     }
 }
 

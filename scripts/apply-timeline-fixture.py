@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Add the Timeline overlay to a fresh, prepared Preview run under ignored build/."""
+"""Add the Timeline or DateGroups overlay to a fresh Preview run under ignored build/."""
 import argparse
 import hashlib
 import json
@@ -18,7 +18,11 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def apply_overlay(run_name):
+def apply_overlay(run_name, date_groups=False):
+    source = PROJECT / "Tests/Fixtures/DateGroups" if date_groups else SOURCE
+    article_ids = (12001, 12002, 12003, 12004, 12005, 12006) if date_groups else ARTICLE_IDS
+    category_id = 107 if date_groups else 106
+    category_name = "Date Groups" if date_groups else "Timeline"
     if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}", run_name):
         raise ValueError("Use the same 1–64 character run name accepted by run-preview-app.sh")
     run = PROJECT / "build/Test Runs" / run_name
@@ -49,29 +53,29 @@ def apply_overlay(run_name):
     for suffix in ("-wal", "-shm", "-journal"):
         if pathlib.Path(str(database_path) + suffix).exists():
             raise ValueError("The fixture database has journal files; use an unopened, fresh run")
-    inputs = sorted(path for path in SOURCE.rglob("*") if path.is_file()) + [pathlib.Path(__file__).resolve()]
+    inputs = sorted(path for path in source.rglob("*") if path.is_file()) + [pathlib.Path(__file__).resolve()]
     for path in inputs:
         relative = str(path.relative_to(PROJECT))
         if record.get("sourceFiles", {}).get(relative) != digest(path):
             raise ValueError("Overlay inputs differ from the prepared app's source record; commit and prepare a new run")
-    destinations = [library / "docs" / f"{identifier}.md" for identifier in ARTICLE_IDS]
+    destinations = [library / "docs" / f"{identifier}.md" for identifier in article_ids]
     if any(path.exists() or path.is_symlink() for path in destinations):
-        raise ValueError("Timeline document IDs already exist; use a fresh run")
+        raise ValueError(f"{category_name} document IDs already exist; use a fresh run")
 
     copied = []
     database = sqlite3.connect(database_path.as_uri() + "?mode=rw", uri=True)
     try:
         with database:
             database.execute("PRAGMA foreign_keys = ON")
-            if database.execute("SELECT 1 FROM cat WHERE uuid = 106 OR name = 'Timeline'").fetchone():
-                raise ValueError("The Timeline category already exists; use a fresh run")
-            placeholders = ",".join("?" for _ in ARTICLE_IDS)
-            if database.execute(f"SELECT 1 FROM article WHERE uuid IN ({placeholders})", ARTICLE_IDS).fetchone():
-                raise ValueError("Timeline article IDs already exist; use a fresh run")
-            database.executescript("BEGIN IMMEDIATE;\n" + (SOURCE / "seed.sql").read_text())
+            if database.execute("SELECT 1 FROM cat WHERE uuid = ? OR name = ?", (category_id, category_name)).fetchone():
+                raise ValueError(f"The {category_name} category already exists; use a fresh run")
+            placeholders = ",".join("?" for _ in article_ids)
+            if database.execute(f"SELECT 1 FROM article WHERE uuid IN ({placeholders})", article_ids).fetchone():
+                raise ValueError(f"{category_name} article IDs already exist; use a fresh run")
+            database.executescript("BEGIN IMMEDIATE;\n" + (source / "seed.sql").read_text())
             for destination in destinations:
                 copied.append(destination)
-                shutil.copyfile(SOURCE / "docs" / destination.name, destination)
+                shutil.copyfile(source / "docs" / destination.name, destination)
             if database.execute("PRAGMA foreign_key_check").fetchall():
                 raise ValueError("The overlaid fixture has invalid relationships")
     except BaseException:
@@ -86,10 +90,12 @@ def apply_overlay(run_name):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("run_name", help="Existing unopened run prepared with run-preview-app.sh <run-name> --prepare-only")
+    parser.add_argument("--date-groups", action="store_true", help="Apply the DateGroups scenario for E2E-016 instead of Timeline")
     args = parser.parse_args()
     try:
-        apply_overlay(args.run_name)
-        print(f"Applied Timeline to {args.run_name}: 6 new articles; All 13; existing Library articles and media preserved.")
+        apply_overlay(args.run_name, date_groups=args.date_groups)
+        scenario = "Date Groups" if args.date_groups else "Timeline"
+        print(f"Applied {scenario} to {args.run_name}: 6 new articles; All 13; existing Library articles and media preserved.")
         print(f"Launch with: ./scripts/run-preview-app.sh --reopen {args.run_name}")
     except (ValueError, OSError, sqlite3.Error) as error:
         parser.exit(1, f"{error}\n")
