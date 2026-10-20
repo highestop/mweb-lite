@@ -91,7 +91,7 @@ struct WindowLifecycle: NSViewRepresentable {
     }
 }
 
-/// The library header can move the window; article text remains selectable.
+/// The document toolbar can move the window; article text remains selectable.
 struct WindowDragArea: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView { DragView() }
     func updateNSView(_ nsView: NSView, context: Context) {}
