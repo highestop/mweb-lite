@@ -19,7 +19,11 @@ struct LibraryView: View {
             else { workspace }
         }
         .tint(.gray)
-        .onChange(of: store.rootURL) { _, _ in expandedCategoryIDs.removeAll() }
+        .onChange(of: store.rootURL) { _, _ in
+            expandedCategoryIDs.removeAll()
+            categoryEdgeHighlighted = false
+            articleEdgeHighlighted = false
+        }
         .toolbar(.hidden, for: .windowToolbar)
         .alert("MWeb Lite", isPresented: Binding(get: { store.errorMessage != nil }, set: { if !$0 { store.errorMessage = nil } })) {
             Button("好", role: .cancel) { store.errorMessage = nil }
@@ -220,6 +224,8 @@ struct LibraryView: View {
                 title: navigationVisible ? "收起侧边栏" : "展开侧边栏",
                 symbol: "sidebar.left", help: "展开或收起分类和文章列表"
             ) {
+                categoryEdgeHighlighted = false
+                articleEdgeHighlighted = false
                 // End navigation input before it goes offscreen; leave an active
                 // editor's selection, composition, and undo history in place.
                 let responder = NSApp.keyWindow?.firstResponder
