@@ -134,7 +134,7 @@ Open a case to read or update its GWT statements, execution details, and data so
 - [FOCUS-001](cases/FOCUS-001.md) — Commit composition when the editor loses focus.
 - [FOCUS-002](cases/FOCUS-002.md) — Preserve selection and undo through a focus round trip.
 - [FOCUS-003](cases/FOCUS-003.md) — Select only a new document’s Unicode title.
-- [FOCUS-004](cases/FOCUS-004.md) — Start changed editor documents at the top without stale resets overriding a later edit.
+- [FOCUS-004](cases/FOCUS-004.md) — Open a different article in a fresh editor at the top while keeping the same editor through mode changes.
 
 ### Packaged WebKit preview integration
 

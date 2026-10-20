@@ -2,9 +2,9 @@
 | --- | --- |
 | ID | FOCUS-004 |
 | Verification | `MarkdownEditorFocusTests/test_FOCUS_004_DocumentChangeStartsAtTop` |
-| Given | A native scroll view and Markdown text view contain a long Article A with the caret and viewport at its end. |
-| When | Load long Article B through the production editor coordinator and process the next main-queue layout pass. Then rapidly load C and D, immediately place the caret at D's end, insert text, and scroll to that caret before queued resets finish. |
-| Then | B starts with a zero-length selection at offset zero and its viewport at the top, immediately and after the queued layout pass. Stale resets from rapid switches do not overwrite D's content, user selection, edit, or new scroll position. |
+| Given | A production LibraryView is mounted in an NSHostingView and opens an isolated temporary library containing long Articles A and B. Article A's native editor has its caret and viewport at the end. |
+| When | Select B through LibraryStore, wait for its native editor to mount, and process another main-queue layout pass. Then select B's paragraph 145, scroll to it, and switch to preview and back without changing articles. |
+| Then | Selecting B creates a different native editor instance with a zero-length selection at offset zero and viewport at the top, both when mounted and after the additional layout pass. Switching modes within B preserves that same native editor instance, its selection, and a nonzero scroll position. This hosted component test does not replace full-app scroll verification in E2E-013. |
 | Level | Integration |
 | Path | CI |
 | Data | Inline |

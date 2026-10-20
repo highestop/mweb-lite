@@ -169,10 +169,12 @@ struct LibraryView: View {
             Divider()
             if let document = store.document {
                 ZStack {
-                    // Keep the native editor mounted to preserve selection and undo across mode changes.
+                    // Keep the native editor across mode changes, but start each file
+                    // with a fresh view so delayed native scrolling cannot leak across files.
                     MarkdownEditor(text: Binding(get: { store.draft }, set: { if store.document?.articleID == document.articleID { store.edit($0) } }), documentID: document.articleID,
                         onSave: { store.saveNow() }, onInsertImages: { store.insertImages($0) }, onPasteImage: { store.pasteImage($0) },
                         focusRequest: store.editorFocusRequest, onFocusHandled: { store.consumeEditorFocus($0) })
+                        .id(document.fileURL)
                         .disabled(store.isBusy || store.mode != .editor)
                         .opacity(store.mode == .editor ? 1 : 0)
                         .allowsHitTesting(store.mode == .editor)
