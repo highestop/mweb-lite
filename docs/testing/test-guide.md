@@ -1,6 +1,6 @@
 # Testing guide
 
-Use the [case catalog](test-cases.md) to describe what must work, how it is verified, and what evidence supports its current status. Use committed synthetic fixtures to reproduce full-app cases. A successful build alone does not verify any user interaction.
+Use [test-cases.md](test-cases.md) for the shared case format and index. Each case has its own file under [cases/](cases/) describing what must work, how it is verified, and its latest recorded execution result. Use committed synthetic fixtures to reproduce full-app cases. A successful build alone does not verify any user interaction.
 
 **Preview app** means `MWeb Lite Preview.app`: the complete application built for end-to-end testing with an isolated fixture library. **Release app** means the normal `MWeb Lite.app` with its production identity and normal launch flow. **WebKit integration test program** means `PreviewTests.app`: the temporary program that checks only the Markdown rendering component. Their existing filenames remain unchanged.
 
@@ -65,7 +65,7 @@ Use a fresh log name when keeping multiple runs. On a restricted execution host,
 
 ## Write automated tests
 
-Start with a catalog case in **Given / When / Then (GWT)** form. Given identifies the exact starting state, When describes one action or sequence, and Then states observable results. Name the XCTest method after the behavior and link that method from the catalog. Keep failure diagnostics specific enough to identify which assertion failed.
+Start with a case file in **Given / When / Then (GWT)** form. Given identifies the exact starting state, When describes one action or sequence, and Then states observable results. Name the XCTest method after the behavior and link that method in the case's Verification field. Keep failure diagnostics specific enough to identify which assertion failed.
 
 A unit test can directly mirror GWT. This example uses the existing Markdown editing API:
 
@@ -120,12 +120,12 @@ This program does not test the article list, menus, editor, application lifecycl
 
 CI can read committed fixture files after checking out the repository. Data placement depends on size and reuse, not on whether a test runs in CI. Keep short unit-test inputs and small, scenario-specific integration setups inline. Put long Markdown, media, complex/shared integration data, and full-app starting states in versioned fixture files. Both forms are valid for CI; all writable runtime data must still be isolated.
 
-Each case's **Data** cell identifies how its **Given** state is supplied:
+Each case's **Data** field identifies how its **Given** state is supplied:
 
 | Data | Meaning | Example |
 | --- | --- | --- |
 | `Inline` | Initial text, SQL, events, or objects are defined in the test code or setup instructions. | A Markdown editing string or a minimal database constructed inside an XCTest. |
-| `Fixture` | Initial content comes from committed fixture files; the cell links to the relevant file or directory. Copying files or materializing their SQL into a runtime database does not change this classification. | FIXTURE-001 and the Preview app cases use [the Library fixture](../../Tests/Fixtures/Library). |
+| `Fixture` | Initial content comes from committed fixture files; the field links to the relevant file or directory. Copying files or materializing their SQL into a runtime database does not change this classification. | FIXTURE-001 and the Preview app cases use [the Library fixture](../../Tests/Fixtures/Library). |
 | `Mixed` | The initial state combines committed fixture content with case-specific data or objects added programmatically or by setup instructions. Include a fixture link and describe the added setup. | PV-001 uses [the test image](../../Tests/Fixtures/Preview/media/test.png) plus generated outside-library and symlink probes. |
 
 Data describes the starting input, not every literal used by a test. Text entered during **When**, expected values in **Then**, and assertions do not by themselves make a fixture case `Mixed`. For example, creating an article with a specified title in a copied Library fixture remains `Fixture`. This classification is independent of Level and Path: a CI integration test can use `Inline`, `Fixture`, or `Mixed` data.
@@ -177,7 +177,7 @@ Execute each full-app case from its documented Given state. Use a fresh run afte
 5. **Save and reopen:** save with `⌘S` when the case calls for explicit save, or wait for the observable saved-file result for an autosave case. Switch articles, quit, and reopen the same run. Confirm both content and category membership survived. Inspect only this run's database and document files if the Then clause requires storage assertions.
 6. **Inspect appearance and input:** check hover/pressed feedback, compact margins, dark/light appearance, and the app icon where specified. For Chinese input, use the actual macOS input method and record its name; `setMarkedText` in an XCTest does not substitute for this interaction.
 
-For every case, follow the catalog's exact GWT values rather than treating this sequence as a blanket pass. Save evidence under the run directory or `build/test-results/`, then add a concise, reviewable record under `docs/testing/runs/`. Quit the Preview app before removing its run directory. Keep a failed run until its diagnosis is complete.
+For every case, follow its file's exact GWT values rather than treating this sequence as a blanket pass. Keep reports, logs, and screenshots in ignored `build/Test Runs/` or `build/test-results/`; do not commit run reports. Record the latest result and a dated evidence reference in that case file. Quit the Preview app before removing its run directory. Keep a failed run until its diagnosis is complete.
 
 ## Verify the Release app
 
@@ -188,13 +188,13 @@ REL-001 exercises the normal production identity and library bookmark. Perform i
 3. Inspect the Finder and running Dock icon. Use File → Open / `⌘O` to select the copied fixture. Verify the expected categories and articles, then quit with `⌘Q`.
 4. Launch the installed app normally again. Verify that it restores the selected fixture through the saved library bookmark and still displays the expected content and icon. Record the installed bundle location, revision, account isolation, and observed results.
 
-This remains an end-to-end case, with Path `Release app`. A successful Preview app run does not pass it. Leave REL-001 `Pending` until this specific flow is exercised; if a required test environment prevents an attempted execution, record `Blocked` and its cause. No step requires opening a personal library.
+This remains an end-to-end case, with Path `Release app`. A successful Preview app run does not pass it. If there is no recorded execution, use `—`; if a required test environment prevents an attempted execution, record `Blocked` and its cause. No step requires opening a personal library.
 
 ## GitHub Actions coverage
 
 [The macOS workflow](../../.github/workflows/test.yml) runs on pushes and pull requests. It validates the case catalog and fixture references, runs `swift test`, runs the WebKit integration test program, and builds the Release application.
 
-The runner has its own checkout and temporary data; it does not access a developer's library. Optional installed-MWeb rendering may be skipped there. CI does not currently drive the Preview app or Release app with mouse and keyboard, perform visual review, or automatically update catalog statuses. Its passing result is evidence for the assertions that actually ran, not for the full-app end-to-end rows. Running the same commands locally is useful evidence for `Local script`, but cannot be recorded as `CI passed`.
+The runner has its own checkout and temporary data; it does not access a developer's library. Optional installed-MWeb rendering may be skipped there. CI does not currently drive the Preview app or Release app with mouse and keyboard, perform visual review, or automatically update case results. Its passing result is evidence for the assertions that actually ran, not for the full-app end-to-end cases. Running the same commands locally is useful evidence for `Local script`, but cannot be recorded as `CI passed`.
 
 Before submitting a case or fixture change, run:
 
@@ -207,15 +207,16 @@ swift test
 
 Also run the affected end-to-end cases when their behavior changes. Building via the Preview app launcher already builds the Release app; a second build is unnecessary when it is the same source revision.
 
-## Maintain the case catalog
+## Maintain the case files
 
-Use [test-cases.md](test-cases.md) as the single catalog. Every table uses the ten columns `ID`, `Given`, `When`, `Then`, `Level`, `Path`, `Data`, `Status`, `Verification`, and `Evidence`. Give each row a stable ID; classify its initial inputs in Data with clickable fixture references where applicable, and put the exact test selector or full-app instructions in Verification. Split a behavior into separate rows when its scope or required execution path differs, such as store selection versus visible mouse-down feedback, or Preview app persistence versus Release app bookmark restoration. Each row has one Level, one Path, one Data classification, and one current Status.
+Keep the shared specification and links in [test-cases.md](test-cases.md). Store each case in `docs/testing/cases/<ID>.md`, with `# <ID>` followed by nine `##` headings in this order: `Given`, `When`, `Then`, `Level`, `Path`, `Data`, `Status`, `Verification`, and `Evidence`. Put each field's content below its heading in a single vertical flow. This preserves the same ten items of information without a wide table. The index links to cases and does not duplicate their results.
 
-`check-test-cases.py` checks table structure, unique IDs, complete XCTest mappings, preview case IDs, allowed statuses, and fixture/evidence link targets. It does not execute the cases or prove the truth of an evidence record; review the actual logs and observations before recording a result.
+Keep IDs stable. Data links to fixture inputs where applicable; Verification contains the exact test selector or full-app instructions. Create separate cases when scope or required execution path differs. **Status records the latest recorded execution result for that case's Path.** If none exists, put `—` in Status and Evidence; this is an empty marker, not a test result.
+
+`check-test-cases.py` checks case-file structure, unique IDs, index coverage, complete XCTest mappings, preview case IDs, result values, fixture links, and evidence reference formats. Local ignored reports need not exist in a CI checkout. The checker does not execute cases or prove their results; review the actual logs and observations before recording them.
 
 | Status | Meaning |
 | --- | --- |
-| `Pending` | The case exists, but no applicable result has been recorded for its current behavior, fixture, and Path. |
 | `CI passed` | The case's assertions actually ran and passed in the linked CI job for the recorded source and fixture revision. |
 | `Local script passed` | The documented script actually ran locally and every assertion passed for the recorded revision and environment. It does not prove a CI run passed. |
 | `Preview app passed` | The complete Preview app was exercised through the documented actions and every Then assertion was observed. |
@@ -224,9 +225,9 @@ Use [test-cases.md](test-cases.md) as the single catalog. Every table uses the t
 | `Blocked` | The case could not be completed because a required environment, runtime, or setup was unavailable. Include the cause. |
 | `Skipped` | A documented optional check was deliberately omitted, for example because MWeb rendering runtimes are not installed. This is not a pass. |
 
-A row's passing status must match its Path. For a row assigned to `CI`, a successful local rerun can be retained as supporting evidence, but the row stays `Pending` until that revision's CI execution is verified. Likewise, a Preview app observation cannot become `Release app passed`. Record distinct execution variants separately when both are required.
+A passing result must match the case's Path. A local rerun does not replace a CI result, and a Preview app observation cannot become `Release app passed`. Do not invent `Blocked` or `Skipped` for a case that has no execution record.
 
-Each evidence record under `docs/testing/runs/` must identify:
+Keep run reports, logs, screenshots, and recordings outside Git, under ignored `build/test-results/` or `build/Test Runs/`. Each case's Evidence field retains the run date and source revision, plus a GitHub Actions URL or a reference labeled `local-only` to an ignored report. Local reports are not expected to be available to CI or other checkouts. Include these details in the report or CI evidence:
 
 - Case IDs, Level, executed Path, and result; date with timezone; tester or CI run URL.
 - Source revision and fixture revision. If testing uncommitted work, say so and retain the relevant diff or source snapshot; do not label it as an unchanged commit.
@@ -235,6 +236,6 @@ Each evidence record under `docs/testing/runs/` must identify:
 
 A screenshot proves a visible state, not how it was reached or whether a save survived restart. Record the action sequence and persisted-data check for those cases. Mouse-down timing may need a held-button screenshot or video. A green build, a related test, a past assistant statement, or a skipped assertion is never evidence of a case pass.
 
-When a relevant implementation, fixture, or expectation changes, reset the affected status to `Pending` until it is rerun. Keep historical evidence with its original revision. Unrelated changes do not require claiming a new verification. New cases start `Pending`. A result must match the actual scope and execution path: running a component script never passes a full-app row, and a local run never becomes a CI pass merely because its command is also in the workflow. Future automated end-to-end cases can use `CI passed` when a CI job actually performs and verifies their complete flow.
+Code, fixture, or case changes do not clear the last result. Keep its execution date and tested revision so an earlier pass is not mistaken for verification of the changed version. Replace Status and Evidence only when a newer execution on that case's Path is recorded. A component pass never proves a full-app flow; future automated end-to-end cases can use `CI passed` when CI actually performs and verifies their complete flow.
 
-For each behavior change: update or add its GWT case, add the appropriate automated assertion, update fixture inputs if needed, run the affected commands and full-app cases, and record the actual results. Leave unexecuted cases visibly pending rather than estimating success.
+For each behavior change, update its GWT case, assertions, and fixture inputs as needed, then run the affected checks and record their actual results. Preserve existing results if no newer run exists; use `—` for cases with no execution record.
