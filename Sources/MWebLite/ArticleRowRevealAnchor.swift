@@ -5,7 +5,6 @@ import SwiftUI
 /// the row below the headings that visually cover the top of its viewport.
 struct ArticleRowRevealAnchor: NSViewRepresentable {
     let articleID: String
-    let selectedArticleID: String?
     let headerInset: CGFloat
     let coordinator: ArticleRowRevealCoordinator
 
@@ -14,8 +13,7 @@ struct ArticleRowRevealAnchor: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: ArticleRowRevealView, context: Context) {
-        nsView.configure(articleID: articleID, selectedArticleID: selectedArticleID,
-                         headerInset: headerInset, coordinator: coordinator)
+        nsView.configure(articleID: articleID, headerInset: headerInset, coordinator: coordinator)
     }
 
     static func dismantleNSView(_ nsView: ArticleRowRevealView, coordinator: ()) {
@@ -30,12 +28,30 @@ final class ArticleRowRevealCoordinator: ObservableObject {
     private var selectedArticleID: String?
     private var generation = 0
     private var pending = false
+    private struct WeakAnchor { weak var view: ArticleRowRevealView? }
+    private var anchors: [String: WeakAnchor] = [:]
 
-    func select(_ articleID: String?) {
-        guard articleID != selectedArticleID else { return }
+    /// Mounted rows use only native scrolling. ScrollViewReader is a fallback
+    /// for mounting an absent lazy row, never a competing scroll for a live row.
+    func reveal(_ articleID: String?, mount: () -> Void) {
         selectedArticleID = articleID
         generation += 1
         pending = articleID != nil
+        guard let articleID else { return }
+        if let view = anchors[articleID]?.view, view.canReveal {
+            view.scheduleIfNeeded()
+        } else {
+            mount()
+        }
+    }
+
+    func register(_ view: ArticleRowRevealView, for articleID: String) {
+        anchors[articleID] = WeakAnchor(view: view)
+        view.scheduleIfNeeded()
+    }
+
+    func unregister(_ view: ArticleRowRevealView, for articleID: String) {
+        if anchors[articleID]?.view === view { anchors.removeValue(forKey: articleID) }
     }
 
     func request(for articleID: String) -> Int? {
@@ -50,7 +66,7 @@ final class ArticleRowRevealCoordinator: ObservableObject {
 }
 
 final class ArticleRowRevealView: NSView {
-    private var articleID = ""
+    private(set) var articleID = ""
     private(set) weak var coordinator: ArticleRowRevealCoordinator?
     private var headerInset: CGFloat = 0
     private var lifetime = 0
@@ -61,18 +77,22 @@ final class ArticleRowRevealView: NSView {
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
     override func isAccessibilityElement() -> Bool { false }
 
-    func configure(articleID: String, selectedArticleID: String?, headerInset: CGFloat,
+    var canReveal: Bool {
+        !isDismantled && window != nil && enclosingScrollView != nil && bounds.width > 0 && bounds.height > 0
+    }
+
+    func configure(articleID: String, headerInset: CGFloat,
                    coordinator: ArticleRowRevealCoordinator) {
         guard !isDismantled else { return }
         if self.articleID != articleID || self.coordinator !== coordinator {
+            self.coordinator?.unregister(self, for: self.articleID)
             lifetime += 1
             scheduledRequest = nil
         }
         self.articleID = articleID
         self.coordinator = coordinator
         self.headerInset = headerInset
-        coordinator.select(selectedArticleID)
-        scheduleIfNeeded()
+        coordinator.register(self, for: articleID)
     }
 
     override func viewDidMoveToSuperview() {
@@ -90,7 +110,7 @@ final class ArticleRowRevealView: NSView {
         scheduleIfNeeded()
     }
 
-    private func scheduleIfNeeded() {
+    func scheduleIfNeeded() {
         guard let request = coordinator?.request(for: articleID),
               scheduledRequest != request, !isDismantled,
               window != nil, enclosingScrollView != nil else { return }
@@ -128,6 +148,7 @@ final class ArticleRowRevealView: NSView {
         isDismantled = true
         lifetime += 1
         scheduledRequest = nil
+        coordinator?.unregister(self, for: articleID)
         coordinator = nil
     }
 }

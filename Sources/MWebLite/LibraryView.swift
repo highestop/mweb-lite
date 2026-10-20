@@ -132,21 +132,12 @@ struct LibraryView: View {
                 ContentUnavailableView("没有文章", systemImage: "doc.text.magnifyingglass", description: Text(store.search.isEmpty ? "这个分类中还没有文章。" : "试试其他关键词。"))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ScrollViewReader { proxy in
-                    ArticleTimelineList(entries: ArticleTimelineGrouping.entries(articles: store.visibleArticles),
-                                        selectedArticleID: store.selectedArticleID) { entry in
-                        articleRow(entry.article, width: width - 20, showsDate: entry.showsDate)
-                    }
-                    .onChange(of: store.selectedArticleID) { _, selected in
-                        if let selected { proxy.scrollTo(selected) }
-                    }
-                    .onChange(of: store.visibleArticles.map(\.id)) { _, _ in
-                        // Creation publishes the selection before the refreshed
-                        // index; scroll again once that row is actually present.
-                        if let selected = store.selectedArticleID { proxy.scrollTo(selected) }
-                    }
-                    .background(ArticleListKeyboardSelection(controller: articleListSelection, onMove: selectRelativeArticle))
-                }.disabled(store.isBusy)
+                ArticleTimelineList(entries: ArticleTimelineGrouping.entries(articles: store.visibleArticles),
+                                    selectedArticleID: store.selectedArticleID) { entry in
+                    articleRow(entry.article, width: width - 20, showsDate: entry.showsDate)
+                }
+                .background(ArticleListKeyboardSelection(controller: articleListSelection, onMove: selectRelativeArticle))
+                .disabled(store.isBusy)
             }
         }
         .frame(maxHeight: .infinity, alignment: .top)

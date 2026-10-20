@@ -132,7 +132,7 @@ Open a case to read or update its GWT statements, execution details, and data so
 - [DRAWER-002](cases/DRAWER-002.md) — Keep a hosted native scroll view's right edge fixed when its preferred width differs from the layout proposal.
 - [DRAWER-003](cases/DRAWER-003.md) — Give native resize handles cursor and drag ownership with clean disabling and teardown.
 - [SCROLL-001](cases/SCROLL-001.md) — Preserve hosted timeline/editor width with shared overlay scrollers and native wheel input.
-- [SCROLL-002](cases/SCROLL-002.md) — Reveal selected rows below sticky headers without moving visible rows or replaying completed requests on native remount.
+- [SCROLL-002](cases/SCROLL-002.md) — Reveal asynchronous library selections below sticky headers while preserving visible rows and completed requests on native remount.
 
 ### Markdown editing rules
 
