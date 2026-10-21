@@ -7,7 +7,7 @@ final class LocalizationTests: CaseReportingTestCase {
     func test_L10N_001_LanguagePreferenceFallbackAndCatalogCompleteness() throws {
         for (preferences, expected) in [
             (["en-GB", "zh-Hans"], "en"), (["zh-CN", "en"], "zh-Hans"),
-            (["fr-FR", "zh-Hans-CN", "en"], "zh-Hans"), (["zh-TW", "en"], "zh-Hans"),
+            (["fr-FR", "zh-Hans-CN", "en"], "zh-Hans"), (["zh-TW", "en"], "en"),
             (["ja-JP"], "en"), ([String](), "en")
         ] {
             XCTAssertEqual(Localization(preferredLanguages: preferences).language, expected)
