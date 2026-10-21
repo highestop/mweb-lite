@@ -270,34 +270,39 @@ public final class MWebLibrary: @unchecked Sendable {
         try database.execute("COMMIT")
     }
 
-    /// Delete only this category and its direct memberships. Children survive at
-    /// the deleted category's parent; document bytes and other memberships stay intact.
+    /// Remove the category subtree and every membership to it, preserving
+    /// documents, attachments, tags, and memberships outside the subtree.
     public func deleteCategory(id: String) throws {
         lock.lock()
         defer { lock.unlock() }
         let database = try SQLiteDatabase(url: databaseURL, writable: true)
         try database.execute("BEGIN IMMEDIATE")
         defer { database.rollbackIfNeeded() }
-        let row = try categoryRow(id, database: database)
-        var parent = row["pid"] ?? .integer(0)
-        if parent == .null { parent = .integer(0) }
-        // Reject malformed ancestry rather than promoting children into a cycle.
-        var ancestors: Set<String> = [id]
-        var cursor = parent.string
-        while let value = cursor, value != "0", !value.isEmpty {
-            guard ancestors.insert(value).inserted else {
-                throw MWebLibraryError.invalidCategory("分类层级存在循环，请先修复文库。")
+        _ = try categoryRow(id, database: database)
+        let rows = try database.query("SELECT uuid, pid FROM cat")
+        var ids = [id]
+        var visited: Set<String> = [id]
+        var position = 0
+        while position < ids.count {
+            let parent = ids[position]
+            for row in rows where row["pid"]?.string == parent {
+                if let child = row["uuid"]?.string {
+                    guard visited.insert(child).inserted else {
+                        throw MWebLibraryError.invalidCategory("分类层级存在循环，请先修复文库。")
+                    }
+                    ids.append(child)
+                }
             }
-            guard let ancestor = try database.query("SELECT pid FROM cat WHERE uuid = ?", bindings: [.text(value)]).first else {
-                parent = .integer(0)
-                break
-            }
-            cursor = ancestor["pid"]?.string
+            position += 1
         }
         _ = try makeDatabaseBackup()
-        try database.execute("UPDATE cat SET pid = ? WHERE pid = ?", bindings: [parent, .text(id)])
-        try database.execute("DELETE FROM cat_article WHERE rid = ?", bindings: [.text(id)])
-        try database.execute("DELETE FROM cat WHERE uuid = ?", bindings: [.text(id)])
+        for categoryID in ids {
+            try database.execute("DELETE FROM cat_article WHERE rid = ?", bindings: [.text(categoryID)])
+        }
+        // Delete children first for schemas with parent foreign-key constraints.
+        for categoryID in ids.reversed() {
+            try database.execute("DELETE FROM cat WHERE uuid = ?", bindings: [.text(categoryID)])
+        }
         try database.execute("COMMIT")
     }
 

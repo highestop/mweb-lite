@@ -191,7 +191,7 @@ Open a case to read or update its GWT statements, execution details, and data so
 
 - [CAT-001](cases/CAT-001.md) — Names, root/child UUID relationships, sort position, defaults, and the database backup are correct
 - [CAT-002](cases/CAT-002.md) — Only Notes and all of its memberships disappear
-- [CAT-003](cases/CAT-003.md) — Writing and Notes become root categories with their original memberships
+- [CAT-003](cases/CAT-003.md) — Workspace, Writing, and Notes disappear together; documents and outside-subtree memberships survive
 - [CAT-004](cases/CAT-004.md) — Every operation throws
 - [TRASH-001](cases/TRASH-001.md) — Only article.state changes to 0
 - [TRASH-002](cases/TRASH-002.md) — All attempts fail without modifying article rows or document/media bytes.

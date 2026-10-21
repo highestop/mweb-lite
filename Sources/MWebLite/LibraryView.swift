@@ -205,7 +205,7 @@ struct LibraryView: View {
         guard !store.isBusy, let category = store.categories.first(where: { $0.id == id }) else { return }
         let alert = NSAlert()
         alert.messageText = "删除分类“\(category.name)”？"
-        alert.informativeText = "文档不会被删除，只会解除与这个分类的关联。子分类将保留并提升到上一级。"
+        alert.informativeText = "这个分类及其所有子分类将被删除。文档和附件会保留，只解除与这些分类的关联。"
         alert.addButton(withTitle: "取消")
         alert.addButton(withTitle: "删除分类")
         guard alert.runModal() == .alertSecondButtonReturn else { return }

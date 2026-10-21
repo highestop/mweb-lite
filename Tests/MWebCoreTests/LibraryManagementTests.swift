@@ -62,17 +62,18 @@ final class LibraryManagementTests: CaseReportingTestCase {
         XCTAssertEqual(try fileSnapshot(), documents)
     }
 
-    func test_CAT_003_DeleteParentPromotesChildrenAndKeepsTheirMemberships() throws {
+    func test_CAT_003_DeleteSubtreeDetachesDescendantsAndPreservesOtherMemberships() throws {
         try db.execute("INSERT INTO cat_article VALUES (101, 10001)")
+        try db.execute("INSERT INTO cat_article VALUES (105, 10001)")
+        let articles = try snapshot("article")
         let documents = try fileSnapshot()
         try library.deleteCategory(id: "101")
         let index = try library.loadIndex()
-        XCTAssertNil(index.categories.first { $0.id == "101" })
-        for id in ["102", "103"] {
-            XCTAssertNil(try XCTUnwrap(index.categories.first { $0.id == id }).parentID)
-        }
-        XCTAssertEqual(index.articles.first { $0.id == "10001" }?.categoryIDs, ["102"])
-        XCTAssertEqual(index.articles.first { $0.id == "10003" }?.categoryIDs, ["103"])
+        XCTAssertEqual(Set(index.categories.map(\.id)), ["104", "105"])
+        XCTAssertEqual(index.articles.first { $0.id == "10001" }?.categoryIDs, ["105"])
+        XCTAssertEqual(index.articles.first { $0.id == "10003" }?.categoryIDs, [])
+        XCTAssertEqual(index.articles.first { $0.id == "10005" }?.categoryIDs, [])
+        XCTAssertEqual(try snapshot("article"), articles)
         XCTAssertEqual(index.articles.filter { !$0.isTrashed }.count, 7)
         XCTAssertEqual(try fileSnapshot(), documents)
     }

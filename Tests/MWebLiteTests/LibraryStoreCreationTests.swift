@@ -123,7 +123,7 @@ final class LibraryStoreCreationTests: CaseReportingTestCase {
         let deleted = await store.finishPendingWrites()
         XCTAssertTrue(deleted)
         XCTAssertEqual(store.selectedCategory, "all")
-        XCTAssertNil(store.categories.first { $0.id == childID }?.parentID)
+        XCTAssertTrue(store.categories.isEmpty)
         XCTAssertEqual(store.document?.articleID, "10001")
         XCTAssertEqual(store.draft, "# Saved before category change\n")
         XCTAssertEqual(store.activeArticles.first?.categoryIDs, [])
