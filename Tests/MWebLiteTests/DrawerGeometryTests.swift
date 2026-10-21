@@ -8,16 +8,19 @@ final class DrawerGeometryTests: CaseReportingTestCase {
         // Given: normal, resized, and extremely narrow windows with requested column widths.
         let scenarios: [(width: CGFloat, category: CGFloat, article: CGFloat,
                          expectedCategory: CGFloat, expectedArticle: CGFloat)] = [
-            (1380, 215, 270, 215, 270),
-            (1380, -10, -10, 180, 220),
-            (1380, 999, 999, 320, 400),
-            (940, 320, 400, 300, 220),
-            (850, 320, 400, 210, 220),
-            (820, 320, 400, 180, 220),
-            (700, 320, 400, 126, 154),
-            (420, 320, 400, 0, 0),
-            (400, 320, 400, 0, 0),
-            (0, 320, 400, 0, 0)
+            (1180, 180, 400, 180, 400),
+            (1380, 215, 360, 215, 360),
+            (1380, -10, -10, 180, 320),
+            (1380, 999, 999, 280, 400),
+            (940, 180, 400, 180, 340),
+            (940, 280, 400, 200, 320),
+            (920, 280, 400, 180, 320),
+            (850, 280, 400, 154.8, 275.2),
+            (820, 280, 400, 144, 256),
+            (700, 280, 400, 100.8, 179.2),
+            (420, 280, 400, 0, 0),
+            (400, 280, 400, 0, 0),
+            (0, 280, 400, 0, 0)
         ]
         let overlap: CGFloat = 16
         let height: CGFloat = 850

@@ -17,21 +17,21 @@ final class DrawerWorkspaceLayoutTests: CaseReportingTestCase {
         window.isReleasedWhenClosed = false
         let probe = DrawerNativeLayoutProbe(scale: window.backingScaleFactor)
         let samples: [(progress: CGFloat, category: CGFloat, article: CGFloat)] = [
-            (0, 215, 270),
-            (1, 215.25, 270.5),
-            (1, 238.25, 270.5),
-            (1, 238.25, 307.25),
-            (0.875, 238.25, 307.25),
-            (0.5, 238.25, 307.25),
-            (0.125, 238.25, 307.25),
-            (0, 238.25, 307.25),
+            (0, 215, 340),
+            (1, 215.25, 340.5),
+            (1, 238.25, 340.5),
+            (1, 238.25, 367.25),
+            (0.875, 238.25, 367.25),
+            (0.5, 238.25, 367.25),
+            (0.125, 238.25, 367.25),
+            (0, 238.25, 367.25),
             (0.625, 198.75, 391.25),
             (1, 198.75, 391.25),
-            (1, 215.25, 270.5),
-            (0, 215.25, 270.5)
+            (1, 215.25, 340.5),
+            (0, 215.25, 340.5)
         ]
         let host = NSHostingView(rootView: DrawerNativeLayoutFixture(
-            progress: 0, category: 215, article: 270, revision: -1, probe: probe
+            progress: 0, category: 215, article: 340, revision: -1, probe: probe
         ))
         host.sizingOptions = []
         window.contentView = host

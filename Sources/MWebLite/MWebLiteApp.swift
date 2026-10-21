@@ -19,7 +19,7 @@ struct MWebLiteApp: App {
                 .background(WindowLifecycle(store: store))
         }
         .windowStyle(.hiddenTitleBar)
-        .defaultSize(width: 1380, height: 850)
+        .defaultSize(width: 1180, height: 850)
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("新建文章") { store.createArticle() }.keyboardShortcut("n")

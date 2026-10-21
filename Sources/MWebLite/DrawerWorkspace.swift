@@ -18,9 +18,9 @@ struct DrawerGeometry {
         let width = max(0, size.width)
         let height = max(0, size.height)
         let budget = max(0, width - 420)
-        var category = min(max(categoryWidth, 180), 320)
-        var article = min(max(articleWidth, 220), 400)
-        article = max(220, article - max(0, category + article - budget))
+        var category = min(max(categoryWidth, 180), 280)
+        var article = min(max(articleWidth, 320), 400)
+        article = max(320, article - max(0, category + article - budget))
         category = max(180, min(category, budget - article))
         if category + article > budget {
             let scale = budget / (category + article)
