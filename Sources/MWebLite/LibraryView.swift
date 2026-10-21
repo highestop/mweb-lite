@@ -245,8 +245,8 @@ struct LibraryView: View {
             help: store.mode == .editor ? "切换到预览 · ⌘R" : "切换到编辑 · ⌘R",
             isSelected: store.mode == .editor,
             symbolWeight: .medium,
-            // Center the square body; the pencil extends above and to its right.
-            symbolOffset: CGSize(width: 1, height: -1)
+            // Align the square body, accounting for the symbol's baseline and pencil overhang.
+            symbolOffset: CGSize(width: -0.5, height: -2)
         ) {
             store.setMode(store.mode == .editor ? .preview : .editor)
         }
