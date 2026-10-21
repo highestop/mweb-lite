@@ -5,11 +5,11 @@ enum DocumentSaveStatus: Equatable {
 
     var symbol: String {
         switch self {
-        case .unavailable: return "minus.circle"
-        case .unsaved: return "clock"
-        case .saving: return "arrow.triangle.2.circlepath"
-        case .saved: return "checkmark.circle"
-        case .failed: return "exclamationmark.circle"
+        case .unavailable: return "minus.circle.fill"
+        case .unsaved: return "clock.fill"
+        case .saving: return "arrow.triangle.2.circlepath.circle.fill"
+        case .saved: return "checkmark.circle.fill"
+        case .failed: return "exclamationmark.circle.fill"
         }
     }
 
