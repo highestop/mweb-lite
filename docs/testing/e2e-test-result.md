@@ -6,7 +6,7 @@
 | [E2E-002](cases/E2E-002.md) | Passed | `b4c33026266bd5fc1bab3113a68c6495371c3129` | Yes |
 | [E2E-003](cases/E2E-003.md) | Passed | `625083bba6f1ecbb53969ee14f3ff87954102b9c` | Yes |
 | [E2E-004](cases/E2E-004.md) | — | — | — |
-| [E2E-005](cases/E2E-005.md) | Skipped | `881c49f65b963a12bd2a477ca5c051cc06d36ca5` | Yes |
+| [E2E-005](cases/E2E-005.md) | Passed | `b10ad1493e7b301bb3fdabd9d97d640d0ae48c90` | Yes |
 | [E2E-006](cases/E2E-006.md) | Passed | `e5e3d1706182fa01a8452f0c547393ada3a178e3` | Yes |
 | [E2E-007](cases/E2E-007.md) | — | — | — |
 | [E2E-008](cases/E2E-008.md) | Skipped | `f60f5f61b6cbba42656766e7396d52c6b66d78ee` | Yes |
