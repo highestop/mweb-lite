@@ -244,9 +244,7 @@ struct LibraryView: View {
             title: "编辑", symbol: "square.and.pencil",
             help: store.mode == .editor ? "切换到预览 · ⌘R" : "切换到编辑 · ⌘R",
             isSelected: store.mode == .editor,
-            symbolWeight: .medium,
-            // Align the square body, accounting for the symbol's baseline and pencil overhang.
-            symbolOffset: CGSize(width: -0.5, height: -2)
+            symbolWeight: .medium
         ) {
             store.setMode(store.mode == .editor ? .preview : .editor)
         }
@@ -264,7 +262,6 @@ private struct ToolbarIconButton: View {
     let help: String
     var isSelected = false
     var symbolWeight: Font.Weight = .regular
-    var symbolOffset: CGSize = .zero
     let action: () -> Void
     @State private var isHovered = false
 
@@ -273,7 +270,6 @@ private struct ToolbarIconButton: View {
             Image(systemName: symbol)
                 .symbolRenderingMode(.monochrome)
                 .font(.system(size: 14, weight: symbolWeight))
-                .offset(symbolOffset)
                 .frame(width: 32, height: 32, alignment: .center)
         }
         .buttonStyle(ToolbarButtonStyle(isHovered: isHovered, isSelected: isSelected))
