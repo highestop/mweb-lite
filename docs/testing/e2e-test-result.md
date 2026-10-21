@@ -19,5 +19,5 @@
 | [E2E-015](cases/E2E-015.md) | Passed | `a4713e56e2272eee02d1798842c8d815384d49ab` | Yes |
 | [E2E-016](cases/E2E-016.md) | Skipped | `39f52d2b09a4c582c8adba2532fd3c4536031753` | Yes |
 | [E2E-017](cases/E2E-017.md) | Skipped | `1f15d48bfa31614ddd4e8294e3c154d871a00435` | Yes |
-| [E2E-018](cases/E2E-018.md) | — | — | — |
+| [E2E-018](cases/E2E-018.md) | Skipped | `cccf3031608e5a5917d764c696816871207a0498` | Yes |
 | [REL-001](cases/REL-001.md) | — | — | — |
