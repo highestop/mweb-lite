@@ -10,7 +10,7 @@ extension Bundle {
     }
 }
 
-let previewCaseIDs = ["PV-001", "PV-002", "PV-003", "PV-004", "PV-005", "PV-006"]
+let previewCaseIDs = ["PV-001", "PV-002", "PV-003", "PV-004", "PV-005", "PV-006", "PV-007"]
 
 struct CaseResult: Encodable {
     let case_id: String
@@ -29,7 +29,8 @@ final class CaseResults {
         "PV-003": "Bundled Markdown, local images and responsive centered 900-point content assertions passed",
         "PV-004": "Script execution and unsafe HTML attribute assertions passed",
         "PV-005": "MathJax, Mermaid, ECharts and Prism assertions passed",
-        "PV-006": "Document scrolling resets correctly and overlay scrollbars preserve width and support dragging"
+        "PV-006": "Document scrolling resets correctly and overlay scrollbars preserve width and support dragging",
+        "PV-007": "Packaged Chinese and English preview labels and fallback messages preserve article content"
     ]
 
     init(path: String) throws {
@@ -161,6 +162,7 @@ window.contentView = view
 
 final class Delegate: NSObject, WKNavigationDelegate {
     private var activeRenderCaseID: String?
+    private var localizedPreview: LocalizedPreviewCheck?
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         render(webView, runtimeAvailable: false)
@@ -390,10 +392,9 @@ final class Delegate: NSObject, WKNavigationDelegate {
             results.expect("PV-006", state["horizontalDragged"] == true, "Dragging the code block overlay thumb did not scroll horizontally")
             results.expect("PV-006", state["horizontalOverlay"] == true, "Horizontal overflow reserved scrollbar height")
             results.expect("PV-006", state["shortWidthStable"] == true, "Short content retained stale bars or changed usable width")
-            results.completeObservedCases()
-            print("\(results.hasFailures ? "FAIL" : "PASS"): preview integration checks finished; skipped cases are not verified")
-            fflush(stdout)
-            exit(results.hasFailures ? 1 : 0)
+            self.activeRenderCaseID = "PV-007"
+            self.localizedPreview = LocalizedPreviewCheck()
+            self.localizedPreview?.run()
         }
     }
 
@@ -411,6 +412,58 @@ final class Delegate: NSObject, WKNavigationDelegate {
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         abort("WebKit content process terminated", caseID: activeRenderCaseID)
+    }
+}
+
+/// Load the actual packaged shell and its generated localization script in each
+/// language. The same unlocalized Markdown must survive both renderings.
+final class LocalizedPreviewCheck: NSObject, WKNavigationDelegate {
+    private var languageIndex = 0
+    private var view: WKWebView?
+
+    func run() {
+        let language = languageIndex == 0 ? "en" : "zh-Hans"
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .nonPersistent()
+        configuration.setURLSchemeHandler(PreviewResourceHandler(localization: Localization(preferredLanguages: [language])),
+                                          forURLScheme: "mweblite")
+        let view = WKWebView(frame: NSRect(x: 0, y: 0, width: 600, height: 400), configuration: configuration)
+        self.view = view
+        view.navigationDelegate = self
+        view.load(URLRequest(url: URL(string: "mweblite://app/Preview.html")!))
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        let script = #"""
+        window.renderMarkdown('# Original 中文 😀\n\n[TOC]\n\n## Section\n\n~~~mermaid\ngraph LR; A-->B;\n~~~\n', 'mweblite://library/docs/', false, true);
+        return {language: document.documentElement.lang,
+          preview: document.querySelector('article').getAttribute('aria-label'),
+          scroll: document.querySelector('.preview-scrollbar.vertical').getAttribute('aria-label'),
+          toc: document.querySelector('.table-of-contents').getAttribute('aria-label'),
+          note: document.querySelector('.render-note').textContent,
+          title: document.querySelector('h1').textContent};
+        """#
+        webView.callAsyncJavaScript(script, arguments: [:], in: nil, in: .page) { result in
+            guard case .success(let value) = result, let state = value as? [String: String] else {
+                abort("Localized preview failed: \(result)", caseID: "PV-007")
+            }
+            let chinese = self.languageIndex == 1
+            results.expect("PV-007", state["language"] == (chinese ? "zh-Hans" : "en"), "HTML language did not match")
+            results.expect("PV-007", state["preview"] == (chinese ? "文章预览" : "Article preview"), "Preview label did not match")
+            results.expect("PV-007", state["scroll"] == (chinese ? "滚动文章" : "Scroll article"), "Scrollbar label did not match")
+            results.expect("PV-007", state["toc"] == (chinese ? "目录" : "Table of contents"), "TOC label did not match")
+            results.expect("PV-007", state["note"] == (chinese ? "安装 MWeb 后可使用本机的图表渲染资源。" : "Install MWeb to use its local diagram rendering resources."), "Fallback message did not match")
+            results.expect("PV-007", state["title"] == "Original 中文 😀", "Localization changed article content")
+            if !chinese {
+                self.languageIndex = 1
+                self.run()
+                return
+            }
+            results.completeObservedCases()
+            print("\(results.hasFailures ? "FAIL" : "PASS"): preview integration checks finished; skipped cases are not verified")
+            fflush(stdout)
+            exit(results.hasFailures ? 1 : 0)
+        }
     }
 }
 let delegate = Delegate()

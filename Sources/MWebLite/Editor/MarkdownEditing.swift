@@ -1,3 +1,4 @@
+import MWebCore
 import Foundation
 
 struct MarkdownEdit {
@@ -40,7 +41,7 @@ enum MarkdownEditing {
 
     static func link(_ text: String, selection: NSRange) -> MarkdownEdit {
         let selected = (text as NSString).substring(with: selection)
-        let title = selected.isEmpty ? "链接文字" : selected
+        let title = selected.isEmpty ? L10n.string("Link text") : selected
         let replacement = "[\(title)](https://)"
         return MarkdownEdit(range: selection, replacement: replacement,
                             selection: NSRange(location: selection.location + (title as NSString).length + 3, length: 8))

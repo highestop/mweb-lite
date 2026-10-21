@@ -1,3 +1,4 @@
+import MWebCore
 import AppKit
 import SwiftUI
 
@@ -30,8 +31,8 @@ struct CategoryTreeView: View {
 
     private var collectionRows: [CategoryTreeEntry] {
         [
-            CategoryTreeEntry(id: "all", name: "所有文章", count: allCount, reservesDisclosureSpace: false),
-            CategoryTreeEntry(id: "uncategorized", name: "未分类", count: uncategorizedCount, reservesDisclosureSpace: false)
+            CategoryTreeEntry(id: "all", name: L10n.string("All Articles"), count: allCount, reservesDisclosureSpace: false),
+            CategoryTreeEntry(id: "uncategorized", name: L10n.string("Uncategorized"), count: uncategorizedCount, reservesDisclosureSpace: false)
         ]
     }
 
@@ -42,7 +43,7 @@ struct CategoryTreeView: View {
                     LazyVStack(alignment: .leading, spacing: 2) {
                         ForEach(collectionRows) { row in categoryRow(row) }
                         HStack {
-                            Text("分类").font(.system(size: 11)).foregroundStyle(.secondary)
+                            Text(L10n.string("Categories")).font(.system(size: 11)).foregroundStyle(.secondary)
                             Spacer()
                             Button { onCreate(nil) } label: {
                                 Image(systemName: "plus")
@@ -53,8 +54,8 @@ struct CategoryTreeView: View {
                             .buttonStyle(ToolbarButtonStyle(isHovered: isCreateHovered))
                             .onHover { isCreateHovered = $0 }
                             .accessibilityIdentifier("new-category")
-                            .help("新建分类")
-                            .accessibilityLabel("新建分类")
+                            .help(L10n.string("New Category"))
+                            .accessibilityLabel(L10n.string("New Category"))
                         }
                         .padding(.leading, 8).padding(.top, 12)
                         ForEach(categoryRows) { row in categoryRow(row) }
@@ -65,7 +66,7 @@ struct CategoryTreeView: View {
                 .frame(width: viewport.size.width, height: viewport.size.height)
                 .scrollIndicators(.never)
                 .background(CategoryTreeKeyboardSelection(controller: keyboard, onCommand: navigate))
-                .contextMenu { Button("新建分类…") { onCreate(nil) } }
+                .contextMenu { Button(L10n.string("New Category…")) { onCreate(nil) } }
                 .onChange(of: selectedCategory) { _, selected in proxy.scrollTo(selected) }
             }
         }
@@ -86,12 +87,12 @@ struct CategoryTreeView: View {
             }
         )
         .contextMenu {
-            Button("新建分类…") { onCreate(nil) }
+            Button(L10n.string("New Category…")) { onCreate(nil) }
             if !["all", "uncategorized"].contains(entry.id) {
-                Button("新建子分类…") { onCreate(entry.id) }
+                Button(L10n.string("New Subcategory…")) { onCreate(entry.id) }
                 Divider()
-                Button("重命名…") { onRename(entry.id) }
-                Button("删除分类…", role: .destructive) { onDelete(entry.id) }
+                Button(L10n.string("Rename…")) { onRename(entry.id) }
+                Button(L10n.string("Delete Category…"), role: .destructive) { onDelete(entry.id) }
             }
         }
         .id(entry.id)
@@ -178,7 +179,7 @@ private struct CategoryTreeRow: View {
             .buttonStyle(CategoryTreeButtonStyle())
             .focusEffectDisabled()
             .accessibilityLabel(entry.name)
-            .accessibilityValue("\(entry.count) 篇文章")
+            .accessibilityValue(entry.count == 1 ? L10n.string("1 article") : L10n.format("%ld articles", entry.count))
             .accessibilityAddTraits(isSelected ? .isSelected : [])
             if entry.hasChildren {
                 Button(action: onToggle) {
@@ -190,8 +191,8 @@ private struct CategoryTreeRow: View {
                 }
                 .buttonStyle(CategoryTreeButtonStyle(showsPressedBackground: false))
                 .focusEffectDisabled()
-                .accessibilityLabel("\(isExpanded ? "收起" : "展开") \(entry.name)")
-                .accessibilityValue(isExpanded ? "已展开" : "已收起")
+                .accessibilityLabel(L10n.format(isExpanded ? "Collapse %@" : "Expand %@", entry.name))
+                .accessibilityValue(isExpanded ? L10n.string("Expanded") : L10n.string("Collapsed"))
                 .padding(.leading, CGFloat(entry.depth) * 14 + 4)
             }
         }

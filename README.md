@@ -26,6 +26,8 @@ The demo generator refuses to overwrite existing directories. `--library` does n
 
 ## Included
 
+- The interface and menu bar follow macOS language preferences at launch: English or Simplified Chinese, with English fallback for unsupported languages. macOS per-app language preferences are respected. Restart after changing the language; existing article contents and category names remain unchanged.
+
 - Native category tree, article list, title/summary search, and editor/preview modes. The toolbar’s mode button shows the next action: square-and-pencil to edit from preview, or an eye to preview while editing. You can also switch from the View menu or with `⌘R`; the article uses the full window height.
 - Articles appear in descending creation-time order and are separated by creation year and month. Editing does not move an article or change its date group. Missing creation dates remain undated. Consecutive notes on the same local creation day show the day number only on the first row, with the date column retained for alignment. Each card has an optional square mosaic of the first four images in document order, and the bold title plus excerpt. Text-only articles use the remaining space. The article column can be resized.
 - The category column starts at 180 points (range 180–280), and the article column starts at 400 points (range 320–400). Narrow windows reduce navigation widths to leave at least 420 points for the document pane. The default window is 1180 points wide, leaving 600 points for the document pane. It fills the remaining space when the window is resized; editor and preview text are capped at 900 points.
@@ -67,7 +69,7 @@ Article order uses `dateAdd` descending, then ID descending for equal creation t
 
 Before the first write in a library session, the app makes a consistent SQLite backup at `.mweb-lite/backups/{session}/mainlib.db`, including committed WAL data. For each edited article, it preserves the original `{uuid}.md` and up to 20 recent Markdown snapshots in that session. Backup sessions have private filesystem permissions. Old sessions are retained.
 
-Each save checks both the article metadata and file bytes for external edits, uses a short SQLite transaction and coordinated atomic file replacement, and restores the original Markdown if the database commit fails. File permissions are preserved. A conflict pauses autosave; copy the draft if needed before using **从磁盘重新载入…**. `⌘S` retries saving but does not bypass conflict checks.
+Each save checks both the article metadata and file bytes for external edits, uses a short SQLite transaction and coordinated atomic file replacement, and restores the original Markdown if the database commit fails. File permissions are preserved. A conflict pauses autosave; copy the draft if needed before using **Reload from Disk…**. `⌘S` retries saving but does not bypass conflict checks.
 
 SQLite and Markdown are separate files: a process crash or power loss between the file replacement and database commit is not a fully atomic cross-file transaction. Backups are recovery material, not a replacement for a complete library backup. For recovery, close both apps and preserve the current library before restoring a specific Markdown snapshot. The session database is from the first save, while each article's original snapshot is from its first edit; do not blindly restore the entire database over newer work. Simultaneously editing the same article in both apps remains best avoided.
 

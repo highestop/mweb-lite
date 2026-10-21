@@ -4,6 +4,8 @@
 <key>CFBundleIdentifier</key><string>app.highestop.mweb-lite</string>
 <key>CFBundleName</key><string>MWeb Lite</string>
 <key>CFBundleDisplayName</key><string>MWeb Lite</string>
+<key>CFBundleDevelopmentRegion</key><string>en</string>
+<key>CFBundleLocalizations</key><array><string>en</string><string>zh-Hans</string></array>
 <key>CFBundleExecutable</key><string>MWebLite</string>
 <key>CFBundleIconFile</key><string>AppIcon</string>
 <key>CFBundlePackageType</key><string>APPL</string>

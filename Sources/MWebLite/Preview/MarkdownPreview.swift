@@ -2,6 +2,9 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 import WebKit
+#if canImport(MWebCore)
+import MWebCore
+#endif
 
 /// The preview never grants WebKit file access. Local media is served through a
 /// narrow URL scheme after resolving symlinks and checking the selected library.
@@ -105,6 +108,7 @@ struct MarkdownPreview: NSViewRepresentable {
 final class PreviewResourceHandler: NSObject, WKURLSchemeHandler {
     var libraryRoot: URL?
     let runtimeRoot: URL?
+    let localization: Localization
     // SwiftPM's generated lookup differs between native and Xcode build backends.
     // Prefer the packaged app location so downloaded builds do not depend on the CI checkout.
     private static let resourceBundle: Bundle = {
@@ -123,7 +127,10 @@ final class PreviewResourceHandler: NSObject, WKURLSchemeHandler {
         "pdf", "mp4", "m4v", "mov", "webm", "mp3", "m4a", "aac", "wav", "ogg", "flac"
     ]
 
-    override init() {
+    override convenience init() { self.init(localization: L10n.current) }
+
+    init(localization: Localization) {
+        self.localization = localization
         let candidates = [
             NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.coderforart.MWeb3"),
             URL(fileURLWithPath: "/Applications/MWeb Pro.app"),
@@ -135,6 +142,25 @@ final class PreviewResourceHandler: NSObject, WKURLSchemeHandler {
     }
 
     func webView(_ webView: WKWebView, start urlSchemeTask: WKURLSchemeTask) {
+        // Only application-owned strings enter this script; JSON encoding prevents
+        // quotes or line breaks in translations from becoming executable source.
+        if let url = urlSchemeTask.request.url,
+           url.scheme == "mweblite", url.host == "app", url.path == "/Localization.js" {
+            let keys = ["Article preview", "Scroll article", "Scroll content horizontally", "Table of contents",
+                        "Install MWeb to use its local diagram rendering resources.",
+                        "The diagram could not be rendered. Its source is preserved. ECharts accepts data configurations only."]
+            var strings = Dictionary(uniqueKeysWithValues: keys.map { ($0, localization.string($0)) })
+            strings["language"] = localization.language
+            do {
+                let json = try JSONSerialization.data(withJSONObject: strings, options: [.sortedKeys])
+                let data = Data("window.previewStrings = ".utf8) + json + Data(";".utf8)
+                urlSchemeTask.didReceive(URLResponse(url: url, mimeType: "application/javascript",
+                    expectedContentLength: data.count, textEncodingName: "utf-8"))
+                urlSchemeTask.didReceive(data)
+                urlSchemeTask.didFinish()
+            } catch { urlSchemeTask.didFailWithError(error) }
+            return
+        }
         guard let url = urlSchemeTask.request.url, let resource = resourceURL(for: url),
               let data = try? Data(contentsOf: resource, options: .mappedIfSafe) else {
             urlSchemeTask.didFailWithError(URLError(.fileDoesNotExist))

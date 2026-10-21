@@ -65,7 +65,7 @@ final class SQLiteDatabase {
     deinit { sqlite3_close(handle) }
 
     private var errorMessage: String {
-        handle.map { String(cString: sqlite3_errmsg($0)) } ?? "无法打开 SQLite 文件"
+        handle.map { String(cString: sqlite3_errmsg($0)) } ?? L10n.string("Could not open the SQLite file")
     }
 
     func execute(_ sql: String, bindings: [SQLiteValue] = []) throws {
@@ -134,7 +134,7 @@ final class SQLiteDatabase {
         let result = sqlite3_backup_step(backup, -1)
         let finish = sqlite3_backup_finish(backup)
         guard result == SQLITE_DONE, finish == SQLITE_OK else {
-            throw MWebLibraryError.database("数据库备份失败：\(destination.errorMessage)")
+            throw MWebLibraryError.database(L10n.format("Database backup failed: %@", destination.errorMessage))
         }
         // Keep the backup self-contained, including when the source uses WAL.
         try destination.execute("PRAGMA journal_mode = DELETE")

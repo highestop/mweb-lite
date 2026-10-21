@@ -1,3 +1,4 @@
+import MWebCore
 import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
@@ -90,8 +91,8 @@ struct MarkdownEditor: NSViewRepresentable {
         paragraph.defaultTabInterval = 33.6
         textView.defaultParagraphStyle = paragraph
         textView.typingAttributes = [.font: textView.font!, .foregroundColor: NSColor.textColor, .paragraphStyle: paragraph]
-        textView.setAccessibilityLabel("Markdown 编辑器")
-        textView.setAccessibilityHelp("编辑 Markdown 原文；Command B 加粗，Command I 斜体，Command K 插入链接。")
+        textView.setAccessibilityLabel(L10n.string("Markdown editor"))
+        textView.setAccessibilityHelp(L10n.string("Edit Markdown source. Command B for bold, Command I for italic, and Command K to insert a link."))
         textView.registerForDraggedTypes(textView.registeredDraggedTypes + [.fileURL, .png, .tiff])
         textView.string = text
         textView.delegate = context.coordinator
@@ -261,7 +262,7 @@ final class MarkdownTextView: NSTextView {
             super.insertNewline(sender)
             return
         }
-        apply(edit, actionName: "换行")
+        apply(edit, actionName: L10n.string("New Line"))
     }
 
     override func insertTab(_ sender: Any?) {
@@ -278,21 +279,23 @@ final class MarkdownTextView: NSTextView {
         indentLines(outdent: true)
     }
 
-    @objc func markdownBold(_ sender: Any?) { wrap(before: "**", after: "**", actionName: "加粗") }
-    @objc func markdownItalic(_ sender: Any?) { wrap(before: "*", after: "*", actionName: "斜体") }
-    @objc func markdownStrikethrough(_ sender: Any?) { wrap(before: "~~", after: "~~", actionName: "删除线") }
-    @objc func markdownInlineCode(_ sender: Any?) { wrap(before: "`", after: "`", actionName: "行内代码") }
-    @objc func markdownCodeBlock(_ sender: Any?) { wrap(before: "```\n", after: "\n```", actionName: "代码块") }
-    @objc func markdownLink(_ sender: Any?) { apply(MarkdownEditing.link(string, selection: selectedRange()), actionName: "插入链接") }
-    @objc func markdownHeading(_ sender: Any?) { prefixLines("# ", actionName: "标题") }
-    @objc func markdownQuote(_ sender: Any?) { prefixLines("> ", actionName: "引用") }
-    @objc func markdownBulletList(_ sender: Any?) { prefixLines("- ", actionName: "无序列表") }
-    @objc func markdownOrderedList(_ sender: Any?) { prefixLines("1. ", actionName: "有序列表") }
-    @objc func markdownTaskList(_ sender: Any?) { prefixLines("- [ ] ", actionName: "任务列表") }
+    @objc func markdownBold(_ sender: Any?) { wrap(before: "**", after: "**", actionName: L10n.string("Bold")) }
+    @objc func markdownItalic(_ sender: Any?) { wrap(before: "*", after: "*", actionName: L10n.string("Italic")) }
+    @objc func markdownStrikethrough(_ sender: Any?) { wrap(before: "~~", after: "~~", actionName: L10n.string("Strikethrough")) }
+    @objc func markdownInlineCode(_ sender: Any?) { wrap(before: "`", after: "`", actionName: L10n.string("Inline Code")) }
+    @objc func markdownCodeBlock(_ sender: Any?) { wrap(before: "```\n", after: "\n```", actionName: L10n.string("Code Block")) }
+    @objc func markdownLink(_ sender: Any?) { apply(MarkdownEditing.link(string, selection: selectedRange()), actionName: L10n.string("Insert Link")) }
+    @objc func markdownHeading(_ sender: Any?) { prefixLines("# ", actionName: L10n.string("Heading")) }
+    @objc func markdownQuote(_ sender: Any?) { prefixLines("> ", actionName: L10n.string("Block Quote")) }
+    @objc func markdownBulletList(_ sender: Any?) { prefixLines("- ", actionName: L10n.string("Bullet List")) }
+    @objc func markdownOrderedList(_ sender: Any?) { prefixLines("1. ", actionName: L10n.string("Numbered List")) }
+    @objc func markdownTaskList(_ sender: Any?) { prefixLines("- [ ] ", actionName: L10n.string("Task List")) }
     @objc func markdownTable(_ sender: Any?) {
-        let value = "| 标题 | 标题 |\n| --- | --- |\n| 内容 | 内容 |\n"
+        let heading = L10n.string("Heading")
+        let content = L10n.string("Content")
+        let value = "| \(heading) | \(heading) |\n| --- | --- |\n| \(content) | \(content) |\n"
         let range = selectedRange()
-        apply(MarkdownEdit(range: range, replacement: value, selection: NSRange(location: range.location + 2, length: 2)), actionName: "插入表格")
+        apply(MarkdownEdit(range: range, replacement: value, selection: NSRange(location: range.location + 2, length: (heading as NSString).length)), actionName: L10n.string("Insert Table"))
     }
 
     override func paste(_ sender: Any?) {
@@ -336,7 +339,7 @@ final class MarkdownTextView: NSTextView {
     }
 
     private func indentLines(outdent: Bool) {
-        apply(MarkdownEditing.indent(string, selection: selectedRange(), outdent: outdent), actionName: outdent ? "减少缩进" : "增加缩进")
+        apply(MarkdownEditing.indent(string, selection: selectedRange(), outdent: outdent), actionName: outdent ? L10n.string("Decrease Indent") : L10n.string("Increase Indent"))
     }
 
     private func apply(_ edit: MarkdownEdit, actionName: String) {
@@ -382,7 +385,7 @@ final class MarkdownTextView: NSTextView {
         guard !markdown.isEmpty else { return true }
         let range = selectedRange()
         let value = markdown.joined(separator: "\n")
-        apply(MarkdownEdit(range: range, replacement: value, selection: NSRange(location: range.location + (value as NSString).length, length: 0)), actionName: "插入图片")
+        apply(MarkdownEdit(range: range, replacement: value, selection: NSRange(location: range.location + (value as NSString).length, length: 0)), actionName: L10n.string("Insert Image"))
         return true
     }
 

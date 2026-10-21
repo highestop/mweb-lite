@@ -1,3 +1,4 @@
+import MWebCore
 import AppKit
 import SwiftUI
 
@@ -9,6 +10,7 @@ struct MWebLiteApp: App {
     var body: some Scene {
         Window("MWeb Lite", id: "library") {
             LibraryView(store: store)
+                .environment(\.locale, L10n.current.locale)
                 .frame(minWidth: 940, minHeight: 600)
                 .onAppear {
                     delegate.store = store
@@ -22,32 +24,32 @@ struct MWebLiteApp: App {
         .defaultSize(width: 1180, height: 850)
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("新建文章") { store.createArticle() }.keyboardShortcut("n")
+                Button(L10n.string("New Article")) { store.createArticle() }.keyboardShortcut("n")
                     .disabled(store.rootURL == nil || store.isBusy)
-                Button("打开 MWeb 文库…") { store.chooseLibrary() }.keyboardShortcut("o")
+                Button(L10n.string("Open MWeb Library…")) { store.chooseLibrary() }.keyboardShortcut("o")
             }
             CommandGroup(replacing: .saveItem) {
-                Button("保存") { store.saveNow() }.keyboardShortcut("s").disabled(store.document == nil)
-                Button("从磁盘重新载入…") { store.reloadFromDisk() }.disabled(store.document == nil)
+                Button(L10n.string("Save")) { store.saveNow() }.keyboardShortcut("s").disabled(store.document == nil)
+                Button(L10n.string("Reload from Disk…")) { store.reloadFromDisk() }.disabled(store.document == nil)
             }
             CommandGroup(after: .toolbar) {
-                Button(store.mode == .preview ? "切换到编辑" : "切换到预览") {
+                Button(store.mode == .preview ? L10n.string("Switch to Editing") : L10n.string("Switch to Preview")) {
                     store.setMode(store.mode == .preview ? .editor : .preview)
                 }.keyboardShortcut("r")
                     .disabled(store.document == nil || store.isBusy)
             }
             CommandMenu("Markdown") {
-                Button("粗体") { MarkdownEditorAction.bold.perform() }.keyboardShortcut("b")
-                Button("斜体") { MarkdownEditorAction.italic.perform() }.keyboardShortcut("i")
-                Button("插入链接") { MarkdownEditorAction.link.perform() }.keyboardShortcut("k")
-                Button("代码块") { MarkdownEditorAction.codeBlock.perform() }
-                Button("任务列表") { MarkdownEditorAction.taskList.perform() }
-                Button("表格") { MarkdownEditorAction.table.perform() }
+                Button(L10n.string("Bold")) { MarkdownEditorAction.bold.perform() }.keyboardShortcut("b")
+                Button(L10n.string("Italic")) { MarkdownEditorAction.italic.perform() }.keyboardShortcut("i")
+                Button(L10n.string("Insert Link")) { MarkdownEditorAction.link.perform() }.keyboardShortcut("k")
+                Button(L10n.string("Code Block")) { MarkdownEditorAction.codeBlock.perform() }
+                Button(L10n.string("Task List")) { MarkdownEditorAction.taskList.perform() }
+                Button(L10n.string("Table")) { MarkdownEditorAction.table.perform() }
                 Divider()
-                Button("刷新文库") { store.refresh() }.keyboardShortcut("r", modifiers: [.command, .shift])
+                Button(L10n.string("Refresh Library")) { store.refresh() }.keyboardShortcut("r", modifiers: [.command, .shift])
             }
             CommandGroup(replacing: .help) {
-                Button("在 Finder 中显示文库") {
+                Button(L10n.string("Show Library in Finder")) {
                     if let root = store.rootURL { NSWorkspace.shared.activateFileViewerSelecting([root]) }
                 }.disabled(store.rootURL == nil)
             }

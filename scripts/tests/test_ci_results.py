@@ -107,7 +107,7 @@ class ResultsTests(unittest.TestCase):
         ci = {identifier: case for identifier, case in cases.items() if case["Path"] == "CI"}
         self.assertTrue(ci)
         self.assertEqual({identifier for identifier in ci if identifier.startswith("PV-")},
-                         {"PV-001", "PV-002", "PV-003", "PV-004", "PV-006"})
+                         {"PV-001", "PV-002", "PV-003", "PV-004", "PV-006", "PV-007"})
         self.assertTrue(all("Status" not in case and "Evidence" not in case for case in cases.values()))
 
 

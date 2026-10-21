@@ -29,7 +29,18 @@ cat > "$test_app/Contents/Info.plist" <<'PLIST'
 </dict></plist>
 PLIST
 cp "$project_dir"/Sources/MWebLite/Resources/* "$resource_bundle/Contents/Resources/"
+localization_bundle="$test_app/Contents/Resources/MWebLite_MWebCore.bundle"
+mkdir -p "$localization_bundle/Contents/Resources"
+cp -R "$project_dir"/Sources/MWebCore/Resources/*.lproj "$localization_bundle/Contents/Resources/"
+cat > "$localization_bundle/Contents/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict>
+<key>CFBundleIdentifier</key><string>app.mweblite.localization-tests</string>
+<key>CFBundleDevelopmentRegion</key><string>en</string>
+</dict></plist>
+PLIST
 swiftc -module-cache-path "$runtime_dir/ModuleCache" \
+  "$project_dir/Sources/MWebCore/Localization.swift" \
   "$project_dir/Sources/MWebLite/Preview/MarkdownPreview.swift" \
   "$project_dir/Tests/PreviewIntegration/main.swift" \
   -o "$test_app/Contents/MacOS/PreviewTests"

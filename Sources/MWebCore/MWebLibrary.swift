@@ -19,10 +19,10 @@ public final class MWebLibrary: @unchecked Sendable {
         var isDirectory: ObjCBool = false
         guard fileManager.fileExists(atPath: docsURL.path, isDirectory: &isDirectory), isDirectory.boolValue,
               fileManager.fileExists(atPath: databaseURL.path) else {
-            throw MWebLibraryError.invalidLibrary("请选择同时包含 mainlib.db 和 docs 文件夹的目录。")
+            throw MWebLibraryError.invalidLibrary(L10n.string("Select a folder containing both mainlib.db and the docs folder."))
         }
         guard isInsideRoot(docsURL), isInsideRoot(databaseURL) else {
-            throw MWebLibraryError.invalidLibrary("数据库和 docs 文件夹需要位于所选文库目录内。")
+            throw MWebLibraryError.invalidLibrary(L10n.string("The database and docs folder must be inside the selected library."))
         }
         let database = try SQLiteDatabase(url: databaseURL)
         let required: [String: Set<String>] = [
@@ -33,7 +33,7 @@ public final class MWebLibrary: @unchecked Sendable {
         for (table, columns) in required {
             let available = Set(try database.query("PRAGMA table_info(\(table))").compactMap { $0["name"]?.string })
             guard columns.isSubset(of: available) else {
-                throw MWebLibraryError.invalidLibrary("不支持的 MWeb 数据结构（\(table)）。原始数据没有修改。")
+                throw MWebLibraryError.invalidLibrary(L10n.format("Unsupported MWeb schema (%@). The original data was not changed.", table))
             }
         }
     }
@@ -47,7 +47,7 @@ public final class MWebLibrary: @unchecked Sendable {
         let categories = try database.query("SELECT * FROM cat").compactMap { row -> MWebCategory? in
             guard let id = row["uuid"]?.string else { return nil }
             let parentID = row["pid"]?.string
-            return MWebCategory(id: id, name: row["name"]?.string ?? "未命名分类",
+            return MWebCategory(id: id, name: row["name"]?.string ?? L10n.string("Untitled Category"),
                                 parentID: parentID == "0" ? nil : parentID,
                                 sort: row["sort"]?.integer ?? 0,
                                 sortType: row["sortType"]?.integer ?? 0,
@@ -106,7 +106,7 @@ public final class MWebLibrary: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         guard let identifier = Int64(exactly: floor(now.timeIntervalSince1970 * 10_000)), identifier > 0 else {
-            throw MWebLibraryError.invalidDocument("无法生成新文章标识。")
+            throw MWebLibraryError.invalidDocument(L10n.string("Could not generate a new article ID."))
         }
         let articleID = String(identifier)
         let url = try documentURL(articleID)
@@ -149,13 +149,13 @@ public final class MWebLibrary: @unchecked Sendable {
                                  bindings: [categoryUUID, .integer(identifier)])
         }
 
-        let data = Data("# 未命名文章\n\n".utf8)
+        let data = Data(("# " + L10n.string("Untitled Article") + "\n\n").utf8)
         var wroteFile = false
         var writtenByteCount = 0
         var createdFileInfo: stat?
         do {
             try coordinatedWrite(url: url) { coordinatedURL in
-                guard isInsideRoot(coordinatedURL) else { throw MWebLibraryError.invalidDocument("文章文件位于文库目录外。") }
+                guard isInsideRoot(coordinatedURL) else { throw MWebLibraryError.invalidDocument(L10n.string("The article file is outside the library.")) }
                 // Exclusive creation avoids requiring hard-link support on the library's volume.
                 let descriptor = Darwin.open(coordinatedURL.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0o600)
                 guard descriptor >= 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
@@ -229,10 +229,10 @@ public final class MWebLibrary: @unchecked Sendable {
             parent = try categoryRow(parentID, database: database)["uuid"]!
         } else { parent = .integer(0) }
         guard var identifier = Int64(exactly: floor(now.timeIntervalSince1970 * 10_000)), identifier > 0 else {
-            throw MWebLibraryError.invalidCategory("无法生成分类标识。")
+            throw MWebLibraryError.invalidCategory(L10n.string("Could not generate a category ID."))
         }
         while try !database.query("SELECT uuid FROM cat WHERE uuid = ?", bindings: [.integer(identifier)]).isEmpty {
-            guard identifier < Int64.max else { throw MWebLibraryError.invalidCategory("无法生成分类标识。") }
+            guard identifier < Int64.max else { throw MWebLibraryError.invalidCategory(L10n.string("Could not generate a category ID.")) }
             identifier += 1
         }
         let schema = try database.query("PRAGMA table_info(cat)")
@@ -288,7 +288,7 @@ public final class MWebLibrary: @unchecked Sendable {
             for row in rows where row["pid"]?.string == parent {
                 if let child = row["uuid"]?.string {
                     guard visited.insert(child).inserted else {
-                        throw MWebLibraryError.invalidCategory("分类层级存在循环，请先修复文库。")
+                        throw MWebLibraryError.invalidCategory(L10n.string("The category hierarchy contains a cycle. Repair the library first."))
                     }
                     ids.append(child)
                 }
@@ -316,7 +316,7 @@ public final class MWebLibrary: @unchecked Sendable {
     private static func categoryName(_ value: String) throws -> String {
         let name = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty, !name.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {
-            throw MWebLibraryError.invalidCategory("名称不能为空，也不能包含换行或控制字符。")
+            throw MWebLibraryError.invalidCategory(L10n.string("The name cannot be empty or contain line breaks or control characters."))
         }
         return name
     }
@@ -392,7 +392,7 @@ public final class MWebLibrary: @unchecked Sendable {
 
     private func document(articleID: String, row: SQLiteRow, data: Data, url: URL, backupURL: URL? = nil) throws -> MWebDocument {
         guard let content = String(data: data, encoding: .utf8) else {
-            throw MWebLibraryError.invalidDocument("文件不是有效的 UTF-8 Markdown，未作任何转换。")
+            throw MWebLibraryError.invalidDocument(L10n.string("The file is not valid UTF-8 Markdown. No conversion was made."))
         }
         return MWebDocument(articleID: articleID, title: Self.summary(content).title, content: content,
                             fileURL: url, modifiedAt: Self.date(row["dateModif"]), lastBackupURL: backupURL,
@@ -402,10 +402,10 @@ public final class MWebLibrary: @unchecked Sendable {
     private func documentURL(_ articleID: String) throws -> URL {
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
         guard !articleID.isEmpty, articleID.unicodeScalars.allSatisfy({ allowed.contains($0) }) else {
-            throw MWebLibraryError.invalidDocument("文章标识不合法。")
+            throw MWebLibraryError.invalidDocument(L10n.string("The article ID is invalid."))
         }
         let url = docsURL.appendingPathComponent(articleID).appendingPathExtension("md")
-        guard isInsideRoot(url) else { throw MWebLibraryError.invalidDocument("文章文件位于文库目录外。") }
+        guard isInsideRoot(url) else { throw MWebLibraryError.invalidDocument(L10n.string("The article file is outside the library.")) }
         return url
     }
 
@@ -423,7 +423,7 @@ public final class MWebLibrary: @unchecked Sendable {
             destination = sessionBackupURL
         } else {
             let directory = rootURL.appendingPathComponent(".mweb-lite/backups", isDirectory: true)
-            guard isInsideRoot(directory) else { throw MWebLibraryError.invalidLibrary("备份目录位于文库外。") }
+            guard isInsideRoot(directory) else { throw MWebLibraryError.invalidLibrary(L10n.string("The backup folder is outside the library.")) }
             let stamp = Int64(Date().timeIntervalSince1970 * 1_000)
             destination = directory.appendingPathComponent("\(stamp)-\(UUID().uuidString)", isDirectory: true)
             try fileManager.createDirectory(at: destination, withIntermediateDirectories: true,
@@ -433,7 +433,7 @@ public final class MWebLibrary: @unchecked Sendable {
             try reader.backup(to: destination.appendingPathComponent("mainlib.db"))
             sessionBackupURL = destination
         }
-        guard isInsideRoot(destination) else { throw MWebLibraryError.invalidLibrary("备份目录位于文库外。") }
+        guard isInsideRoot(destination) else { throw MWebLibraryError.invalidLibrary(L10n.string("The backup folder is outside the library.")) }
         return destination
     }
 
@@ -446,7 +446,7 @@ public final class MWebLibrary: @unchecked Sendable {
             backedUpArticleIDs.insert(articleID)
         }
         let snapshots = destination.appendingPathComponent(articleID, isDirectory: true)
-        guard isInsideRoot(snapshots) else { throw MWebLibraryError.invalidLibrary("备份目录位于文库外。") }
+        guard isInsideRoot(snapshots) else { throw MWebLibraryError.invalidLibrary(L10n.string("The backup folder is outside the library.")) }
         try fileManager.createDirectory(at: snapshots, withIntermediateDirectories: true)
         let stamp = Int64(Date().timeIntervalSince1970 * 1_000)
         let snapshotURL = snapshots.appendingPathComponent("\(stamp)-\(UUID().uuidString).md")
@@ -479,7 +479,7 @@ public final class MWebLibrary: @unchecked Sendable {
         let lines = markdown.replacingOccurrences(of: "\u{FEFF}", with: "").components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-        guard let first = lines.first else { return ("无标题", "") }
+        guard let first = lines.first else { return (L10n.string("Untitled"), "") }
         let title = first.replacingOccurrences(of: "^#{1,6}\\s+", with: "", options: .regularExpression)
             .replacingOccurrences(of: "\\s+#+$", with: "", options: .regularExpression)
         let excerpt = lines.dropFirst().filter { !$0.hasPrefix("```") && !$0.hasPrefix("~~~") }

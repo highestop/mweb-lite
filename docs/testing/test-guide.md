@@ -22,7 +22,7 @@ Integration tests do not inherently require an app bundle. A test that creates a
 
 | Path | Execution environment and entry point | Current use |
 | --- | --- | --- |
-| `CI` | GitHub Actions runs the checked-out revision and scripts on its macOS runner. | The 64 XCTest cases and baseline WebKit cases PV-001 through PV-004 and PV-006. |
+| `CI` | GitHub Actions runs the checked-out revision and scripts on its macOS runner. | The 65 XCTest cases and baseline WebKit cases PV-001 through PV-004 and PV-006–007. |
 | `Local script` | A developer runs the documented command locally and records its output and environment. | PV-005 needs optional runtimes from an installed MWeb app; all CI commands can also be investigated locally. |
 | `Preview app` | The complete app runs on macOS with a per-run bundle identifier and copied fixture library selected by `--library`. | Repeatable UI, editing, selection, rendering, and save/restart flows. |
 | `Release app` | The normal app runs with its production bundle identifier, preferences, installation location, and normal launch entry point. | Installation, Finder/Dock icon, library chooser, and remembered-library restoration. |
@@ -225,7 +225,7 @@ E2E-019 exercises category creation, child creation, rename, validation, cancell
 
 ## Record manual end-to-end results
 
-[e2e-test-result.md](e2e-test-result.md) contains all 21 end-to-end cases (20 Preview app cases and REL-001), with `Case ID`, `Status`, `Commit SHA`, and `Outdated` columns. Record `Passed`, `Failed`, or `Skipped` only after an actual attempt. An unexecuted case keeps `—` in the last three columns. The recorded SHA is the full 40-character commit of the application actually tested, not the later commit that saves the result.
+[e2e-test-result.md](e2e-test-result.md) contains all 22 end-to-end cases (21 Preview app cases and REL-001), with `Case ID`, `Status`, `Commit SHA`, and `Outdated` columns. Record `Passed`, `Failed`, or `Skipped` only after an actual attempt. An unexecuted case keeps `—` in the last three columns. The recorded SHA is the full 40-character commit of the application actually tested, not the later commit that saves the result.
 
 Build from a known committed revision. Before building, commit source, fixture, script, case-definition, or other non-report changes; only edits to the two result Markdown files may remain uncommitted. For a Preview app run, capture `baseCommit` from its `run.json`, not the current checkout after further work. If `workingTreeDirty` is true, confirm that only result files were dirty and verify the recorded source-file hashes/fingerprint against the build inputs. Do not label an app built from other uncommitted changes as the recorded commit. Run metadata identifies the binary's source; it does not prove that a case was executed.
 
@@ -276,7 +276,7 @@ python3 scripts/collect-test-results.py \
   --markdown build/test-results/ci-test-result.md
 ```
 
-`--markdown` is optional and renders a local inspection copy. Do not attach a CI URL to results from a different local execution. Add `--require-xctest` when the XCTest runner succeeded and `--require-preview` when the WebKit runner succeeded: these flags require complete reporting for that successful runner. The workflow sets them from each runner's outcome. Failed or interrupted runners may supply partial observed results without those flags; absent results are never filled in. A complete baseline run currently produces 59 CI records: 64 XCTest cases and five WebKit cases, excluding local-only PV-005.
+`--markdown` is optional and renders a local inspection copy. Do not attach a CI URL to results from a different local execution. Add `--require-xctest` when the XCTest runner succeeded and `--require-preview` when the WebKit runner succeeded: these flags require complete reporting for that successful runner. The workflow sets them from each runner's outcome. Failed or interrupted runners may supply partial observed results without those flags; absent results are never filled in. A complete baseline run currently produces 71 CI records: 65 XCTest cases and six WebKit cases, excluding local-only PV-005.
 
 The runner has its own checkout and temporary data; it does not access a developer's library. CI does not currently drive the Preview app or Release app with mouse and keyboard or perform visual review. PV-005 and all full-app cases are excluded from the CI result summary because their Paths are local. A local run of the same command cannot substitute for CI evidence.
 
@@ -324,3 +324,22 @@ GITHUB_REPOSITORY=highestop/mweb-lite \
 The run's effective source version must match current main and its artifact must validate. This comparison requires complete Git history and ignores commits changing only the two result summaries, as described above, so report-only advances do not invalidate an otherwise eligible run. CI evidence retains the actual tested SHA, not the later main head. A PR run is not eligible, even with `--dry-run`. Dry-run validates and renders without writing locally or remotely. Live publication is restricted to the trusted `workflow_run` context; it is not a command for publishing a local or PR-branch report.
 
 Both Markdown result summaries are committed. Keep raw JSON, detailed run reports, screenshots, recordings, generated libraries, and app bundles in workflow artifacts or ignored `build/test-results/` and `build/Test Runs/`. Recording a manual outcome or refreshing its Outdated field does not automate full-app execution.
+
+## System language verification
+
+The executable declares English and Simplified Chinese in `Support/Info.plist`. `Localization` in MWebCore resolves macOS preferred languages at launch and loads the shared `Localizable.strings` catalog. Chinese variants without a separate translation use Simplified Chinese; unsupported language preferences fall back to English. Keep the English and Chinese catalog keys and format arguments in sync. UI strings use `L10n.string` or `L10n.format`, including AppKit alerts, accessibility labels, and errors. Keep article contents and category names out of the catalogs. Preview chrome receives only trusted application strings through `mweblite://app/Localization.js`.
+
+L10N-001 checks language preference order, fallback, both catalogs, format placeholders, and native menu language declarations. PV-007 loads both packaged localized WebKit shells and verifies their labels and missing-runtime message while preserving mixed-language Markdown. E2E-021 checks the assembled app and standard menu bar, which these tests cannot replace.
+
+Prepare one fresh Preview run for E2E-021. Quit the existing Preview instance before each language launch. These process-only arguments simulate the system language preference without changing global macOS settings:
+
+```sh
+./scripts/run-preview-app.sh system-language --prepare-only
+open "build/Test Runs/system-language/MWeb Lite Preview.app" --args \
+  --library "$PWD/build/Test Runs/system-language/Library" -AppleLanguages '(en)'
+# Quit the app, then launch the same committed build in Chinese.
+open "build/Test Runs/system-language/MWeb Lite Preview.app" --args \
+  --library "$PWD/build/Test Runs/system-language/Library" -AppleLanguages '(zh-Hans)'
+```
+
+Follow all E2E-021 steps in both languages before recording Passed using this run's `baseCommit`. For ordinary use, omit the language arguments: the app follows macOS, including its per-app language preference, on the next launch. Neither the fixture source nor any personal library should be opened for this test.

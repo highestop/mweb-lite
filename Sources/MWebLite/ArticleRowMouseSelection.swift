@@ -1,3 +1,4 @@
+import MWebCore
 import AppKit
 import SwiftUI
 
@@ -153,7 +154,7 @@ final class ArticleRowSelectionAnchor: NSView {
     override func menu(for event: NSEvent) -> NSMenu? {
         guard !isDismantled, selectionEnabled, onDelete != nil else { return nil }
         let menu = NSMenu()
-        let item = NSMenuItem(title: "删除文档…", action: #selector(deleteArticle), keyEquivalent: "")
+        let item = NSMenuItem(title: L10n.string("Delete Article…"), action: #selector(deleteArticle), keyEquivalent: "")
         item.target = self
         item.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
         menu.addItem(item)

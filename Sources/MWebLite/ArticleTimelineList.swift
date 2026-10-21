@@ -1,3 +1,4 @@
+import MWebCore
 import SwiftUI
 
 /// Natural headers retain their accessibility order. A single overlay positions
@@ -171,7 +172,7 @@ struct ArticleTimelineList<Row: View>: View {
             case .month(let date):
                 Text(date, format: .dateTime.month(.wide))
             case .undated:
-                Text("无日期")
+                Text(L10n.string("Undated"))
             }
         }
         .font(.system(size: 11, weight: .medium))
