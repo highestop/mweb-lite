@@ -22,7 +22,8 @@ public struct Localization {
     init(preferredLanguages: [String], resources: Bundle) {
         // Use the same native matching rules and supported languages as the main
         // bundle, so application strings and AppKit menus cannot choose differently.
-        language = Bundle.preferredLocalizations(from: ["en", "zh-Hans"], forPreferences: preferredLanguages).first ?? "en"
+        let language = Bundle.preferredLocalizations(from: ["en", "zh-Hans"], forPreferences: preferredLanguages).first ?? "en"
+        self.language = language
         var components = Locale.Components(locale: .current)
         components.languageComponents = Locale.Language.Components(identifier: language)
         locale = Locale(components: components)
