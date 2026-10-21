@@ -6,6 +6,57 @@ import CaseReporting
 
 final class LibraryStoreSelectionTests: CaseReportingTestCase {
     @MainActor
+    func test_SAVE_001_StatusTracksAutosaveInFlightEditsAndRetry() async throws {
+        XCTAssertEqual(LibraryStore().saveStatus, .unavailable)
+        let root = try makeLibrary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = try await open(root)
+        XCTAssertEqual(store.saveStatus, .saved)
+
+        store.edit("# Automatically saved\n")
+        XCTAssertEqual(store.saveStatus, .unsaved)
+        try await waitForStatus(.saved, in: store)
+        let file = root.appendingPathComponent("docs/10001.md")
+        XCTAssertEqual(try String(contentsOf: file), store.draft)
+
+        // Hold the real database writer briefly so the in-flight state is observable.
+        let lock = try SQLiteDatabase(url: root.appendingPathComponent("mainlib.db"), writable: true)
+        try lock.execute("BEGIN IMMEDIATE")
+        defer { lock.rollbackIfNeeded() }
+        store.edit("# First save snapshot\n")
+        let saving = Task { await store.flush() }
+        try await waitForStatus(.saving, in: store)
+        store.edit("# Newer edit during save\n")
+        XCTAssertEqual(store.saveStatus, .saving)
+        try lock.execute("ROLLBACK")
+        let saved = await saving.value
+        XCTAssertTrue(saved)
+        XCTAssertEqual(store.saveStatus, .saved)
+        XCTAssertEqual(try String(contentsOf: file), "# Newer edit during save\n")
+
+        let original = try XCTUnwrap(store.document?.content)
+        try Data("# External edit\n".utf8).write(to: file)
+        store.edit("# Keep this unsaved draft\n")
+        let failed = await store.flush()
+        XCTAssertFalse(failed)
+        XCTAssertEqual(store.saveStatus, .failed)
+        store.errorMessage = nil
+        XCTAssertEqual(store.saveStatus, .failed, "Dismissing the alert cannot report a successful save")
+        XCTAssertEqual(try String(contentsOf: file), "# External edit\n")
+        XCTAssertEqual(store.draft, "# Keep this unsaved draft\n")
+
+        // Resolve this fixture's conflict, then exercise the same retry as Command-S.
+        try Data(original.utf8).write(to: file)
+        store.saveNow()
+        try await waitForStatus(.saved, in: store)
+        XCTAssertEqual(try String(contentsOf: file), "# Keep this unsaved draft\n")
+        store.setMode(.editor)
+        XCTAssertEqual(store.saveStatus, .saved)
+        store.setMode(.preview)
+        XCTAssertEqual(store.saveStatus, .saved)
+    }
+
+    @MainActor
     func test_SELECT_001_SelectionChangesBeforeSavingAndLoadingTheNextDocument() async throws {
         let root = try makeLibrary()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -123,6 +174,19 @@ final class LibraryStoreSelectionTests: CaseReportingTestCase {
         store.setMode(.editor)
         XCTAssertEqual(store.mode, .editor)
         XCTAssertEqual(store.editorFocusRequest?.selection, .preserveSelection)
+    }
+
+    @MainActor
+    private func waitForStatus(_ status: DocumentSaveStatus, in store: LibraryStore) async throws {
+        let deadline = Date().addingTimeInterval(5)
+        while store.saveStatus != status, Date() < deadline {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTAssertEqual(store.saveStatus, status)
+        guard store.saveStatus == status else {
+            throw NSError(domain: "SaveStatusTest", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: "Save status did not reach \(status)"])
+        }
     }
 
     @MainActor
