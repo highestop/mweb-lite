@@ -1,4 +1,7 @@
 // App interface strings. Article content and category names are never translated.
+"Copy" = "Copy";
+"Copied!" = "Copied!";
+"Press ⌘C to copy" = "Press ⌘C to copy";
 "%ld articles" = "%ld articles";
 "1 article" = "1 article";
 "All Articles" = "All Articles";

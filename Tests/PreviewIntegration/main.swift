@@ -438,6 +438,9 @@ final class LocalizedPreviewCheck: NSObject, WKNavigationDelegate {
         window.renderMarkdown('# Original 中文 😀\n\n[TOC]\n\n## Section\n\n~~~mermaid\ngraph LR; A-->B;\n~~~\n', 'mweblite://library/docs/', false, true);
         return {language: document.documentElement.lang,
           preview: document.querySelector('article').getAttribute('aria-label'),
+          copy: document.querySelector('article').getAttribute('data-prismjs-copy'),
+          copied: document.querySelector('article').getAttribute('data-prismjs-copy-success'),
+          copyError: document.querySelector('article').getAttribute('data-prismjs-copy-error'),
           scroll: document.querySelector('.preview-scrollbar.vertical').getAttribute('aria-label'),
           toc: document.querySelector('.table-of-contents').getAttribute('aria-label'),
           note: document.querySelector('.render-note').textContent,
@@ -450,6 +453,9 @@ final class LocalizedPreviewCheck: NSObject, WKNavigationDelegate {
             let chinese = self.languageIndex == 1
             results.expect("PV-007", state["language"] == (chinese ? "zh-Hans" : "en"), "HTML language did not match")
             results.expect("PV-007", state["preview"] == (chinese ? "文章预览" : "Article preview"), "Preview label did not match")
+            results.expect("PV-007", state["copy"] == (chinese ? "复制" : "Copy"), "Copy label did not match")
+            results.expect("PV-007", state["copied"] == (chinese ? "已复制" : "Copied!"), "Copied label did not match")
+            results.expect("PV-007", state["copyError"] == (chinese ? "按 ⌘C 复制" : "Press ⌘C to copy"), "Copy retry label did not match")
             results.expect("PV-007", state["scroll"] == (chinese ? "滚动文章" : "Scroll article"), "Scrollbar label did not match")
             results.expect("PV-007", state["toc"] == (chinese ? "目录" : "Table of contents"), "TOC label did not match")
             results.expect("PV-007", state["note"] == (chinese ? "安装 MWeb 后可使用本机的图表渲染资源。" : "Install MWeb to use its local diagram rendering resources."), "Fallback message did not match")

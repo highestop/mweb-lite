@@ -1,4 +1,7 @@
 // App interface strings. Article content and category names are never translated.
+"Copy" = "复制";
+"Copied!" = "已复制";
+"Press ⌘C to copy" = "按 ⌘C 复制";
 "%ld articles" = "%ld 篇文章";
 "1 article" = "1 篇文章";
 "All Articles" = "所有文章";

@@ -6,6 +6,10 @@
   const localize = (key) => strings[key] || key;
   document.documentElement.lang = strings.language || "en";
   content.setAttribute("aria-label", localize("Article preview"));
+  // Prism's optional copy toolbar inherits its labels from the article shell.
+  content.setAttribute("data-prismjs-copy", localize("Copy"));
+  content.setAttribute("data-prismjs-copy-success", localize("Copied!"));
+  content.setAttribute("data-prismjs-copy-error", localize("Press ⌘C to copy"));
   // WebKit on macOS renders its scrollbars outside the public NSView hierarchy.
   // Keep its native scrolling and add only the visible, interactive overlay.
   function makeScrollbar(target, vertical) {
