@@ -20,6 +20,6 @@
 | [E2E-016](cases/E2E-016.md) | Skipped | `39f52d2b09a4c582c8adba2532fd3c4536031753` | Yes |
 | [E2E-017](cases/E2E-017.md) | Skipped | `1f15d48bfa31614ddd4e8294e3c154d871a00435` | Yes |
 | [E2E-018](cases/E2E-018.md) | Skipped | `efedff63259f51132b6d65df00d39916b7018a48` | Yes |
-| [E2E-019](cases/E2E-019.md) | Skipped | `01bd66fd4b3a4ad1e717405a1920de6ad645c59b` | Yes |
-| [E2E-020](cases/E2E-020.md) | — | — | — |
+| [E2E-019](cases/E2E-019.md) | Passed | `046f988db84976a363adc7672d1aac3b893922e8` | Yes |
+| [E2E-020](cases/E2E-020.md) | Passed | `046f988db84976a363adc7672d1aac3b893922e8` | Yes |
 | [REL-001](cases/REL-001.md) | — | — | — |
