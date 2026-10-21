@@ -34,21 +34,26 @@ enum DocumentSaveStatus: Equatable {
     }
 }
 
-/// Keep one fixed-width indicator mounted in both editor and preview modes.
+/// Show save feedback only while changes still need to reach the local library.
 struct DocumentSaveStatusIndicator: View {
     let status: DocumentSaveStatus
 
     var body: some View {
-        Image(systemName: status.symbol)
-            .font(.system(size: 14, weight: .regular))
-            .symbolRenderingMode(.monochrome)
-            .foregroundStyle(.secondary)
-            .frame(width: 32, height: 32)
-            .contentShape(Circle())
-            .help(status.help)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("本地保存状态")
-            .accessibilityValue(status.title)
-            .accessibilityIdentifier("document-save-status")
+        switch status {
+        case .unsaved, .saving, .failed:
+            Image(systemName: status.symbol)
+                .font(.system(size: 14, weight: .regular))
+                .symbolRenderingMode(.monochrome)
+                .foregroundStyle(.secondary)
+                .frame(width: 32, height: 32)
+                .contentShape(Circle())
+                .help(status.help)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("本地保存状态")
+                .accessibilityValue(status.title)
+                .accessibilityIdentifier("document-save-status")
+        case .saved, .unavailable:
+            EmptyView()
+        }
     }
 }
