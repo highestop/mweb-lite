@@ -169,7 +169,7 @@ Open a case to read or update its GWT statements, execution details, and data so
 - [E2E-002](cases/E2E-002.md) — Search article titles and clear the query.
 - [E2E-003](cases/E2E-003.md) — Create an article in the current category with the toolbar's plus button.
 - [E2E-004](cases/E2E-004.md) — Create an uncategorized article from the keyboard.
-- [E2E-005](cases/E2E-005.md) — Keep the editing toggle and selected state synchronized with menu/shortcut changes while preserving undo.
+- [E2E-005](cases/E2E-005.md) — Keep the next-action mode icon, label, and selected state synchronized with menu/shortcut changes while preserving undo.
 - [E2E-006](cases/E2E-006.md) — Save edits across article switches and app restart.
 - [E2E-007](cases/E2E-007.md) — Commit real Chinese composition across focus changes.
 - [E2E-008](cases/E2E-008.md) — Keep one light-gray selection through mouse-down, release, and keyboard navigation.

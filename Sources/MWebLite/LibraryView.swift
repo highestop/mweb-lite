@@ -299,11 +299,12 @@ struct LibraryView: View {
 
     private var editorModeButton: some View {
         ToolbarIconButton(
-            title: "编辑", symbol: "square.and.pencil",
+            title: store.mode == .editor ? "预览" : "编辑",
+            symbol: store.mode == .editor ? "eye" : "square.and.pencil",
             help: store.mode == .editor ? "切换到预览 · ⌘R" : "切换到编辑 · ⌘R",
             isSelected: store.mode == .editor,
             symbolWeight: .medium,
-            symbolVerticalOffset: -1
+            symbolVerticalOffset: store.mode == .editor ? 0 : -1
         ) {
             store.setMode(store.mode == .editor ? .preview : .editor)
         }
