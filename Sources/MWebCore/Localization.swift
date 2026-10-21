@@ -16,9 +16,9 @@ public struct Localization {
     }()
 
     public init(preferredLanguages: [String] = Locale.preferredLanguages) {
-        // Provide simplified Chinese for Chinese variants without another translation.
-        let preferences = preferredLanguages.map { $0.lowercased().hasPrefix("zh") ? "zh-Hans" : $0 }
-        language = Bundle.preferredLocalizations(from: ["en", "zh-Hans"], forPreferences: preferences).first ?? "en"
+        // Use the same native matching rules and supported languages as the main
+        // bundle, so application strings and AppKit menus cannot choose differently.
+        language = Bundle.preferredLocalizations(from: ["en", "zh-Hans"], forPreferences: preferredLanguages).first ?? "en"
         var components = Locale.Components(locale: .current)
         components.languageComponents = Locale.Language.Components(identifier: language)
         locale = Locale(components: components)
