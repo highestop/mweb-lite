@@ -185,7 +185,7 @@ Open a case to read or update its GWT statements, execution details, and data so
 - [E2E-016](cases/E2E-016.md) — Display separate sticky year/month headings and repeated-day spacing across scrolling, selection, and search.
 - [E2E-017](cases/E2E-017.md) — Keep light translucent scrollbars overlaid without layout shifts in categories, articles, editor, and preview.
 
-- [E2E-018](cases/E2E-018.md) — Keep a local save-status icon beside the editing toggle through pending edits, autosave, conflicts, and reload.
+- [E2E-018](cases/E2E-018.md) — Show local save status for pending edits and conflicts, and hide it after autosave or reload.
 
 ### Document and category management
 
