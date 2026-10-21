@@ -1,7 +1,7 @@
 # CI test result
 
-CI run: [39550700382 (attempt 1)](https://github.com/highestop/mweb-lite/actions/runs/39550700382/attempts/1)
-Tested commit: [ee8643311ddf5d85707071b61c268344fdfd304f](https://github.com/highestop/mweb-lite/commit/ee8643311ddf5d85707071b61c268344fdfd304f)
+CI run: [39554873919 (attempt 1)](https://github.com/highestop/mweb-lite/actions/runs/39554873919/attempts/1)
+Tested commit: [46a9f57139fb9e2d0b87928f0bb5969f4b0fea73](https://github.com/highestop/mweb-lite/commit/46a9f57139fb9e2d0b87928f0bb5969f4b0fea73)
 
 | Case ID | Status |
 | --- | --- |
