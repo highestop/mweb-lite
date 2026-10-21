@@ -78,7 +78,7 @@ struct LibraryView: View {
                     .modifier(DrawerPanel(visible: navigationVisible, highlighted: categoryEdgeHighlighted))
                     .zIndex(2)
                 DrawerResizeHandle(title: "调整分类栏宽度", width: geometry.categoryWidth) {
-                    categoryWidth = min(max($0, 180), min(320, max(180, proxy.size.width - 420 - geometry.articleWidth)))
+                    categoryWidth = min(max($0, 180), min(280, max(180, proxy.size.width - 420 - geometry.articleWidth)))
                 } onHighlight: {
                     categoryEdgeHighlighted = $0
                 }
@@ -87,7 +87,7 @@ struct LibraryView: View {
                 .accessibilityHidden(!navigationVisible)
                 .zIndex(3)
                 DrawerResizeHandle(title: "调整文章栏宽度", width: geometry.articleWidth) {
-                    articleWidth = min(max($0, 220), min(400, max(220, proxy.size.width - 420 - geometry.categoryWidth)))
+                    articleWidth = min(max($0, 320), min(400, max(320, proxy.size.width - 420 - geometry.categoryWidth)))
                 } onHighlight: {
                     articleEdgeHighlighted = $0
                 }
