@@ -72,6 +72,12 @@ final class LibraryStore: ObservableObject {
     private var isReloading = false
 
     var isDirty: Bool { document.map { $0.content != draft } ?? false }
+    var saveStatus: DocumentSaveStatus {
+        guard document != nil else { return .unavailable }
+        if isSaving { return .saving }
+        if isDirty { return saveBlocked ? .failed : .unsaved }
+        return .saved
+    }
     var selectedArticleID: String? { pendingArticleID ?? document?.articleID }
     var isSwitchingArticle: Bool { pendingArticleID != nil }
     var hasPendingWrites: Bool { isDirty || isSaving || creationTask != nil }

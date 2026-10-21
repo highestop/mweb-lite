@@ -229,6 +229,7 @@ struct LibraryView: View {
             .disabled(store.isBusy)
             Spacer(minLength: 0)
             if store.isBusy && !store.isSwitchingArticle { ProgressView().controlSize(.small) }
+            DocumentSaveStatusIndicator(status: store.saveStatus)
             modeButtons
         }
         .padding(.leading, navigationVisible ? 14 : 88)

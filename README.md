@@ -28,6 +28,7 @@ The demo generator refuses to overwrite existing directories. `--library` does n
 
 - Native category tree, article list, title/summary search, and editor/preview modes. Switch modes from the View menu or with `⌘R`; the article uses the full window height.
 - Articles appear in descending creation-time order and are separated by creation year and month. Editing does not move an article or change its date group. Missing creation dates remain undated. Consecutive notes on the same local creation day show the day number only on the first row, with the date column retained for alignment. Each card has an optional square mosaic of the first four images in document order, and the bold title plus excerpt. Text-only articles use the remaining space. The article column can be resized.
+- A persistent icon beside the editor/preview buttons shows local save status: pending, saving, saved, or failed. Hover for an explanation; failures stay visible after dismissing an error.
 - Create an article from the toolbar’s plus button or `⌘N`. It belongs to the selected category and opens in the editor with its title selected. Creating from All or Uncategorized leaves it uncategorized.
 - UTF-8 Markdown editing with native undo, find, Chinese input support, syntax colors, list continuation, indentation, and image paste/drop.
 - Tables, task lists, strikethrough, footnotes, `[TOC]`, local images, MWeb image widths such as `![caption -w320](media/...)`, and `mweblib://{articleID}` links.
