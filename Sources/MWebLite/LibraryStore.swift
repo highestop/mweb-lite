@@ -28,6 +28,26 @@ actor LibraryWorker {
         return try library.saveDocument(document, content: content)
     }
 
+    func trash(_ articleID: String) throws {
+        guard let library else { throw CocoaError(.fileNoSuchFile) }
+        try library.trashDocument(articleID: articleID)
+    }
+
+    func createCategory(name: String, parentID: String?) throws -> String {
+        guard let library else { throw CocoaError(.fileNoSuchFile) }
+        return try library.createCategory(name: name, parentID: parentID)
+    }
+
+    func renameCategory(id: String, name: String) throws {
+        guard let library else { throw CocoaError(.fileNoSuchFile) }
+        try library.renameCategory(id: id, name: name)
+    }
+
+    func deleteCategory(id: String) throws {
+        guard let library else { throw CocoaError(.fileNoSuchFile) }
+        try library.deleteCategory(id: id)
+    }
+
     func create(categoryID: String?) throws -> MWebDocument {
         guard let library else { throw CocoaError(.fileNoSuchFile) }
         return try library.createDocument(categoryID: categoryID)
@@ -67,6 +87,7 @@ final class LibraryStore: ObservableObject {
     private var debounceTask: Task<Void, Never>?
     private var saveTask: Task<Bool, Never>?
     private var creationTask: Task<Void, Never>?
+    private var managementTask: Task<Void, Never>?
     private var securityURL: URL?
     private var hasRestored = false
     private var isReloading = false
@@ -80,7 +101,7 @@ final class LibraryStore: ObservableObject {
     }
     var selectedArticleID: String? { pendingArticleID ?? document?.articleID }
     var isSwitchingArticle: Bool { pendingArticleID != nil }
-    var hasPendingWrites: Bool { isDirty || isSaving || creationTask != nil }
+    var hasPendingWrites: Bool { isDirty || isSaving || creationTask != nil || managementTask != nil }
     var currentTitle: String { Self.title(draft, fallback: document?.title ?? "未命名文章") }
     var activeArticles: [MWebArticle] { articles.filter { !$0.isTrashed } }
     var visibleArticles: [MWebArticle] {
@@ -224,12 +245,79 @@ final class LibraryStore: ObservableObject {
         }
     }
 
+    func trashArticle(_ id: String) {
+        let previousPosition = visibleArticles.firstIndex { $0.id == id } ?? 0
+        manageLibrary {
+            try await self.worker.trash(id)
+            // Clear the deleted document before refreshing, even if index loading fails.
+            if self.document?.articleID == id {
+                self.debounceTask?.cancel()
+                self.document = nil
+                self.draft = ""
+                self.editorFocusRequest = nil
+                self.saveBlocked = false
+            }
+            try await self.refreshManagedIndex()
+            if self.document == nil, !self.visibleArticles.isEmpty {
+                let next = self.visibleArticles[min(previousPosition, self.visibleArticles.count - 1)]
+                try await self.load(next.id)
+            }
+        }
+    }
+
+    func createCategory(name: String, parentID: String?) {
+        manageLibrary {
+            let id = try await self.worker.createCategory(name: name, parentID: parentID)
+            try await self.refreshManagedIndex()
+            self.selectedCategory = id
+            self.search = ""
+        }
+    }
+
+    func renameCategory(id: String, name: String) {
+        manageLibrary {
+            try await self.worker.renameCategory(id: id, name: name)
+            try await self.refreshManagedIndex()
+        }
+    }
+
+    func deleteCategory(id: String) {
+        manageLibrary {
+            try await self.worker.deleteCategory(id: id)
+            try await self.refreshManagedIndex()
+        }
+    }
+
+    /// Commit the editor's composition and draft before a structural write.
+    /// Quitting waits for this task just as it waits for article creation.
+    private func manageLibrary(_ action: @escaping @MainActor () async throws -> Void) {
+        guard rootURL != nil, !isBusy else { return }
+        NSApp.keyWindow?.makeFirstResponder(nil)
+        isBusy = true
+        managementTask = Task {
+            defer { isBusy = false; managementTask = nil }
+            guard await flush() else { return }
+            do { try await action() }
+            catch { errorMessage = error.localizedDescription }
+        }
+    }
+
+    private func refreshManagedIndex() async throws {
+        let index = try await worker.index()
+        categories = index.categories
+        articles = index.articles
+        if !["all", "uncategorized"].contains(selectedCategory), !categories.contains(where: { $0.id == selectedCategory }) {
+            selectedCategory = "all"
+        }
+    }
+
     func consumeEditorFocus(_ request: UUID) {
         if editorFocusRequest?.id == request { editorFocusRequest = nil }
     }
 
     func finishPendingWrites() async -> Bool {
         if let creationTask { await creationTask.value }
+        if let managementTask { await managementTask.value }
         return await flush()
     }
 
