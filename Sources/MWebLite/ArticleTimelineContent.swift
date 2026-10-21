@@ -52,7 +52,7 @@ struct ArticleTimelineContent: View {
         if showsDate, let date = article.createdAt {
             day(date)
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel(date.formatted(date: .abbreviated, time: .omitted))
+                .accessibilityLabel(date.formatted(.dateTime.year().month(.abbreviated).day().locale(L10n.current.locale)))
         } else {
             Color.clear.frame(height: 1).accessibilityHidden(true)
         }

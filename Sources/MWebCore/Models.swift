@@ -84,27 +84,27 @@ public enum MWebLibraryError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .invalidLibrary(let detail):
-            return "无法打开文库：\(detail)"
+            return L10n.format("Could not open the library: %@", detail)
         case .database(let detail):
-            return "文库数据库操作失败：\(detail)"
+            return L10n.format("Library database operation failed: %@", detail)
         case .missingArticle:
-            return "这篇文章已不在文库中，请刷新文库。"
+            return L10n.string("This article is no longer in the library. Refresh the library.")
         case .missingCategory:
-            return "所选分类已不存在，请刷新文库后重试。"
+            return L10n.string("The selected category no longer exists. Refresh the library and try again.")
         case .invalidCategory(let detail):
-            return "无法修改分类：\(detail)"
+            return L10n.format("Could not change the category: %@", detail)
         case .trashedArticle:
-            return "这篇文章已被移入废纸篓，无法在此编辑。"
+            return L10n.string("This article is in the trash and cannot be edited here.")
         case .invalidDocument(let detail):
-            return "无法读取文章：\(detail)"
+            return L10n.format("Could not read the article: %@", detail)
         case .conflict:
-            return "文章已被 MWeb 或其他程序修改。当前编辑内容仍保留，请先重新载入，再合并修改。"
+            return L10n.string("This article was changed by MWeb or another app. Your edits are still in this window. Reload the article before merging your changes.")
         case .recoveryRequired(let backupURL):
-            return "保存未完成，恢复原文件也未成功。原文和数据库已备份到 \(backupURL.path)，请先保留当前编辑内容。"
+            return L10n.format("Saving and restoring the original file both failed. The original text and database are backed up at %@. Keep a copy of your current edits.", backupURL.path)
         case .creationConflict:
-            return "新文章标识与已有数据冲突，请重试。已有数据没有修改。"
+            return L10n.string("The new article ID conflicts with existing data. Try again. Existing data was not changed.")
         case .creationRecoveryRequired(let documentURL, let backupURL):
-            return "新建文章未完成，文件无法自动清理：\(documentURL.path)。数据库备份位于 \(backupURL.path)，请先保留此文件。"
+            return L10n.format("Article creation failed and the file could not be cleaned up: %@. The database backup is at %@. Keep this file.", documentURL.path, backupURL.path)
         }
     }
 }

@@ -1,3 +1,4 @@
+import MWebCore
 import SwiftUI
 
 enum DocumentSaveStatus: Equatable {
@@ -15,21 +16,21 @@ enum DocumentSaveStatus: Equatable {
 
     var title: String {
         switch self {
-        case .unavailable: return "未选择文章"
-        case .unsaved: return "尚未保存"
-        case .saving: return "正在保存"
-        case .saved: return "已保存到本地"
-        case .failed: return "保存失败"
+        case .unavailable: return L10n.string("No Article Selected")
+        case .unsaved: return L10n.string("Unsaved")
+        case .saving: return L10n.string("Saving")
+        case .saved: return L10n.string("Saved Locally")
+        case .failed: return L10n.string("Save Failed")
         }
     }
 
     var help: String {
         switch self {
-        case .unavailable: return "选择文章后显示本地保存状态"
-        case .unsaved: return "修改尚未保存，停止输入后会自动保存 · ⌘S 立即保存"
-        case .saving: return "正在将修改保存到本地文库"
-        case .saved: return "当前内容已保存到本地文库"
-        case .failed: return "修改尚未保存，请处理错误提示后按 ⌘S 重试"
+        case .unavailable: return L10n.string("Select an article to see its local save status")
+        case .unsaved: return L10n.string("Unsaved changes will save automatically when you stop typing · ⌘S to save now")
+        case .saving: return L10n.string("Saving changes to the local library")
+        case .saved: return L10n.string("The current content is saved to the local library")
+        case .failed: return L10n.string("Changes are not saved. Resolve the error, then press ⌘S to retry.")
         }
     }
 }
@@ -49,7 +50,7 @@ struct DocumentSaveStatusIndicator: View {
                 .contentShape(Circle())
                 .help(status.help)
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("本地保存状态")
+                .accessibilityLabel(L10n.string("Local save status"))
                 .accessibilityValue(status.title)
                 .accessibilityIdentifier("document-save-status")
         case .saved, .unavailable:

@@ -102,7 +102,7 @@ final class LibraryStore: ObservableObject {
     var selectedArticleID: String? { pendingArticleID ?? document?.articleID }
     var isSwitchingArticle: Bool { pendingArticleID != nil }
     var hasPendingWrites: Bool { isDirty || isSaving || creationTask != nil || managementTask != nil }
-    var currentTitle: String { Self.title(draft, fallback: document?.title ?? "未命名文章") }
+    var currentTitle: String { Self.title(draft, fallback: document?.title ?? L10n.string("Untitled Article")) }
     var activeArticles: [MWebArticle] { articles.filter { !$0.isTrashed } }
     var visibleArticles: [MWebArticle] {
         let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -152,7 +152,7 @@ final class LibraryStore: ObservableObject {
             var stale = false
             let url = try URL(resolvingBookmarkData: data, options: [.withSecurityScope], bookmarkDataIsStale: &stale)
             open(url)
-        } catch { errorMessage = "无法恢复上次的文库，请重新选择目录。\n\(error.localizedDescription)" }
+        } catch { errorMessage = L10n.format("Could not restore the previous library. Choose its folder again.\n%@", error.localizedDescription) }
     }
 
     func setMode(_ mode: EditorMode) {
@@ -164,9 +164,9 @@ final class LibraryStore: ObservableObject {
 
     func chooseLibrary() {
         let panel = NSOpenPanel()
-        panel.title = "选择 MWeb 文库"
-        panel.message = "选择包含 mainlib.db 和 docs 文件夹的目录。"
-        panel.prompt = "打开文库"
+        panel.title = L10n.string("Choose MWeb Library")
+        panel.message = L10n.string("Choose a folder containing mainlib.db and the docs folder.")
+        panel.prompt = L10n.string("Open Library")
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
@@ -323,7 +323,7 @@ final class LibraryStore: ObservableObject {
 
     func openArticleLink(_ id: String) {
         guard activeArticles.contains(where: { $0.id == id }) else {
-            errorMessage = "文库中没有找到链接指向的文章。"
+            errorMessage = L10n.string("The linked article was not found in this library.")
             return
         }
         selectedCategory = "all"
@@ -375,7 +375,7 @@ final class LibraryStore: ObservableObject {
                 return true
             } catch {
                 saveBlocked = true
-                errorMessage = "保存未完成，编辑内容仍保留在窗口中。\n\(error.localizedDescription)"
+                errorMessage = L10n.format("Saving did not finish. Your edits are still in this window.\n%@", error.localizedDescription)
                 return false
             }
         }
@@ -412,10 +412,10 @@ final class LibraryStore: ObservableObject {
     func reloadFromDisk() {
         guard let id = document?.articleID, !isBusy else { return }
         let alert = NSAlert()
-        alert.messageText = "重新载入磁盘上的文章？"
-        alert.informativeText = "当前窗口中尚未保存的编辑会被替换。可先复制文本保留你的修改。"
-        alert.addButton(withTitle: "取消")
-        alert.addButton(withTitle: "重新载入")
+        alert.messageText = L10n.string("Reload the Article from Disk?")
+        alert.informativeText = L10n.string("Unsaved edits in this window will be replaced. Copy your text first if you want to keep your changes.")
+        alert.addButton(withTitle: L10n.string("Cancel"))
+        alert.addButton(withTitle: L10n.string("Reload"))
         guard alert.runModal() == .alertSecondButtonReturn else { return }
         NSApp.keyWindow?.makeFirstResponder(nil)
         debounceTask?.cancel()

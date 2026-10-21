@@ -26,7 +26,7 @@ struct LibraryView: View {
         }
         .toolbar(.hidden, for: .windowToolbar)
         .alert("MWeb Lite", isPresented: Binding(get: { store.errorMessage != nil }, set: { if !$0 { store.errorMessage = nil } })) {
-            Button("好", role: .cancel) { store.errorMessage = nil }
+            Button(L10n.string("OK"), role: .cancel) { store.errorMessage = nil }
         } message: { Text(store.errorMessage ?? "") }
     }
 
@@ -37,22 +37,22 @@ struct LibraryView: View {
                 .foregroundStyle(.secondary).padding(25)
                 .background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 25))
             Text("MWeb Lite").font(.system(size: 32, weight: .semibold, design: .rounded)).padding(.top, 24)
-            Text("熟悉的文库，专注的写作空间。")
+            Text(L10n.string("Your library. A space to focus."))
                 .font(.system(size: 16)).foregroundStyle(.secondary).padding(.top, 10)
-            Text("打开已有的 MWeb 文库，浏览分类、阅读和编辑 Markdown。")
+            Text(L10n.string("Open an existing MWeb library to browse categories, read, and edit Markdown."))
                 .foregroundStyle(.secondary).padding(.top, 22)
             Button { store.chooseLibrary() } label: {
-                Label("选择文库目录", systemImage: "folder").fontWeight(.medium).padding(.horizontal, 18).padding(.vertical, 7)
+                Label(L10n.string("Choose Library Folder"), systemImage: "folder").fontWeight(.medium).padding(.horizontal, 18).padding(.vertical, 7)
             }.buttonStyle(.borderedProminent).buttonBorderShape(.capsule)
                 .controlSize(.large).padding(.top, 28).disabled(store.isBusy)
-            Text("目录中应包含 mainlib.db 和 docs 文件夹")
+            Text(L10n.string("The folder should contain mainlib.db and the docs folder."))
                 .font(.caption).foregroundStyle(.tertiary).padding(.top, 14)
             if store.isBusy { ProgressView().controlSize(.small).padding(.top, 18) }
             Spacer()
             HStack(spacing: 30) {
-                Label("直接使用原文库", systemImage: "externaldrive")
-                Label("本地编辑与预览", systemImage: "doc.richtext")
-                Label("保存前自动备份", systemImage: "clock.arrow.circlepath")
+                Label(L10n.string("Use your existing library"), systemImage: "externaldrive")
+                Label(L10n.string("Edit and preview locally"), systemImage: "doc.richtext")
+                Label(L10n.string("Back up before saving"), systemImage: "clock.arrow.circlepath")
             }.font(.caption).foregroundStyle(.secondary).padding(.bottom, 34)
         }.frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -77,7 +77,7 @@ struct LibraryView: View {
                     .background(Color(nsColor: .windowBackgroundColor))
                     .modifier(DrawerPanel(visible: navigationVisible, highlighted: categoryEdgeHighlighted))
                     .zIndex(2)
-                DrawerResizeHandle(title: "调整分类栏宽度", width: geometry.categoryWidth) {
+                DrawerResizeHandle(title: L10n.string("Resize categories"), width: geometry.categoryWidth) {
                     categoryWidth = min(max($0, 180), min(280, max(180, proxy.size.width - 420 - geometry.articleWidth)))
                 } onHighlight: {
                     categoryEdgeHighlighted = $0
@@ -86,7 +86,7 @@ struct LibraryView: View {
                 .allowsHitTesting(navigationVisible)
                 .accessibilityHidden(!navigationVisible)
                 .zIndex(3)
-                DrawerResizeHandle(title: "调整文章栏宽度", width: geometry.articleWidth) {
+                DrawerResizeHandle(title: L10n.string("Resize article list"), width: geometry.articleWidth) {
                     articleWidth = min(max($0, 320), min(400, max(320, proxy.size.width - 420 - geometry.categoryWidth)))
                 } onHighlight: {
                     articleEdgeHighlighted = $0
@@ -122,9 +122,10 @@ struct LibraryView: View {
             HStack {
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass").foregroundStyle(.tertiary)
-                    TextField("搜索标题与摘要", text: $store.search).textFieldStyle(.plain)
+                    TextField(L10n.string("Search titles and summaries"), text: $store.search).textFieldStyle(.plain)
                     if !store.search.isEmpty {
-                        Button { store.search = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary) }.buttonStyle(.plain)
+                        Button { store.search = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary) }
+                            .buttonStyle(.plain).accessibilityLabel(L10n.string("Clear search"))
                     }
                 }
                 .font(.system(size: 12)).padding(.horizontal, 12).frame(height: 32)
@@ -132,7 +133,7 @@ struct LibraryView: View {
             }.padding(.horizontal, 14).frame(height: headerHeight)
             Divider()
             if store.visibleArticles.isEmpty {
-                ContentUnavailableView("没有文章", systemImage: "doc.text.magnifyingglass", description: Text(store.search.isEmpty ? "这个分类中还没有文章。" : "试试其他关键词。"))
+                ContentUnavailableView(L10n.string("No Articles"), systemImage: "doc.text.magnifyingglass", description: Text(store.search.isEmpty ? L10n.string("This category has no articles yet.") : L10n.string("Try different search terms.")))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ArticleTimelineList(entries: ArticleTimelineGrouping.entries(articles: store.visibleArticles),
@@ -162,7 +163,7 @@ struct LibraryView: View {
         .overlay(ArticleRowMouseSelection(controller: articleListSelection, onDelete: {
             confirmTrashArticle(article)
         }) { store.selectArticle(article.id) })
-        .accessibilityAction(named: "删除文档") { confirmTrashArticle(article) }
+        .accessibilityAction(named: Text(L10n.string("Delete Article"))) { confirmTrashArticle(article) }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
         .accessibilityAction {
@@ -173,7 +174,7 @@ struct LibraryView: View {
 
     private func promptCreateCategory(parentID: String?) {
         guard !store.isBusy else { return }
-        if let name = categoryNamePrompt(title: parentID == nil ? "新建分类" : "新建子分类", name: "") {
+        if let name = categoryNamePrompt(title: parentID == nil ? L10n.string("New Category") : L10n.string("New Subcategory"), name: "") {
             if let parentID { expandedCategoryIDs.insert(parentID) }
             store.createCategory(name: name, parentID: parentID)
         }
@@ -181,7 +182,7 @@ struct LibraryView: View {
 
     private func promptRenameCategory(_ id: String) {
         guard !store.isBusy, let category = store.categories.first(where: { $0.id == id }) else { return }
-        if let name = categoryNamePrompt(title: "重命名分类", name: category.name) {
+        if let name = categoryNamePrompt(title: L10n.string("Rename Category"), name: category.name) {
             store.renameCategory(id: id, name: name)
         }
     }
@@ -189,12 +190,12 @@ struct LibraryView: View {
     private func categoryNamePrompt(title: String, name: String) -> String? {
         let alert = NSAlert()
         alert.messageText = title
-        alert.addButton(withTitle: "确定")
-        alert.addButton(withTitle: "取消")
+        alert.addButton(withTitle: L10n.string("OK"))
+        alert.addButton(withTitle: L10n.string("Cancel"))
         let field = NSTextField(string: name)
         field.frame = NSRect(x: 0, y: 0, width: 280, height: 24)
-        field.placeholderString = "分类名称"
-        field.setAccessibilityLabel("分类名称")
+        field.placeholderString = L10n.string("Category name")
+        field.setAccessibilityLabel(L10n.string("Category name"))
         alert.accessoryView = field
         alert.window.initialFirstResponder = field
         guard alert.runModal() == .alertFirstButtonReturn else { return nil }
@@ -204,10 +205,10 @@ struct LibraryView: View {
     private func confirmDeleteCategory(_ id: String) {
         guard !store.isBusy, let category = store.categories.first(where: { $0.id == id }) else { return }
         let alert = NSAlert()
-        alert.messageText = "删除分类“\(category.name)”？"
-        alert.informativeText = "这个分类及其所有子分类将被删除。文档和附件会保留，只解除与这些分类的关联。"
-        alert.addButton(withTitle: "取消")
-        alert.addButton(withTitle: "删除分类")
+        alert.messageText = L10n.format("Delete Category “%@”?", category.name)
+        alert.informativeText = L10n.string("This category and all its subcategories will be deleted. Articles and attachments will be kept; only their links to these categories will be removed.")
+        alert.addButton(withTitle: L10n.string("Cancel"))
+        alert.addButton(withTitle: L10n.string("Delete Category"))
         guard alert.runModal() == .alertSecondButtonReturn else { return }
         store.deleteCategory(id: id)
     }
@@ -215,10 +216,10 @@ struct LibraryView: View {
     private func confirmTrashArticle(_ article: MWebArticle) {
         guard !store.isBusy else { return }
         let alert = NSAlert()
-        alert.messageText = "删除文档“\(article.title)”？"
-        alert.informativeText = "文档将移入 MWeb 废纸篓，正文和附件会保留。可在 MWeb 中恢复。"
-        alert.addButton(withTitle: "取消")
-        alert.addButton(withTitle: "移入废纸篓")
+        alert.messageText = L10n.format("Delete Article “%@”?", article.title)
+        alert.informativeText = L10n.string("The article will move to MWeb’s trash. Its text and attachments will be kept, and you can restore it in MWeb.")
+        alert.addButton(withTitle: L10n.string("Cancel"))
+        alert.addButton(withTitle: L10n.string("Move to Trash"))
         guard alert.runModal() == .alertSecondButtonReturn else { return }
         store.trashArticle(article.id)
     }
@@ -254,7 +255,7 @@ struct LibraryView: View {
                         .accessibilityHidden(store.mode != .preview)
                 }
             } else {
-                ContentUnavailableView("选择一篇文章", systemImage: "doc.text", description: Text("从左侧的文章列表开始。"))
+                ContentUnavailableView(L10n.string("Select an Article"), systemImage: "doc.text", description: Text(L10n.string("Choose an article from the list.")))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
@@ -263,8 +264,8 @@ struct LibraryView: View {
     private var documentToolbar: some View {
         HStack(spacing: 6) {
             ToolbarIconButton(
-                title: navigationVisible ? "收起侧边栏" : "展开侧边栏",
-                symbol: "sidebar.left", help: "展开或收起分类和文章列表"
+                title: navigationVisible ? L10n.string("Hide Sidebar") : L10n.string("Show Sidebar"),
+                symbol: "sidebar.left", help: L10n.string("Show or hide the categories and article list")
             ) {
                 categoryEdgeHighlighted = false
                 articleEdgeHighlighted = false
@@ -280,7 +281,7 @@ struct LibraryView: View {
                 }
             }
             .accessibilityIdentifier("toggle-navigation")
-            ToolbarIconButton(title: "新建文章", symbol: "plus", help: "新建文章 · ⌘N") {
+            ToolbarIconButton(title: L10n.string("New Article"), symbol: "plus", help: L10n.string("New article · ⌘N")) {
                 store.createArticle()
             }
             .accessibilityIdentifier("new-article")
@@ -299,9 +300,9 @@ struct LibraryView: View {
 
     private var editorModeButton: some View {
         ToolbarIconButton(
-            title: store.mode == .editor ? "预览" : "编辑",
+            title: store.mode == .editor ? L10n.string("Preview") : L10n.string("Edit"),
             symbol: store.mode == .editor ? "eye" : "square.and.pencil",
-            help: store.mode == .editor ? "切换到预览 · ⌘R" : "切换到编辑 · ⌘R",
+            help: store.mode == .editor ? L10n.string("Switch to preview · ⌘R") : L10n.string("Switch to editing · ⌘R"),
             isSelected: store.mode == .editor,
             symbolWeight: .medium,
             symbolVerticalOffset: store.mode == .editor ? 0 : -1
@@ -309,7 +310,7 @@ struct LibraryView: View {
             store.setMode(store.mode == .editor ? .preview : .editor)
         }
         .accessibilityIdentifier("toggle-editor-mode")
-        .accessibilityValue(store.mode == .editor ? "编辑" : "预览")
+        .accessibilityValue(store.mode == .editor ? L10n.string("Edit") : L10n.string("Preview"))
         // Custom buttons can block input without changing their loading appearance.
         .disabled(store.document == nil || store.isBusy)
         .opacity(store.document == nil ? 0.45 : 1)

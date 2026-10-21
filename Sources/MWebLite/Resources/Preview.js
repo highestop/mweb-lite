@@ -2,6 +2,10 @@
 (() => {
   "use strict";
   const content = document.getElementById("content");
+  const strings = window.previewStrings || {};
+  const localize = (key) => strings[key] || key;
+  document.documentElement.lang = strings.language || "en";
+  content.setAttribute("aria-label", localize("Article preview"));
   // WebKit on macOS renders its scrollbars outside the public NSView hierarchy.
   // Keep its native scrolling and add only the visible, interactive overlay.
   function makeScrollbar(target, vertical) {
@@ -13,7 +17,7 @@
     track.append(thumb);
     track.tabIndex = 0;
     track.setAttribute("role", "scrollbar");
-    track.setAttribute("aria-label", vertical ? "滚动文章" : "横向滚动内容");
+    track.setAttribute("aria-label", localize(vertical ? "Scroll article" : "Scroll content horizontally"));
     track.setAttribute("aria-orientation", vertical ? "vertical" : "horizontal");
     track.setAttribute("aria-valuemin", "0");
     track.setAttribute("aria-controls", target.id || "content");
@@ -282,7 +286,7 @@
     if (!runtimeAvailable) {
       for (const diagram of diagrams) {
         const note = document.createElement("p"); note.className = "render-note";
-        note.textContent = "安装 MWeb 后可使用本机的图表渲染资源。"; diagram.append(note);
+        note.textContent = localize("Install MWeb to use its local diagram rendering resources."); diagram.append(note);
       }
       return;
     }
@@ -328,7 +332,7 @@
       } catch {
         if (!current()) return;
         const note = document.createElement("p"); note.className = "render-note";
-        note.textContent = "图表未能渲染，已保留源代码。ECharts 仅接受数据配置。";
+        note.textContent = localize("The diagram could not be rendered. Its source is preserved. ECharts accepts data configurations only.");
         diagram.replaceChildren();
         const pre = document.createElement("pre"); const codeElement = document.createElement("code");
         codeElement.textContent = code; pre.append(codeElement); diagram.append(pre, note);
@@ -345,7 +349,7 @@
     const env = {};
     let rendered = md.render(source, env);
     const minimumLevel = Math.min(...env.headings.map((heading) => heading.level), 6);
-    const toc = '<nav class="table-of-contents" aria-label="目录"><ul>' + env.headings.map((heading) =>
+    const toc = '<nav class="table-of-contents" aria-label="' + escapeHTML(localize("Table of contents")) + '"><ul>' + env.headings.map((heading) =>
       `<li style="padding-left:${(heading.level - minimumLevel) * 16}px"><a href="#${escapeHTML(heading.id)}">${escapeHTML(heading.title)}</a></li>`
     ).join("") + "</ul></nav>";
     rendered = rendered.replace(/<p>\[TOC\]<\/p>/gi, toc);
