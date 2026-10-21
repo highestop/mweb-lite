@@ -147,6 +147,7 @@ final class PreviewResourceHandler: NSObject, WKURLSchemeHandler {
         if let url = urlSchemeTask.request.url,
            url.scheme == "mweblite", url.host == "app", url.path == "/Localization.js" {
             let keys = ["Article preview", "Scroll article", "Scroll content horizontally", "Table of contents",
+                        "Copy", "Copied!", "Press ⌘C to copy",
                         "Install MWeb to use its local diagram rendering resources.",
                         "The diagram could not be rendered. Its source is preserved. ECharts accepts data configurations only."]
             var strings = Dictionary(uniqueKeysWithValues: keys.map { ($0, localization.string($0)) })
