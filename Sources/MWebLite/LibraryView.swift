@@ -230,7 +230,7 @@ struct LibraryView: View {
             Spacer(minLength: 0)
             if store.isBusy && !store.isSwitchingArticle { ProgressView().controlSize(.small) }
             DocumentSaveStatusIndicator(status: store.saveStatus)
-            modeButtons
+            editorModeButton
         }
         .padding(.leading, navigationVisible ? 14 : 88)
         .padding(.trailing, 14)
@@ -239,46 +239,19 @@ struct LibraryView: View {
         .background(Color(nsColor: .controlBackgroundColor))
     }
 
-    private var modeButtons: some View {
-        HStack(spacing: 2) {
-            EditorModeButton(title: "预览", symbol: "eye", isSelected: store.mode == .preview) {
-                store.setMode(.preview)
-            }
-            .accessibilityIdentifier("show-preview-mode")
-            EditorModeButton(title: "编辑", symbol: "pencil", isSelected: store.mode == .editor) {
-                store.setMode(.editor)
-            }
-            .accessibilityIdentifier("show-editor-mode")
+    private var editorModeButton: some View {
+        ToolbarIconButton(
+            title: "编辑", symbol: "pencil",
+            help: store.mode == .editor ? "切换到预览 · ⌘R" : "切换到编辑 · ⌘R",
+            isSelected: store.mode == .editor
+        ) {
+            store.setMode(store.mode == .editor ? .preview : .editor)
         }
-        .padding(3)
-        .background(Color.primary.opacity(0.025), in: Capsule())
+        .accessibilityIdentifier("toggle-editor-mode")
+        .accessibilityValue(store.mode == .editor ? "编辑" : "预览")
         // Custom buttons can block input without changing their loading appearance.
         .disabled(store.document == nil || store.isBusy)
         .opacity(store.document == nil ? 0.45 : 1)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("文章视图")
-    }
-}
-
-private struct EditorModeButton: View {
-    let title: String
-    let symbol: String
-    let isSelected: Bool
-    let action: () -> Void
-    @State private var isHovered = false
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .symbolRenderingMode(.monochrome)
-                .font(.system(size: 14, weight: .medium))
-                .frame(width: 32, height: 32, alignment: .center)
-        }
-        .buttonStyle(ToolbarButtonStyle(isHovered: isHovered, isSelected: isSelected))
-        .onHover { isHovered = $0 }
-        .help("\(title) · ⌘R 切换视图")
-        .accessibilityLabel(title)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -286,6 +259,7 @@ private struct ToolbarIconButton: View {
     let title: String
     let symbol: String
     let help: String
+    var isSelected = false
     let action: () -> Void
     @State private var isHovered = false
 
@@ -296,9 +270,10 @@ private struct ToolbarIconButton: View {
                 .font(.system(size: 14))
                 .frame(width: 32, height: 32, alignment: .center)
         }
-        .buttonStyle(ToolbarButtonStyle(isHovered: isHovered))
+        .buttonStyle(ToolbarButtonStyle(isHovered: isHovered, isSelected: isSelected))
         .onHover { isHovered = $0 }
         .accessibilityLabel(title)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
         .help(help)
     }
 }
