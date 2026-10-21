@@ -118,6 +118,33 @@ final class ArticleRowMouseSelectionTests: CaseReportingTestCase {
         }
     }
 
+    func test_ROW_004_ContextMenuTargetsReusedRowWithoutChangingSelection() async throws {
+        try await MainActor.run {
+            _ = NSApplication.shared
+            let anchor = ArticleRowSelectionAnchor()
+            let controller = ArticleListSelectionController()
+            var selected = false
+            var deleted = ""
+            let event = try mouseEvent(.rightMouseDown)
+            anchor.configure(isEnabled: true, controller: controller, onDelete: { deleted = "A" }, onSelect: { selected = true })
+            let first = try XCTUnwrap(anchor.menu(for: event)?.items.first)
+            NSApp.sendAction(try XCTUnwrap(first.action), to: first.target, from: first)
+            XCTAssertEqual(deleted, "A")
+            XCTAssertFalse(selected)
+            anchor.configure(isEnabled: true, controller: controller, onDelete: { deleted = "B" }, onSelect: { selected = true })
+            let second = try XCTUnwrap(anchor.menu(for: event)?.items.first)
+            NSApp.sendAction(try XCTUnwrap(second.action), to: second.target, from: second)
+            XCTAssertEqual(deleted, "B")
+            XCTAssertFalse(selected)
+            anchor.configure(isEnabled: false, controller: controller, onDelete: { deleted = "disabled" }, onSelect: {})
+            XCTAssertNil(anchor.menu(for: event))
+            NSApp.sendAction(try XCTUnwrap(second.action), to: second.target, from: second)
+            XCTAssertEqual(deleted, "B")
+            anchor.invalidate()
+            XCTAssertNil(anchor.menu(for: event))
+        }
+    }
+
     private func mouseEvent(_ type: NSEvent.EventType, _ modifiers: NSEvent.ModifierFlags = []) throws -> NSEvent {
         try XCTUnwrap(NSEvent.mouseEvent(with: type, location: .zero, modifierFlags: modifiers,
                                         timestamp: 0, windowNumber: 0, context: nil,

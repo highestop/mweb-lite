@@ -22,7 +22,7 @@ Integration tests do not inherently require an app bundle. A test that creates a
 
 | Path | Execution environment and entry point | Current use |
 | --- | --- | --- |
-| `CI` | GitHub Actions runs the checked-out revision and scripts on its macOS runner. | The 54 XCTest cases and baseline WebKit cases PV-001 through PV-004 and PV-006. |
+| `CI` | GitHub Actions runs the checked-out revision and scripts on its macOS runner. | The 64 XCTest cases and baseline WebKit cases PV-001 through PV-004 and PV-006. |
 | `Local script` | A developer runs the documented command locally and records its output and environment. | PV-005 needs optional runtimes from an installed MWeb app; all CI commands can also be investigated locally. |
 | `Preview app` | The complete app runs on macOS with a per-run bundle identifier and copied fixture library selected by `--library`. | Repeatable UI, editing, selection, rendering, and save/restart flows. |
 | `Release app` | The normal app runs with its production bundle identifier, preferences, installation location, and normal launch entry point. | Installation, Finder/Dock icon, library chooser, and remembered-library restoration. |
@@ -48,7 +48,7 @@ Run commands from the repository root on macOS 14 or later with Swift 5.9 or lat
 | `scripts/prepare-test-library.py` | Materializes a runnable library from the full-app fixture. |
 | `scripts/run-preview-app.sh` | Builds and starts the full Preview app with a copied fixture library for end-to-end tests. |
 
-Run all 54 cataloged XCTest cases, or select a class or method while investigating a change:
+Run all 64 cataloged XCTest cases, or select a class or method while investigating a change:
 
 ```sh
 swift test
@@ -221,9 +221,11 @@ E2E-017 checks the same light, translucent overlay treatment in the category tre
 
 E2E-018 checks the persistent local save-status icon immediately left of the editing toggle. Its fixed slot must remain visible in both modes: filled clock while unsaved, a filled circle with circular arrows while saving, a filled circle with a check after success, and a filled circle with an exclamation after failure. SAVE-001 covers actual autosave, a database lock that makes in-flight writes observable, edits during that save, conflict persistence after dismissing the alert, and successful retry. The status describes local disk saves, not cloud synchronization or continuous external-file monitoring.
 
+E2E-019 exercises category creation, child creation, rename, validation, cancellation, and deletion through the real category context menus. The plus beside the category heading creates a root category. Deleting a category removes only that category and its direct document memberships; children move to its parent. Articles, attachments, tags, and other memberships survive. E2E-020 uses a separate fresh Library copy to check article context-menu targeting, cancellation, and trash persistence. Compare the copied files and SQLite rows before and after; never use a personal library for these destructive UI flows. CAT-001–004, TRASH-001–002, STORE-003–005, and ROW-004 cover database rollback, relationship preservation, pending drafts, and native menu callbacks in CI; they do not establish full-app menu/dialog interaction.
+
 ## Record manual end-to-end results
 
-[e2e-test-result.md](e2e-test-result.md) contains all 19 end-to-end cases (18 Preview app cases and REL-001), with `Case ID`, `Status`, `Commit SHA`, and `Outdated` columns. Record `Passed`, `Failed`, or `Skipped` only after an actual attempt. An unexecuted case keeps `—` in the last three columns. The recorded SHA is the full 40-character commit of the application actually tested, not the later commit that saves the result.
+[e2e-test-result.md](e2e-test-result.md) contains all 21 end-to-end cases (20 Preview app cases and REL-001), with `Case ID`, `Status`, `Commit SHA`, and `Outdated` columns. Record `Passed`, `Failed`, or `Skipped` only after an actual attempt. An unexecuted case keeps `—` in the last three columns. The recorded SHA is the full 40-character commit of the application actually tested, not the later commit that saves the result.
 
 Build from a known committed revision. Before building, commit source, fixture, script, case-definition, or other non-report changes; only edits to the two result Markdown files may remain uncommitted. For a Preview app run, capture `baseCommit` from its `run.json`, not the current checkout after further work. If `workingTreeDirty` is true, confirm that only result files were dirty and verify the recorded source-file hashes/fingerprint against the build inputs. Do not label an app built from other uncommitted changes as the recorded commit. Run metadata identifies the binary's source; it does not prove that a case was executed.
 
@@ -274,7 +276,7 @@ python3 scripts/collect-test-results.py \
   --markdown build/test-results/ci-test-result.md
 ```
 
-`--markdown` is optional and renders a local inspection copy. Do not attach a CI URL to results from a different local execution. Add `--require-xctest` when the XCTest runner succeeded and `--require-preview` when the WebKit runner succeeded: these flags require complete reporting for that successful runner. The workflow sets them from each runner's outcome. Failed or interrupted runners may supply partial observed results without those flags; absent results are never filled in. A complete baseline run currently produces 59 CI records: 54 XCTest cases and five WebKit cases, excluding local-only PV-005.
+`--markdown` is optional and renders a local inspection copy. Do not attach a CI URL to results from a different local execution. Add `--require-xctest` when the XCTest runner succeeded and `--require-preview` when the WebKit runner succeeded: these flags require complete reporting for that successful runner. The workflow sets them from each runner's outcome. Failed or interrupted runners may supply partial observed results without those flags; absent results are never filled in. A complete baseline run currently produces 59 CI records: 64 XCTest cases and five WebKit cases, excluding local-only PV-005.
 
 The runner has its own checkout and temporary data; it does not access a developer's library. CI does not currently drive the Preview app or Release app with mouse and keyboard or perform visual review. PV-005 and all full-app cases are excluded from the CI result summary because their Paths are local. A local run of the same command cannot substitute for CI evidence.
 

@@ -73,6 +73,7 @@ public enum MWebLibraryError: LocalizedError {
     case database(String)
     case missingArticle
     case missingCategory
+    case invalidCategory(String)
     case trashedArticle
     case invalidDocument(String)
     case conflict
@@ -90,6 +91,8 @@ public enum MWebLibraryError: LocalizedError {
             return "这篇文章已不在文库中，请刷新文库。"
         case .missingCategory:
             return "所选分类已不存在，请刷新文库后重试。"
+        case .invalidCategory(let detail):
+            return "无法修改分类：\(detail)"
         case .trashedArticle:
             return "这篇文章已被移入废纸篓，无法在此编辑。"
         case .invalidDocument(let detail):

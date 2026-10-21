@@ -8,6 +8,9 @@ struct CategoryTreeView: View {
     let allCount: Int
     let uncategorizedCount: Int
     @Binding var expandedIDs: Set<String>
+    var onCreate: (String?) -> Void = { _ in }
+    var onRename: (String) -> Void = { _ in }
+    var onDelete: (String) -> Void = { _ in }
     @Environment(\.isEnabled) private var isEnabled
     @StateObject private var keyboard = CategoryTreeKeyboardController()
 
@@ -37,8 +40,19 @@ struct CategoryTreeView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 2) {
                         ForEach(collectionRows) { row in categoryRow(row) }
-                        Text("分类").font(.system(size: 11)).foregroundStyle(.secondary)
-                            .padding(.horizontal, 10).padding(.top, 16).padding(.bottom, 4)
+                        HStack {
+                            Text("分类").font(.system(size: 11)).foregroundStyle(.secondary)
+                            Spacer()
+                            Button { onCreate(nil) } label: {
+                                Image(systemName: "plus").font(.system(size: 11))
+                                    .frame(width: 24, height: 24)
+                                    .contentShape(Circle())
+                            }
+                            .buttonStyle(.plain)
+                            .help("新建分类")
+                            .accessibilityLabel("新建分类")
+                        }
+                        .padding(.horizontal, 10).padding(.top, 12)
                         ForEach(categoryRows) { row in categoryRow(row) }
                     }
                     .padding(.horizontal, 10).padding(.bottom, 10)
@@ -47,6 +61,7 @@ struct CategoryTreeView: View {
                 .frame(width: viewport.size.width, height: viewport.size.height)
                 .scrollIndicators(.never)
                 .background(CategoryTreeKeyboardSelection(controller: keyboard, onCommand: navigate))
+                .contextMenu { Button("新建分类…") { onCreate(nil) } }
                 .onChange(of: selectedCategory) { _, selected in proxy.scrollTo(selected) }
             }
         }
@@ -65,7 +80,17 @@ struct CategoryTreeView: View {
                 toggle(entry)
                 keyboard.focus()
             }
-        ).id(entry.id)
+        )
+        .contextMenu {
+            Button("新建分类…") { onCreate(nil) }
+            if !["all", "uncategorized"].contains(entry.id) {
+                Button("新建子分类…") { onCreate(entry.id) }
+                Divider()
+                Button("重命名…") { onRename(entry.id) }
+                Button("删除分类…", role: .destructive) { onDelete(entry.id) }
+            }
+        }
+        .id(entry.id)
     }
 
     private func toggle(_ entry: CategoryTreeEntry) {

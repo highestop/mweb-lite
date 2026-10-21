@@ -106,7 +106,10 @@ struct LibraryView: View {
             nodes: store.categoryTree, selectedCategory: $store.selectedCategory,
             allCount: store.activeArticles.count,
             uncategorizedCount: store.activeArticles.filter { $0.categoryIDs.isEmpty }.count,
-            expandedIDs: $expandedCategoryIDs
+            expandedIDs: $expandedCategoryIDs,
+            onCreate: promptCreateCategory,
+            onRename: promptRenameCategory,
+            onDelete: confirmDeleteCategory
         )
         .id(store.rootURL)
         .disabled(store.isBusy)
@@ -156,13 +159,68 @@ struct LibraryView: View {
         .padding(10)
         .background(selected ? Color(nsColor: .unemphasizedSelectedContentBackgroundColor) : .clear,
                     in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(ArticleRowMouseSelection(controller: articleListSelection) { store.selectArticle(article.id) })
+        .overlay(ArticleRowMouseSelection(controller: articleListSelection, onDelete: {
+            confirmTrashArticle(article)
+        }) { store.selectArticle(article.id) })
+        .accessibilityAction(named: "删除文档") { confirmTrashArticle(article) }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
         .accessibilityAction {
             store.selectArticle(article.id)
             articleListSelection.focus()
         }
+    }
+
+    private func promptCreateCategory(parentID: String?) {
+        guard !store.isBusy else { return }
+        if let name = categoryNamePrompt(title: parentID == nil ? "新建分类" : "新建子分类", name: "") {
+            if let parentID { expandedCategoryIDs.insert(parentID) }
+            store.createCategory(name: name, parentID: parentID)
+        }
+    }
+
+    private func promptRenameCategory(_ id: String) {
+        guard !store.isBusy, let category = store.categories.first(where: { $0.id == id }) else { return }
+        if let name = categoryNamePrompt(title: "重命名分类", name: category.name) {
+            store.renameCategory(id: id, name: name)
+        }
+    }
+
+    private func categoryNamePrompt(title: String, name: String) -> String? {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.addButton(withTitle: "确定")
+        alert.addButton(withTitle: "取消")
+        let field = NSTextField(string: name)
+        field.frame = NSRect(x: 0, y: 0, width: 280, height: 24)
+        field.placeholderString = "分类名称"
+        field.setAccessibilityLabel("分类名称")
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+        guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+        return field.stringValue
+    }
+
+    private func confirmDeleteCategory(_ id: String) {
+        guard !store.isBusy, let category = store.categories.first(where: { $0.id == id }) else { return }
+        let alert = NSAlert()
+        alert.messageText = "删除分类“\(category.name)”？"
+        alert.informativeText = "文档不会被删除，只会解除与这个分类的关联。子分类将保留并提升到上一级。"
+        alert.addButton(withTitle: "取消")
+        alert.addButton(withTitle: "删除分类")
+        guard alert.runModal() == .alertSecondButtonReturn else { return }
+        store.deleteCategory(id: id)
+    }
+
+    private func confirmTrashArticle(_ article: MWebArticle) {
+        guard !store.isBusy else { return }
+        let alert = NSAlert()
+        alert.messageText = "删除文档“\(article.title)”？"
+        alert.informativeText = "文档将移入 MWeb 废纸篓，正文和附件会保留。可在 MWeb 中恢复。"
+        alert.addButton(withTitle: "取消")
+        alert.addButton(withTitle: "移入废纸篓")
+        guard alert.runModal() == .alertSecondButtonReturn else { return }
+        store.trashArticle(article.id)
     }
 
     private func selectRelativeArticle(_ offset: Int) {

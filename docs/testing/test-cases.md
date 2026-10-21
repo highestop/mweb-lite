@@ -1,6 +1,6 @@
 # Test cases
 
-This document defines the shared case format and indexes the individual case files. Each file records behavior, test level, verification path, data source, and execution instructions. It contains 79 cases: 54 Swift tests, 6 preview-component integration cases, 18 full-app preview cases, and 1 release-app case. Execution results are separate in [CI results](ci-test-result.md) and [manual end-to-end results](e2e-test-result.md). Follow the [test guide](test-guide.md) for setup and implementation. A passing test verifies only its **Then** statement at the recorded revision; it does not certify the whole feature or subsequent changes. In particular, AppKit component tests and `PreviewTests.app` are integration tests, not full-application end-to-end tests.
+This document defines the shared case format and indexes the individual case files. Each file records behavior, test level, verification path, data source, and execution instructions. It contains 91 cases: 64 Swift tests, 6 preview-component integration cases, 20 full-app preview cases, and 1 release-app case. Execution results are separate in [CI results](ci-test-result.md) and [manual end-to-end results](e2e-test-result.md). Follow the [test guide](test-guide.md) for setup and implementation. A passing test verifies only its **Then** statement at the recorded revision; it does not certify the whole feature or subsequent changes. In particular, AppKit component tests and `PreviewTests.app` are integration tests, not full-application end-to-end tests.
 
 ## Format and result rules
 
@@ -64,7 +64,7 @@ A test that did not run has no result entry. A compile error, failed application
 
 ## Manual end-to-end result contract
 
-[e2e-test-result.md](e2e-test-result.md) tracks the 19 end-to-end cases: 18 Preview app cases and REL-001 for the Release app. Its columns are `Case ID`, `Status`, `Commit SHA`, and `Outdated`. Case IDs link to their definitions. Record `Passed`, `Failed`, or `Skipped` only for an actual execution, with the full commit SHA of the app version tested, formatted as inline code. Do not use the later commit that records the result. A case with no execution record uses `—` for Status, Commit SHA, and Outdated.
+[e2e-test-result.md](e2e-test-result.md) tracks the 21 end-to-end cases: 20 Preview app cases and REL-001 for the Release app. Its columns are `Case ID`, `Status`, `Commit SHA`, and `Outdated`. Case IDs link to their definitions. Record `Passed`, `Failed`, or `Skipped` only for an actual execution, with the full commit SHA of the app version tested, formatted as inline code. Do not use the later commit that records the result. A case with no execution record uses `—` for Status, Commit SHA, and Outdated.
 
 Outdated is computed independently of the recorded outcome: `Yes` means the tested effective version differs from current main or the recorded commit cannot be resolved; an empty cell means they match. Refreshing freshness must not change Status or Commit SHA. Both versions are normalized along first-parent history, ignoring only commits with a nonempty actual diff limited to `docs/testing/ci-test-result.md` and `docs/testing/e2e-test-result.md`. Source, fixture, case-definition, other documentation, or mixed commits count as version changes. See the [manual result workflow](test-guide.md#record-manual-end-to-end-results) for recording and refreshing results with full Git history.
 
@@ -186,6 +186,21 @@ Open a case to read or update its GWT statements, execution details, and data so
 - [E2E-017](cases/E2E-017.md) — Keep light translucent scrollbars overlaid without layout shifts in categories, articles, editor, and preview.
 
 - [E2E-018](cases/E2E-018.md) — Keep a local save-status icon beside the editing toggle through pending edits, autosave, conflicts, and reload.
+
+### Document and category management
+
+- [CAT-001](cases/CAT-001.md) — Names, root/child UUID relationships, sort position, defaults, and the database backup are correct
+- [CAT-002](cases/CAT-002.md) — Only Notes and all of its memberships disappear
+- [CAT-003](cases/CAT-003.md) — Writing and Notes become root categories with their original memberships
+- [CAT-004](cases/CAT-004.md) — Every operation throws
+- [TRASH-001](cases/TRASH-001.md) — Only article.state changes to 0
+- [TRASH-002](cases/TRASH-002.md) — All attempts fail without modifying article rows or document/media bytes.
+- [STORE-003](cases/STORE-003.md) — The first deletion saves and retains the current draft/selection
+- [STORE-004](cases/STORE-004.md) — Each operation is blocked before its structural write
+- [STORE-005](cases/STORE-005.md) — The draft is saved before management writes
+- [ROW-004](cases/ROW-004.md) — Deletion calls the current target without selecting it
+- [E2E-019](cases/E2E-019.md) — Creation and renaming update the tree
+- [E2E-020](cases/E2E-020.md) — Cancel changes nothing. Deleting B removes B while A stays open. Deleting the selected article opens another remaining row. Both deletions persist, active/category counts update, and deleted documents have state 0 with Markdown, attachments, and other metadata/relations preserved. No right-click selects or deletes a different row.
 
 ### Release-app end-to-end case
 

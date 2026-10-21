@@ -199,6 +199,123 @@ public final class MWebLibrary: @unchecked Sendable {
         }
     }
 
+    /// MWeb's trash keeps the document, attachments, and category/tag relations.
+    public func trashDocument(articleID: String) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        let database = try SQLiteDatabase(url: databaseURL, writable: true)
+        try database.execute("BEGIN IMMEDIATE")
+        defer { database.rollbackIfNeeded() }
+        _ = try articleRow(articleID, database: database)
+        _ = try makeDatabaseBackup()
+        try database.execute("UPDATE article SET state = 0 WHERE uuid = ?", bindings: [.text(articleID)])
+        try database.execute("COMMIT")
+    }
+
+    @discardableResult
+    public func createCategory(name: String, parentID: String? = nil) throws -> String {
+        try createCategory(name: name, parentID: parentID, now: Date())
+    }
+
+    func createCategory(name: String, parentID: String?, now: Date) throws -> String {
+        let name = try Self.categoryName(name)
+        lock.lock()
+        defer { lock.unlock() }
+        let database = try SQLiteDatabase(url: databaseURL, writable: true)
+        try database.execute("BEGIN IMMEDIATE")
+        defer { database.rollbackIfNeeded() }
+        let parent: SQLiteValue
+        if let parentID {
+            parent = try categoryRow(parentID, database: database)["uuid"]!
+        } else { parent = .integer(0) }
+        guard var identifier = Int64(exactly: floor(now.timeIntervalSince1970 * 10_000)), identifier > 0 else {
+            throw MWebLibraryError.invalidCategory("无法生成分类标识。")
+        }
+        while try !database.query("SELECT uuid FROM cat WHERE uuid = ?", bindings: [.integer(identifier)]).isEmpty {
+            guard identifier < Int64.max else { throw MWebLibraryError.invalidCategory("无法生成分类标识。") }
+            identifier += 1
+        }
+        let schema = try database.query("PRAGMA table_info(cat)")
+        var values: [(String, SQLiteValue)] = [("uuid", .integer(identifier)), ("name", .text(name)), ("pid", parent)]
+        if schema.contains(where: { $0["name"]?.string == "sort" }) {
+            let last = try database.query("SELECT MAX(sort) AS value FROM cat WHERE COALESCE(pid, 0) = ?", bindings: [parent]).first?["value"]?.integer ?? -1
+            values.append(("sort", .integer(last == Int64.max ? last : last + 1)))
+        }
+        let fallbacks: [(String, SQLiteValue)] = [("sortType", .integer(0)), ("catType", .integer(0)),
+                                                 ("siteName", .text("")), ("siteURL", .text(""))]
+        for (field, value) in fallbacks {
+            if schema.contains(where: { $0["name"]?.string == field && $0["dflt_value"] == .null }) {
+                values.append((field, value))
+            }
+        }
+        _ = try makeDatabaseBackup()
+        let fields = values.map(\.0).joined(separator: ", ")
+        let placeholders = Array(repeating: "?", count: values.count).joined(separator: ", ")
+        try database.execute("INSERT INTO cat (\(fields)) VALUES (\(placeholders))", bindings: values.map(\.1))
+        try database.execute("COMMIT")
+        return String(identifier)
+    }
+
+    public func renameCategory(id: String, name: String) throws {
+        let name = try Self.categoryName(name)
+        lock.lock()
+        defer { lock.unlock() }
+        let database = try SQLiteDatabase(url: databaseURL, writable: true)
+        try database.execute("BEGIN IMMEDIATE")
+        defer { database.rollbackIfNeeded() }
+        let row = try categoryRow(id, database: database)
+        guard row["name"]?.string != name else { return }
+        _ = try makeDatabaseBackup()
+        try database.execute("UPDATE cat SET name = ? WHERE uuid = ?", bindings: [.text(name), .text(id)])
+        try database.execute("COMMIT")
+    }
+
+    /// Delete only this category and its direct memberships. Children survive at
+    /// the deleted category's parent; document bytes and other memberships stay intact.
+    public func deleteCategory(id: String) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        let database = try SQLiteDatabase(url: databaseURL, writable: true)
+        try database.execute("BEGIN IMMEDIATE")
+        defer { database.rollbackIfNeeded() }
+        let row = try categoryRow(id, database: database)
+        var parent = row["pid"] ?? .integer(0)
+        if parent == .null { parent = .integer(0) }
+        // Reject malformed ancestry rather than promoting children into a cycle.
+        var ancestors: Set<String> = [id]
+        var cursor = parent.string
+        while let value = cursor, value != "0", !value.isEmpty {
+            guard ancestors.insert(value).inserted else {
+                throw MWebLibraryError.invalidCategory("分类层级存在循环，请先修复文库。")
+            }
+            guard let ancestor = try database.query("SELECT pid FROM cat WHERE uuid = ?", bindings: [.text(value)]).first else {
+                parent = .integer(0)
+                break
+            }
+            cursor = ancestor["pid"]?.string
+        }
+        _ = try makeDatabaseBackup()
+        try database.execute("UPDATE cat SET pid = ? WHERE pid = ?", bindings: [parent, .text(id)])
+        try database.execute("DELETE FROM cat_article WHERE rid = ?", bindings: [.text(id)])
+        try database.execute("DELETE FROM cat WHERE uuid = ?", bindings: [.text(id)])
+        try database.execute("COMMIT")
+    }
+
+    private func categoryRow(_ id: String, database: SQLiteDatabase) throws -> SQLiteRow {
+        guard let row = try database.query("SELECT * FROM cat WHERE uuid = ?", bindings: [.text(id)]).first else {
+            throw MWebLibraryError.missingCategory
+        }
+        return row
+    }
+
+    private static func categoryName(_ value: String) throws -> String {
+        let name = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, !name.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {
+            throw MWebLibraryError.invalidCategory("名称不能为空，也不能包含换行或控制字符。")
+        }
+        return name
+    }
+
     /// Updates only the Markdown file and dateModif. Unknown columns and all relationships stay intact.
     public func saveDocument(_ original: MWebDocument, content: String) throws -> MWebDocument {
         lock.lock()

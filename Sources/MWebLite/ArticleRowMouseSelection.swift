@@ -87,20 +87,22 @@ struct ArticleRowMouseSelection: NSViewRepresentable {
     @Environment(\.isEnabled) private var isEnabled
     let controller: ArticleListSelectionController
     let onSelect: () -> Void
+    var onDelete: (() -> Void)?
 
-    init(controller: ArticleListSelectionController, _ onSelect: @escaping () -> Void) {
+    init(controller: ArticleListSelectionController, onDelete: (() -> Void)? = nil, _ onSelect: @escaping () -> Void) {
         self.controller = controller
         self.onSelect = onSelect
+        self.onDelete = onDelete
     }
 
     func makeNSView(context: Context) -> ArticleRowSelectionAnchor {
         let view = ArticleRowSelectionAnchor()
-        view.configure(isEnabled: isEnabled, controller: controller, onSelect: onSelect)
+        view.configure(isEnabled: isEnabled, controller: controller, onDelete: onDelete, onSelect: onSelect)
         return view
     }
 
     func updateNSView(_ nsView: ArticleRowSelectionAnchor, context: Context) {
-        nsView.configure(isEnabled: isEnabled, controller: controller, onSelect: onSelect)
+        nsView.configure(isEnabled: isEnabled, controller: controller, onDelete: onDelete, onSelect: onSelect)
     }
 
     static func dismantleNSView(_ nsView: ArticleRowSelectionAnchor, coordinator: ()) {
@@ -111,6 +113,7 @@ struct ArticleRowMouseSelection: NSViewRepresentable {
 final class ArticleRowSelectionAnchor: NSView {
     private weak var controller: ArticleListSelectionController?
     private var onSelect: (() -> Void)?
+    private var onDelete: (() -> Void)?
     private var selectionEnabled = false
     private var isDismantled = false
 
@@ -123,11 +126,12 @@ final class ArticleRowSelectionAnchor: NSView {
         return super.hitTest(point)
     }
 
-    func configure(isEnabled: Bool, controller: ArticleListSelectionController, onSelect: @escaping () -> Void) {
+    func configure(isEnabled: Bool, controller: ArticleListSelectionController, onDelete: (() -> Void)? = nil, onSelect: @escaping () -> Void) {
         guard !isDismantled else { return }
         selectionEnabled = isEnabled
         self.controller = controller
         self.onSelect = onSelect
+        self.onDelete = onDelete
     }
 
     static func accepts(_ event: NSEvent) -> Bool {
@@ -136,10 +140,29 @@ final class ArticleRowSelectionAnchor: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        if event.modifierFlags.contains(.control), let menu = menu(for: event) {
+            NSMenu.popUpContextMenu(menu, with: event, for: self)
+            return
+        }
         guard !isDismantled, selectionEnabled, Self.accepts(event) else { return }
         // No tracking loop or mouse-up action: the store changes during this down.
         onSelect?()
         if !isDismantled { controller?.focus(in: window) }
+    }
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        guard !isDismantled, selectionEnabled, onDelete != nil else { return nil }
+        let menu = NSMenu()
+        let item = NSMenuItem(title: "删除文档…", action: #selector(deleteArticle), keyEquivalent: "")
+        item.target = self
+        item.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
+        menu.addItem(item)
+        return menu
+    }
+
+    @objc private func deleteArticle() {
+        guard !isDismantled, selectionEnabled else { return }
+        onDelete?()
     }
 
     // Leave scrollWheel(with:) inherited so the surrounding scroll view receives it.
@@ -147,6 +170,7 @@ final class ArticleRowSelectionAnchor: NSView {
         isDismantled = true
         selectionEnabled = false
         onSelect = nil
+        onDelete = nil
         controller = nil
     }
 }
