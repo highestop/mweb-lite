@@ -241,9 +241,12 @@ struct LibraryView: View {
 
     private var editorModeButton: some View {
         ToolbarIconButton(
-            title: "编辑", symbol: "pencil",
+            title: "编辑", symbol: "square.and.pencil",
             help: store.mode == .editor ? "切换到预览 · ⌘R" : "切换到编辑 · ⌘R",
-            isSelected: store.mode == .editor
+            isSelected: store.mode == .editor,
+            symbolWeight: .medium,
+            // Center the square body; the pencil extends above and to its right.
+            symbolOffset: CGSize(width: 1, height: -1)
         ) {
             store.setMode(store.mode == .editor ? .preview : .editor)
         }
@@ -260,6 +263,8 @@ private struct ToolbarIconButton: View {
     let symbol: String
     let help: String
     var isSelected = false
+    var symbolWeight: Font.Weight = .regular
+    var symbolOffset: CGSize = .zero
     let action: () -> Void
     @State private var isHovered = false
 
@@ -267,7 +272,8 @@ private struct ToolbarIconButton: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .symbolRenderingMode(.monochrome)
-                .font(.system(size: 14))
+                .font(.system(size: 14, weight: symbolWeight))
+                .offset(symbolOffset)
                 .frame(width: 32, height: 32, alignment: .center)
         }
         .buttonStyle(ToolbarButtonStyle(isHovered: isHovered, isSelected: isSelected))

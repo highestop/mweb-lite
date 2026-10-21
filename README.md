@@ -26,7 +26,7 @@ The demo generator refuses to overwrite existing directories. `--library` does n
 
 ## Included
 
-- Native category tree, article list, title/summary search, and editor/preview modes. Toggle the toolbar’s pencil button to edit (active) or preview (inactive), or switch from the View menu or with `⌘R`; the article uses the full window height.
+- Native category tree, article list, title/summary search, and editor/preview modes. Toggle the toolbar’s square-and-pencil button to edit (active) or preview (inactive), or switch from the View menu or with `⌘R`; the article uses the full window height.
 - Articles appear in descending creation-time order and are separated by creation year and month. Editing does not move an article or change its date group. Missing creation dates remain undated. Consecutive notes on the same local creation day show the day number only on the first row, with the date column retained for alignment. Each card has an optional square mosaic of the first four images in document order, and the bold title plus excerpt. Text-only articles use the remaining space. The article column can be resized.
 - A persistent icon beside the editing toggle shows local save status: pending, saving, saved, or failed. Hover for an explanation; failures stay visible after dismissing an error.
 - Create an article from the toolbar’s plus button or `⌘N`. It belongs to the selected category and opens in the editor with its title selected. Creating from All or Uncategorized leaves it uncategorized.
