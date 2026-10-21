@@ -42,6 +42,24 @@ final class LocalizationTests: CaseReportingTestCase {
         XCTAssertEqual(chinese.format("Delete Category “%@”?", name), "删除分类“\(name)”？")
         XCTAssertEqual(english.format("%ld articles", 12), "12 articles")
         XCTAssertEqual(chinese.format("%ld articles", 12), "12 篇文章")
+        // Exercise native SwiftPM's lowercase directories as well as the Xcode
+        // resource layout used on some developer machines.
+        let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: temporary) }
+        let normalizedRoot = temporary.appendingPathComponent("Localization.bundle")
+        for localization in [english, chinese] {
+            let directory = normalizedRoot.appendingPathComponent(localization.language.lowercased() + ".lproj")
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let source = try XCTUnwrap(localization.bundle.url(forResource: "Localizable", withExtension: "strings"))
+            try FileManager.default.copyItem(at: source, to: directory.appendingPathComponent("Localizable.strings"))
+        }
+        let metadata = try PropertyListSerialization.data(fromPropertyList: ["CFBundleDevelopmentRegion": "en"],
+                                                          format: .xml, options: 0)
+        try metadata.write(to: normalizedRoot.appendingPathComponent("Info.plist"))
+        let normalizedResources = try XCTUnwrap(Bundle(url: normalizedRoot))
+        let normalized = Localization(preferredLanguages: ["zh-Hans"], resources: normalizedResources)
+        XCTAssertEqual(normalized.bundle.bundleURL.lastPathComponent, "zh-hans.lproj")
+        XCTAssertEqual(normalized.string("New Article"), "新建文章")
         // Native standard menus use the executable bundle's declared localizations.
         let project = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let info = try Data(contentsOf: project.appendingPathComponent("Support/Info.plist"))
