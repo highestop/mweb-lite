@@ -13,6 +13,7 @@ struct CategoryTreeView: View {
     var onDelete: (String) -> Void = { _ in }
     @Environment(\.isEnabled) private var isEnabled
     @StateObject private var keyboard = CategoryTreeKeyboardController()
+    @State private var isCreateHovered = false
 
     private var categoryRows: [CategoryTreeEntry] {
         func flatten(_ nodes: [CategoryNode], depth: Int, parentID: String?) -> [CategoryTreeEntry] {
@@ -44,15 +45,18 @@ struct CategoryTreeView: View {
                             Text("分类").font(.system(size: 11)).foregroundStyle(.secondary)
                             Spacer()
                             Button { onCreate(nil) } label: {
-                                Image(systemName: "plus").font(.system(size: 11))
-                                    .frame(width: 24, height: 24)
-                                    .contentShape(Circle())
+                                Image(systemName: "plus")
+                                    .symbolRenderingMode(.monochrome)
+                                    .font(.system(size: 11, weight: .medium))
+                                    .frame(width: 24, height: 24, alignment: .center)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(ToolbarButtonStyle(isHovered: isCreateHovered))
+                            .onHover { isCreateHovered = $0 }
+                            .accessibilityIdentifier("new-category")
                             .help("新建分类")
                             .accessibilityLabel("新建分类")
                         }
-                        .padding(.horizontal, 10).padding(.top, 12)
+                        .padding(.leading, 8).padding(.top, 12)
                         ForEach(categoryRows) { row in categoryRow(row) }
                     }
                     .padding(.horizontal, 10).padding(.bottom, 10)
