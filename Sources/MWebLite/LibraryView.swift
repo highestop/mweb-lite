@@ -341,7 +341,7 @@ private struct ToolbarIconButton: View {
     }
 }
 
-private struct ToolbarButtonStyle: ButtonStyle {
+struct ToolbarButtonStyle: ButtonStyle {
     let isHovered: Bool
     var isSelected = false
     @Environment(\.isEnabled) private var isEnabled
