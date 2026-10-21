@@ -16,14 +16,27 @@ public struct Localization {
     }()
 
     public init(preferredLanguages: [String] = Locale.preferredLanguages) {
+        self.init(preferredLanguages: preferredLanguages, resources: Self.resources)
+    }
+
+    init(preferredLanguages: [String], resources: Bundle) {
         // Use the same native matching rules and supported languages as the main
         // bundle, so application strings and AppKit menus cannot choose differently.
         language = Bundle.preferredLocalizations(from: ["en", "zh-Hans"], forPreferences: preferredLanguages).first ?? "en"
         var components = Locale.Components(locale: .current)
         components.languageComponents = Locale.Language.Components(identifier: language)
         locale = Locale(components: components)
-        bundle = Self.resources.url(forResource: language, withExtension: "lproj")
-            .flatMap(Bundle.init(url:)) ?? Self.resources
+        // Native SwiftPM lowercases lproj names; Xcode preserves their spelling.
+        // Resolve the actual directory instead of relying on localized resource
+        // lookup, which can silently choose the development language.
+        let directories = resources.resourceURL.flatMap {
+            try? FileManager.default.contentsOfDirectory(at: $0, includingPropertiesForKeys: nil)
+        } ?? []
+        let localized = directories.first {
+            $0.pathExtension == "lproj" &&
+                $0.deletingPathExtension().lastPathComponent.caseInsensitiveCompare(language) == .orderedSame
+        }
+        bundle = localized.flatMap(Bundle.init(url:)) ?? resources
     }
 
     public func string(_ key: String) -> String {
