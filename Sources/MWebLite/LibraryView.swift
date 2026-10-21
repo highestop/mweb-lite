@@ -5,8 +5,8 @@ struct LibraryView: View {
     @ObservedObject var store: LibraryStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var navigationVisible = true
-    @State private var categoryWidth: CGFloat = 243
-    @State private var articleWidth: CGFloat = 360
+    @State private var categoryWidth: CGFloat = 180
+    @State private var articleWidth: CGFloat = 400
     @State private var categoryEdgeHighlighted = false
     @State private var articleEdgeHighlighted = false
     @State private var expandedCategoryIDs: Set<String> = []
