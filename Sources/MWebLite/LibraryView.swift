@@ -353,7 +353,7 @@ struct ToolbarButtonStyle: ButtonStyle {
         let highlighted = isEnabled && (isHovered || pressed)
         // Loading briefly disables actions without fading the toolbar.
         return configuration.label
-            .foregroundStyle(isSelected || highlighted ? Color.primary : Color.secondary)
+            .foregroundStyle(highlighted ? Color.primary : Color.secondary)
             .background(Color.primary.opacity(pressed ? 0.12 : isSelected ? 0.08 : highlighted ? 0.06 : 0),
                         in: Circle())
             .contentShape(Circle())
